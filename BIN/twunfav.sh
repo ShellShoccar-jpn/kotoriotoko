@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# untwfollow.sh
-# Twitterで指定ユーザーのフォローを解除する
+# twunfav.sh
+# Twitterでお気に入りを取り消す
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2015/09/23
 #
@@ -32,8 +32,8 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} <loginname>
-	Wed Sep 23 00:11:45 JST 2015
+	Usage : ${0##*/} <tweet_id>
+	Wed Sep 23 14:37:42 JST 2015
 __USAGE
   exit 1
 }
@@ -70,14 +70,14 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-scname=''
+tweetid=''
 
-# === ユーザーログイン名を取得 =======================================
+# === リツイート用のツイートIDを取得 =================================
 case $# in
-  1) scname=$(printf '%s' "${1#@}" | tr -d '\n');;
-  *) print_usage_and_exit                       ;;
+  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
+  *) print_usage_and_exit                    ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
   print_usage_and_exit
 }
 
@@ -88,14 +88,14 @@ printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-readonly API_endpt='https://api.twitter.com/1.1/friendships/destroy.json'
+readonly API_endpt='https://api.twitter.com/1.1/favorites/destroy.json'
 readonly API_methd='POST'
 # (2)パラメーター 注意:パラメーターの順番は変数名の辞書順に連結すること
-API_param=$(cat <<______________PARAM      |
-              screen_name=$scname
+API_param=$(cat <<______________PARAM         |
+              id=$tweetid
 ______________PARAM
-            sed 's/^ *//'                  |
-            grep -v '^[A-Za-z0-9_]\{1,\}=$')
+            sed 's/^ *//'                     |
+            grep -v '^in_reply_to_status_id=$')
 readonly API_param
 
 # === 署名や送信リクエストの材料を作成 ===============================
@@ -214,7 +214,7 @@ awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
 # --- 4.通信に失敗していた場合はエラーを返して終了
 awk '"ALL" END{exit 1-(NR>0);}'
 case $? in [^0]*)
-  error_exit 1 'Failed to unfollow'
+  error_exit 1 'Failed to unfavor'
 esac
 
 
