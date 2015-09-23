@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <tweet_id>
-	Wed Sep 23 16:01:40 JST 2015
+	Wed Sep 23 17:01:18 JST 2015
 __USAGE
   exit 1
 }
@@ -142,6 +142,7 @@ ______________KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
             sed 's/ *$//'                                        |
+            grep ^                                               |
             # 1:APIkey 2:APIsec 3:リクエストメソッド             #
             # 4:APIエンドポイント 5:APIパラメーター              #
             while read key sec mth ept par; do                   #
@@ -163,6 +164,7 @@ sort -k 1,1 -t '='                                                   |
 tr '\n' ','                                                          |
 sed 's/,$//'                                                         |
 sed 's/^/Authorization: OAuth /'                                     |
+grep ^                                                               |
 while read -r oa_hdr; do                                             #
   if   [ -n "${CMD_WGET:-}" ]; then                                  #
     "$CMD_WGET" --no-check-certificate -q -O -                       \
@@ -208,8 +210,8 @@ awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
             printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
 # --- 4.通信に失敗していた場合はエラーを返して終了
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
-case $? in [^0]*)
-  error_exit 1 'Failed to delete the (re)tweet'
+case $? in [!0]*)
+  error_exit 1 'Failed to delete the (re)tweet';;
 esac
 
 

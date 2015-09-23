@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Wed Sep 23 16:05:15 JST 2015
+	Wed Sep 23 17:04:09 JST 2015
 __USAGE
   exit 1
 }
@@ -169,6 +169,7 @@ ______________KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
             sed 's/ *$//'                                        |
+            grep ^                                               |
             # 1:APIkey 2:APIsec 3:リクエストメソッド             #
             # 4:APIエンドポイント 5:APIパラメーター              #
             while read key sec mth ept par; do                   #
@@ -190,6 +191,7 @@ sort -k 1,1 -t '='                                                           |
 tr '\n' ','                                                                  |
 sed 's/,$//'                                                                 |
 sed 's/^/Authorization: OAuth /'                                             |
+grep ^                                                                       |
 while read -r oa_hdr; do                                                     #
   curl -s -H "$oa_hdr" "$API_endpt$apip_get"                                 #
 done                                                                         |
@@ -211,8 +213,8 @@ awk '                                                                        #
     id=""; nm=""; sn="";                                                  }' |
 # --- 3.通信に失敗していた場合はエラーを返して終了                           #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
-case $? in [^0]*)
-  error_exit 1 'Failed to view the following users'
+case $? in [!0]*)
+  error_exit 1 'Failed to view the following users';;
 esac
 
 
