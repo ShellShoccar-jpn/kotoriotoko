@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Wed Sep 23 17:04:09 JST 2015
+	Wed Sep 23 17:21:36 JST 2015
 __USAGE
   exit 1
 }
@@ -51,10 +51,10 @@ else
   error_exit 1 'OpenSSL command is not found.'
 fi
 # --- 2.HTTPアクセスコマンド（wgetまたはcurl）
-if   type wget    >/dev/null 2>&1; then
-  CMD_WGET='wget'
-elif type curl    >/dev/null 2>&1; then
+if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
+elif type wget    >/dev/null 2>&1; then
+  CMD_WGET='wget'
 else
   error_exit 1 'No HTTP-GET/POST command found.'
 fi
