@@ -34,7 +34,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] <keyword> [...]
 	        echo <keyword> [...] | ${0##*/} [-n <count>|--count=<count>] -
-	Wed Sep 23 16:06:46 JST 2015
+	Wed Sep 23 17:21:58 JST 2015
 __USAGE
   exit 1
 }
@@ -52,10 +52,10 @@ else
   error_exit 1 'OpenSSL command is not found.'
 fi
 # --- 2.HTTPアクセスコマンド（wgetまたはcurl）
-if   type wget    >/dev/null 2>&1; then
-  CMD_WGET='wget'
-elif type curl    >/dev/null 2>&1; then
+if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
+elif type wget    >/dev/null 2>&1; then
+  CMD_WGET='wget'
 else
   error_exit 1 'No HTTP-GET/POST command found.'
 fi
@@ -174,6 +174,7 @@ ______________KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
             sed 's/ *$//'                                        |
+            grep ^                                               |
             # 1:APIkey 2:APIsec 3:リクエストメソッド             #
             # 4:APIエンドポイント 5:APIパラメーター              #
             while read key sec mth ept par; do                   #
@@ -195,6 +196,7 @@ sort -k 1,1 -t '='                                                        |
 tr '\n' ','                                                               |
 sed 's/,$//'                                                              |
 sed 's/^/Authorization: OAuth /'                                          |
+grep ^                                                                    |
 while read -r oa_hdr; do                                                  #
   curl -s -H "$oa_hdr" "$API_endpt$apip_get"                              #
 done                                                                      |
@@ -270,8 +272,8 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }        #
      "OTHERS"{print;}                                             '       |
 # --- 4.通信に失敗していた場合はエラーを返して終了                        #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
-case $? in [^0]*)
-  error_exit 1 'Failed to search'
+case $? in [!0]*)
+  error_exit 1 'Failed to search';;
 esac
 
 
