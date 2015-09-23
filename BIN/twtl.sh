@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/22
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/23
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Tue Sep 22 20:19:32 JST 2015
+	Wed Sep 23 16:07:52 JST 2015
 __USAGE
   exit 1
 }
@@ -237,7 +237,7 @@ awk 'BEGIN {                                                              #
               d*=1;                                                       #
               printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);           #
               next;                                                  }    #
-     "OTHERS"'                                                            |
+     "OTHERS"{print;}'                                                    |
 tr ' \t\034' '\006\025 '                                                  |
 awk 'BEGIN   {ORS="";             }                                       #
      /^[0-9]/{print "\n" $0; next;}                                       #
@@ -260,9 +260,9 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }        #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);          #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                  #
               next;                                              }        #
-     "OTHERS"                                                     '       |
+     "OTHERS"{print;}                                             '       |
 # --- 4.通信に失敗していた場合はエラーを返して終了                        #
-awk '"ALL" END{exit 1-(NR>0);}'
+awk '"ALL"{print;} END{exit 1-(NR>0);}'
 case $? in [^0]*)
   error_exit 1 'Failed to view the timeline'
 esac

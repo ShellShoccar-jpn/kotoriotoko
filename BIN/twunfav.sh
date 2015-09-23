@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <tweet_id>
-	Wed Sep 23 14:37:42 JST 2015
+	Wed Sep 23 16:08:11 JST 2015
 __USAGE
   exit 1
 }
@@ -212,7 +212,7 @@ awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
            {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
             printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
 # --- 4.通信に失敗していた場合はエラーを返して終了
-awk '"ALL" END{exit 1-(NR>0);}'
+awk '"ALL"{print;} END{exit 1-(NR>0);}'
 case $? in [^0]*)
   error_exit 1 'Failed to unfavor'
 esac

@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Wed Sep 23 14:34:02 JST 2015
+	Wed Sep 23 16:04:52 JST 2015
 __USAGE
   exit 1
 }
@@ -213,7 +213,7 @@ awk '                                                                        #
     printf("%s %-10s %s (@%s)\n",stat,id,nm,sn);                             #
     id=""; nm=""; sn=""; fl="";                                           }' |
 # --- 3.通信に失敗していた場合はエラーを返して終了                           #
-awk '"ALL" END{exit 1-(NR>0);}'
+awk '"ALL"{print;} END{exit 1-(NR>0);}'
 case $? in [^0]*)
   error_exit 1 'Failed to view the followers'
 esac
