@@ -10,7 +10,7 @@
 #
 # Usage: unsecj.sh [-n] [JSON_value_textfile]
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Jun 21, 2015
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Sep 23, 2015
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -29,7 +29,7 @@ FF=$(printf '\014')             # 改ページ
 CR=$(printf '\015')             # キャリッジリターン
 
 case "$#" in
-  [^0]*) case "$1" in '-n') LF_NONDECODE=1; shift;; esac
+  [!0]*) case "$1" in '-n') LF_NONDECODE=1; shift;; esac
          ;;
 esac
 case "$#" in
