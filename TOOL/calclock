@@ -1,1 +1,375 @@
-../../Open-usp-Tukubai/COMMANDS.SH/calclock
+#! /bin/sh
+
+# designed by Nobuaki Tounaka
+# written by 321516
+
+# print the usage and exit
+print_usage_and_exit () {
+  cat <<-__USAGE 1>&2
+	Usage   : ${0##*/} [+<n>h] [-r] <f1> <f2> ... <file>
+	        : ${0##*/} -d[r] <string>
+	Version : Thu Jun 25 04:51:08 JST 2015
+	        : Open usp Tukubai (POSIX.1 Bourne Shell/POSIX.1 commands)
+__USAGE
+  exit 1
+}
+
+# initialize
+set -u
+PATH='/usr/bin:/bin'
+IFS=$(printf ' \t\n_'); IFS=${IFS%_}
+export IFS LANG=C LC_ALL=C PATH
+directmode=0
+directstr=''
+awkc0=''
+file=''
+fldnums=''
+all_fields=0
+use_stdin=0
+opt_part=1
+ropt_ena=''
+ropt_dis='#'
+hopt=0
+
+# parse the arguments
+case $# in 0) print_usage_and_exit;; esac
+i=0
+for arg in "$@"; do
+  i=$((i+1))
+  fldnum=''
+  # direct mode processing
+  if   [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-d'        \) ]; then
+    directmode=1
+    continue
+  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-dr'       \) ]; then
+    directmode=1
+    ropt_ena='#'
+    ropt_dis=''
+    continue
+  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-rd'       \) ]; then
+    directmode=1
+    ropt_ena='#'
+    ropt_dis=''
+    continue
+  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-r'        \) ]; then
+    ropt_ena='#'
+    ropt_dis=''
+    continue
+  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" != "_${arg#+}" \) ]; then
+    s=$(printf '%s\n' "$arg" | sed 's/^+\([0-9]*\)h$/\1/')
+    [ "_$s" != "_$arg" ] || print_usage_and_exit
+    [ -z "$s"          ] && { hopt=1; continue; }
+    hopt=$(expr $s + 0)
+    continue
+  fi
+  opt_part=0
+  if [ \( $i -eq $# \) -a \( $directmode -ne 0 \) ]; then
+    directstr=$arg
+    break
+  fi
+  # separate arg to arg1, arg2
+  arg1=${arg%%/*}
+  arg2=${arg##*/}
+  if [ \( "_${arg1}/${arg2}" = "_$arg"   \) -a \
+       \( -n "$arg1" \) -a \( -n "$arg2" \)    ]
+  then
+    :
+  else
+    arg1=$arg
+    arg2=''
+  fi
+  # check both
+  j=0
+  for s in $arg1 $arg2; do
+    if printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$'; then
+      j=$((j+1))
+      if [ "$s" -eq 0 ]; then
+        all_fields=1
+      fi
+    elif printf '%s\n' "$s" | grep -Eq '^(NF|NF-[0-9]+)$'; then
+      j=$((j+1))
+    fi
+  done
+  if [ \( $j -eq 2 \) -o \( \( $j -eq 1 \) -a \( -z "$arg2" \) \) ]; then
+    fldnums="$fldnums $arg"
+    continue
+  fi
+  # perhaps, this argument is a filename
+  if [ $# -eq $i ]; then
+    file=$arg
+    continue
+  fi
+  # otherwise, it is a invalid argument
+  print_usage_and_exit
+done
+case "$fldnums" in '') print_usage_and_exit;; esac
+if [ $directmode -ne 0 ]; then
+  [ -n "$directstr" ] || print_usage_and_exit
+  file=''
+else
+  [ -n "$file" ] || file='-'
+  if [ \( "_$file" = '_-'               \) -o \
+       \( "_$file" = '_/dev/stdin'      \) -o \
+       \( "_$file" = '_/dev/fd/0'       \) -o \
+       \( "_$file" = '_/proc/self/fd/0' \)    ]
+  then
+    use_stdin=$((use_stdin+1))
+  fi
+  if [ \( ! -f "$file"     \) -a \
+       \( ! -c "$file"     \) -a \
+       \( ! -p "$file"     \) -a \
+       \( "_$file" != '_-' \)    ]
+  then
+    print_usage_and_exit
+  elif [ \( ! -r "$file" \) -a \( "_$file" != '_-' \) ]; then
+    printf '%s\n' "${0##*/}: Cannot open the file" 1>&2
+    exit 1
+  fi
+fi
+case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
+
+# make the part of the awk code
+if [ $all_fields -eq 0 ]; then
+  awkc0=$(echo "$fldnums"                           |
+          sed 's/^0\{1,\}\([0-9]\)/\1/'             |
+          sed 's/\([^0-9]\)0\{1,\}\([0-9]\)/\1\2/g' |
+          tr ' ' '\n'                               |
+          awk                                       '
+            /^NF-[0-9]+\/NF-[0-9]+$/ {
+              nfofs1 = substr($0,4,index($0,"/")-4) + 0;
+              nfofs2 = substr($0,index($0,"/")+4) + 0;
+              if (nfofs1 > nfofs2) {
+                i = nfofs1;
+                nfofs1 = nfofs2;
+                nfofs2 = i;
+              }
+              for (i=nfofs1; i<=nfofs2; i++) {
+                print "0 NF-" i;
+              }
+            }
+            /^NF\/NF-[0-9]+$/ {
+              nfofs2 = substr($0,index($0,"/")+4);
+              print "0 NF";
+              for (i=1; i<=nfofs2; i++) {
+                print "0 NF-" i;
+              }
+            }
+            /^NF-[0-9]+\/NF$/ {
+              nfofs2 = substr($0,4,index($0,"/")-4) + 0;
+              print "0 NF";
+              for (i=1; i<=nfofs2; i++) {
+                print "0 NF-" i;
+              }
+            }
+            /^[0-9]+\/NF-[0-9]+$/ {
+              printf("0 %s NF-%s\n",
+                     substr($0,1,index($0,"/")-1),
+                     substr($0,index($0,"/")+4)   );
+            }
+            /^NF-[0-9]+\/[0-9]+$/ {
+              printf("0 %s NF-%s\n",
+                     substr($0,index($0,"/")+1),
+                     substr($0,4,index($0,"/")-4));
+            }
+            /^[0-9]+\/[0-9]+$/ {
+              pos = index($0, "/");
+              a = substr($0, 1, pos-1)+0;
+              b = substr($0, pos+1)+0;
+              if (a > b) {
+                swp = a;
+                a = b;
+                b = swp;
+              }
+              for (i=a; i<=b; i++) {
+                print 1, i;
+              }
+            }
+            /^[0-9]+\/NF$/ {
+              print 1, substr($0, 1, length($0)-3), "NF";
+            }
+            /^NF\/[0-9]+$/ {
+              print 1, substr($0, index($0,"/")+1), "NF";
+            }
+            /^[0-9]+$/ {
+              print 1, $0;
+            }
+            /^NF-[0-9]+$/ {
+              print 0, $0;
+            }
+            (($0 == "NF") || ($0 == "NF/NF")) {
+              print 0, "NF";
+            }
+          '                                         |
+          sort -k 1,1 -k 2n,2 -k 3n,3               |
+          uniq                                      |
+          sed -n '1,/1 [0-9]\{1,\} NF$/p'           |
+          awk                                       '
+            BEGIN {
+              f1_total  = 0;
+              f2_max    = 0;
+              f3_has_nf = 0;
+            }
+            {
+              f1_total += $1; 
+              if ($1 == 1) {
+                f2_max = ($2 > f2_max) ? $2 : f2_max;
+                f2_vals[$2] = 1;
+              }
+              f3_has_nf = ($3 == "NF") ? 1 : f3_has_nf;
+              cell[NR,1] = $2;
+              if (NF == 3) {
+                cell[NR,2] = $3;
+              }
+            }
+            END {
+              if ((f1_total == NR) && (f3_has_nf)) {
+                printf("split(\"\",mark);for(i=1;i<=NF;i++){mark[i]=1}");
+                for (i=1; i<f2_max; i++) {
+                  if (! (i in f2_vals)) {
+                    printf("delete mark[%d];", i);
+                  }
+                }
+              } else {
+                printf("split(\"\",mark);");
+                for (i=1; i<=NR; i++) {
+                  if (i SUBSEP 2 in cell) {
+                    printf("if(%s>%s){for(i=%s;i<=%s;i++){mark[i]=1}}else{for(i=%s;i<=%s;i++){mark[i]=1}}",
+                           cell[i,1],cell[i,2],
+                           cell[i,2],cell[i,1],
+                           cell[i,1],cell[i,2]);
+                  } else {
+                    if (match(cell[i,1],/^[0-9]+$/) || (cell[i,1] == "NF")) {
+                      printf("mark[%s]=1;",cell[i,1]);
+                    } else {
+                      printf("if(%s>0){mark[%s]=1}",cell[i,1],cell[i,1]);
+                    }
+                  }
+                }
+              }
+              printf("convert_marked_flds();print;");
+            }
+          '                                         )
+  echo "$awkc0" | grep -q 'NF'
+  if [ $? -ne 0 ]; then
+    awkc0b=${awkc0%convert_marked_flds*}
+    awkc0='convert_marked_flds();print;'
+  else
+    awkc0b=''
+  fi
+else
+  awkc0='split("",mark);for(i=1;i<=NF;i++){mark[i]=1}convert_marked_flds();print;'
+  awkc0b=''
+fi
+
+# make awk code
+awkcode='
+BEGIN {
+  YYYYMMDDhhmmss2unixtime_prep("LOCALTIME"); # initialize with localtime mode
+  for (i=0; i<hdr_skip; i++) {
+    if (getline line) {
+      print line;
+    } else {
+      exit;
+    }
+  }
+  '"$awkc0b"'
+}
+{
+  '"$awkc0"'
+}
+function convert_marked_flds( fld) {
+  for (fld in mark) {
+    '$ropt_ena'$fld = $fld OFS YYYYMMDDhhmmss2unixtime($fld);
+    '$ropt_dis'$fld = $fld OFS unixtime2YYYYMMDDhhmmss($fld);
+  }
+}
+function YYYYMMDDhhmmss2unixtime_prep(localtime_flag, gm,lo) {
+  max_calced_year = 1970;              # To remember every days on 01/01 from
+  days_on_Jan1st_from_epoch[1970] = 0; # the Epoch which was calculated once
+  split("31 0 31 30 31 30 31 31 30 31 30 31", days_of_month);
+  if (localtime_flag == "LOCALTIME") {
+    gm      = YYYYMMDDhhmmss2unixtime("'$(TZ=UTC+0 date '+%Y%m%d%H%M%S')'");
+    lo      = YYYYMMDDhhmmss2unixtime("'$(         date '+%Y%m%d%H%M%S')'");
+    offset  = lo - gm;
+    offset -= (offset%2); # calcell the time lag of the two date starting time
+  } else {
+    offset  = 0;
+  }
+}
+function unixtime2YYYYMMDDhhmmss(ut, Y,M,D,h,m,s,t,i,j) {
+  # 0) timezone adjustment
+  ut += offset;
+  if (ut < 0) {return -1;}
+  # 1) calculate hour,minute,second and number of days from the Epoch
+  s = ut % 60;  t = int(ut/60);
+  m =  t % 60;  t = int( t/60);
+  h =  t % 24;
+  days_from_epoch = int( t/24);
+  # 2) calculate year
+  Y = int(days_from_epoch/365.2425)+1970+1;
+  if (Y > max_calced_year) {
+     i = days_on_Jan1st_from_epoch[max_calced_year];
+     for (j=max_calced_year; j<Y; j++) {
+       i += (j%4!=0)?365:(j%100!=0)?366:(j%400!=0)?365:366;
+       days_on_Jan1st_from_epoch[j+1] = i;
+     }
+     max_calced_year = Y;
+  }
+  for (;;Y--) {
+    if (days_from_epoch >= days_on_Jan1st_from_epoch[Y]) {
+      break;
+    }
+  }
+  # 3) calculate month,day
+  days_of_month[2] = (Y%4!=0)?28:(Y%100!=0)?29:(Y%400!=0)?28:29;
+  D = days_from_epoch - days_on_Jan1st_from_epoch[Y] + 1;
+  for (M=1; ; M++) {
+    if (D > days_of_month[M]) {
+      D -= days_of_month[M];
+    } else {
+      break;
+    }
+  }
+  return sprintf("%04d%02d%02d%02d%02d%02d",Y,M,D,h,m,s);
+}
+function YYYYMMDDhhmmss2unixtime(YYYYMMDDhhmmss, Y,M,D,h,m,s,l) {
+  # 1) seperate the units
+  l = length(YYYYMMDDhhmmss);
+  if        (l <  5) { # invalid
+    return -1;
+  } else if (l <  8) { # YYMMMDD only
+    Y = substr(YYYYMMDDhhmmss,  1,l-4)*1+'$(date '+%Y' | sed 's/..$//')'00;
+    M = substr(YYYYMMDDhhmmss,l-3,  2)*1;
+    D = substr(YYYYMMDDhhmmss,l-1,  2)*1;
+    h = 0; m = 0; s = 0;
+  } else if (l < 12) { # YYYYMMDD only
+    Y = substr(YYYYMMDDhhmmss,  1,l-4)*1;
+    M = substr(YYYYMMDDhhmmss,l-3,  2)*1;
+    D = substr(YYYYMMDDhhmmss,l-1    )*1;
+    h = 0; m = 0; s = 0;
+  } else {             # YYYYMMDDhhmmss
+    Y = substr(YYYYMMDDhhmmss,  1,l-10)*1;
+    M = substr(YYYYMMDDhhmmss,l-9,   2)*1;
+    D = substr(YYYYMMDDhhmmss,l-7,   2)*1;
+    h = substr(YYYYMMDDhhmmss,l-5,   2)*1;
+    m = substr(YYYYMMDDhhmmss,l-3,   2)*1;
+    s = substr(YYYYMMDDhhmmss,l-1     )*1;
+  }
+  # 2) validate
+  if ((s>60) || (m>59) || (h>23) || (M>12)) {return -1;}
+  days_of_month[2] = (Y%4!=0)?28:(Y%100!=0)?29:(Y%400!=0)?28:29;
+  if (D > days_of_month[M]                ) {return -1;}
+  # 3) adjust the value of year and month
+  if (M<3) {M+=12; Y--;}
+  # 4) calculate unixtime
+  return (365*Y+int(Y/4)-int(Y/100)+int(Y/400)+int(306*(M+1)/10)-428+D-719163)*86400+(h*3600)+(m*60)+s-offset;
+}
+'
+
+# main
+if [ $directmode -ne 0 ]; then
+       printf '%s' "$directstr"         |
+       awk -v hdr_skip=$hopt "$awkcode"
+else
+  exec awk -v hdr_skip=$hopt "$awkcode" "$file"
+fi

@@ -1,1 +1,93 @@
-../../misc-tools/urlencode
+#! /bin/sh
+ 
+######################################################################
+#
+# URLENCODE - URL encoder on the basis of RFC 3986
+#
+# USAGE: urlencode [-r|--raw] <file> ...
+#        -r ...... RAW MODE : when this option is set, all of " " are
+#                  replaced with "%20" instead of "+".
+#        --raw ... same as the "-r" option
+#
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/09/21
+#
+# This is a public-domain software. It measns that all of the people
+# can use this with no restrictions at all. By the way, I am fed up
+# the side effects which are broght about by the major licenses.
+#
+######################################################################
+ 
+print_usage_and_exit () {
+  cat <<-__USAGE 1>&2
+	Usage   : ${0##*/} [-r|--raw] <file> ...
+	Version : Mon Sep 21 20:09:32 JST 2015
+__USAGE
+  exit 1
+}
+
+# --- initalization --------------------------------------------------
+set -u
+umask 0022
+PATH='/usr/bin:/bin'
+IFS=$(printf ' \t\n_'); IFS=${IFS%_}
+export IFS LC_ALL=C LANG=C PATH
+
+# --- print help message if required ---------------------------------
+case "${1:-}" in
+  --help|--version|-h) print_usage_and_exit;;
+esac
+instead_of_spc='+';
+for arg in "$@"; do
+  case "$arg" in
+    -r|--raw) instead_of_spc='%20'; shift;break;;
+    --)                             shift;break;;
+    *)        :                                ;;
+  esac
+done
+
+# --- main -----------------------------------------------------------
+case $# in
+  0) cat -                    ;;
+  *) for file in "$@"; do      #
+       case "$file" in      #  #
+         -)  :             ;;  #
+         /*) :             ;;  #
+         *)  file="./$file";;  #
+       esac                 #  #
+       cat "$file"             #
+     done                     ;;
+esac |
+(cat -; printf '\n') |
+env - awk '
+BEGIN {
+  # --- prepare
+  LF = sprintf("\n");
+  OFS = "";
+  ORS = "";
+  # --- prepare encoding
+  for(i= 0;i<256;i++){c2p[sprintf("%c",i)]=sprintf("%%%02X",i);}
+  c2p[" "]="'"$instead_of_spc"'";
+  for(i=48;i< 58;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
+  for(i=65;i< 91;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
+  for(i=97;i<123;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
+  c2p["-"]="-"; c2p["."]="."; c2p["_"]="_"; c2p["~"]="~";
+  # --- encode
+  while (getline line) {
+    for (i=1; i<=length(line); i++) {
+      print c2p[substr(line,i,1)];
+    }
+    print LF;
+  }
+}' |
+awk '
+BEGIN{
+  ORS="";
+  OFS="";
+  getline line;
+  print line;
+  dlm=sprintf("\n");
+  while (getline line) {
+    print dlm,line;
+  }
+}
+'
