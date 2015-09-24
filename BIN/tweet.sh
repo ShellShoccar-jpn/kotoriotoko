@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterに投稿するシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/22
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/24
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -22,7 +22,7 @@ Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
 # === 初期化 =========================================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:$PATH"
+PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
 
@@ -34,7 +34,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [--reply=<tweet_id>] <tweet>
 	        echo <tweet> | ${0##*/} [--reply=<tweet_id>] -
-	Wed Sep 23 17:21:03 JST 2015
+	Thu Sep 24 21:07:43 JST 2015
 __USAGE
   exit 1
 }
