@@ -25,6 +25,7 @@ umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
+Tmp="/tmp/${0##*/}_$$"
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
@@ -33,7 +34,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Wed Sep 30 00:35:11 JST 2015
+	Wed Sep 30 02:05:33 JST 2015
 __USAGE
   exit 1
 }
@@ -185,7 +186,7 @@ while read -r oa_hdr; do                                               #
   ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\""          #
   eval mime-make -b "$s" $mimemake_args        |                       #
   if   [ -n "${CMD_WGET:-}" ]; then                                    #
-    cat > $Tmp-mimedata                                                #
+    cat > "$Tmp-mimedata"                                              #
     "$CMD_WGET" --no-check-certificate -q -O -                         \
                 --header="$oa_hdr"                                     \
                 --header="$ct_hdr"                                     \
