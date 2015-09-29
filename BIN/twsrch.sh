@@ -5,7 +5,7 @@
 # twsrch.sh
 # Twitterで指定条件に該当するツイートを検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/24
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] <keyword> [...]
 	        echo <keyword> [...] | ${0##*/} [-n <count>|--count=<count>] -
-	Thu Sep 24 21:08:52 JST 2015
+	Wed Sep 30 00:52:42 JST 2015
 __USAGE
   exit 1
 }
@@ -194,7 +194,8 @@ urlencode                                                                 |
 sed 's/%3[Dd]/=/'                                                         |
 sort -k 1,1 -t '='                                                        |
 tr '\n' ','                                                               |
-sed 's/,$//'                                                              |
+sed 's/^,*//'                                                             |
+sed 's/,*$//'                                                             |
 sed 's/^/Authorization: OAuth /'                                          |
 grep ^                                                                    |
 while read -r oa_hdr; do                                                  #

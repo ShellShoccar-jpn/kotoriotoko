@@ -1,0 +1,1343 @@
+#! /bin/sh
+
+######################################################################
+#
+# MIME-MAKE - MIME Multipart Formatted Data Maker
+#
+# USAGE: mime-make <-m|--generatemimeboundary>
+#        mime-make [options] <arg_group#1> [<arg_group#2> ...]
+#
+# * Only generate MIME boundary string if -m option is specified.
+# * One of the <arg_group>s consists of one of the following formats.
+#   For HTML form:
+#   (a) -T  <name> <value>
+#   (b) -Tf <name> <file>
+#       <name> is as a text string <vaule> or in the <file>.
+#   (c) -F   <name>                           <file>
+#   (d) -Ff  <name>            <filename_str> <file>
+#   (e) -Ft  <name> <type_str>                <file>
+#   (f) -Ftf <name> <type_str> <filename_str> <file>
+#       <name> is as an attached file <file>. (default is standard input)
+#       filetype is <type_str> (default is auto-detected by the file extension)
+#       filename is <filename_str> (default is same as the <file>)
+#   For mail with attached files:
+#   (g) -M <file>
+#       mail-bodypart is read from <file>. (default is standard input)
+#   (h) -A                             <file>
+#   (i) -Af             <filename_str> <file>
+#   (j) -At  <type_str>                <file>
+#   (k) -Atf <type_str> <filename_str> <file>
+#       mail-attached-filepart is read from <file>. (default is standard input)
+#       (every parameter is same as in (c)-(f))
+#   OPTIONS:
+#   -b <mimeboundary> : MIME boundary string (default is auto-generated)
+#   --crlf/--lf : Use CR+LF or LF when line feeding (default is --crlf)
+#   --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
+#                 (default is --raw)
+#
+# Return: $?=0 (when all of the arguments are valid)
+#         stdout : generated MIME formatted data
+#
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/09/29
+#
+# This is a public-domain software. It measns that all of the people
+# can use this with no restrictions at all. By the way, I am fed up
+# the side effects which are broght about by the major licenses.
+#
+######################################################################
+
+# --- functions ------------------------------------------------------
+# print the usage and exit
+print_usage_and_exit () {
+  cat <<-__USAGE 1>&2
+	USAGE: ${0##*/} <-m|--generatemimeboundary>
+	       ${0##*/} [options] <arg_group#1> [<arg_group#2> ...]
+
+	* Only generate MIME boundary string if -m option is specified.
+	* One of the <arg_group>s consists of one of the following formats.
+	  For HTML form:
+	  (a) -T  <name> <value>
+	  (b) -Tf <name> <file>
+	      <name> is as a text string <vaule> or in the <file>.
+	  (c) -F   <name>                           <file>
+	  (d) -Ff  <name>            <filename_str> <file>
+	  (e) -Ft  <name> <type_str>                <file>
+	  (f) -Ftf <name> <type_str> <filename_str> <file>
+	      <name> is as an attached file <file>. (default is standard input)
+	      filetype is <type_str> (default is auto-detected by the file extension)
+	      filename is <filename_str> (default is same as the <file>)
+	  For mail with attached files:
+	  (g) -M <file>
+	      mail-bodypart is read from <file>. (default is standard input)
+	  (h) -A                             <file>
+	  (i) -Af             <filename_str> <file>
+	  (j) -At  <type_str>                <file>
+	  (k) -Atf <type_str> <filename_str> <file>
+	      mail-attached-filepart is read from <file>. (default is standard input)
+	      (every parameter is same as in (c)-(f))
+	  OPTIONS:
+	  -b <mimeboundary> : MIME boundary string (default is auto-generated)
+	  --crlf/--lf : Use CR+LF or LF when line feeding (default is --crlf)
+	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
+	                (default is --raw)
+	Version : Tue Sep 29 23:48:39 JST 2015
+__USAGE
+  exit 1
+}
+# which command also works on Just a POSIX environment ($1:command name)
+which which >/dev/null 2>&1 || {
+  which () {
+    (
+      ans=$(LANG=C LC_ALL=C type "$1" 2>/dev/null) || return $?
+      case "$1"   in */*) printf '%s\n' "$1"        ; return;; esac
+      case "$ans" in */*) printf '%s\n' "/${ans#*/}"; return;; esac
+      printf '%s\n' "$1"
+    )
+  }
+}
+# Random string generator ($1: number of digits)
+randstr() {
+  #local chrs nw hstr
+  #
+  chrs='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'
+                    # Available letters
+  # --- Generate Ramdom string -------------------------------------
+  # calculate the number of words which required
+  nw=$(echo "${1}*l(${#chrs})/11.09+1" | # 11.09=ln(65536)
+       bc -l                           |
+       sed 's/\..*$//'                 )
+  # make a random hexadecimal digit
+  if [ -c /dev/urandom ]; then
+    hstr=$(dd if=/dev/urandom bs=2 count=$nw 2>/dev/null |
+           od -A n -t x2 -v                              |
+           tr 'abcdef ' 'ABCDEF\n'                       |
+           tr -Cd 0123456789ABCDEF                       )
+  else
+    hstr=$( (ps -Ao pid,etime,pcpu,vsz; date)         |
+           od -t d4 -A n -v                           |
+           sed 's/[^0-9]\{1,\}/'"$LF"'/g'             |
+           grep '[0-9]'                               |
+           tail -n 42                                 |
+           sed 's/.*\(.\{8\}\)$/\1/g'                 |
+           awk 'BEGIN{a=-2147483648;}                 #
+                     {a+=$1;        }                 #
+                END  {                                #
+                  srand(a);                           #
+                  for(i=0;i<'$nw';i++){               #
+                    printf("%02X",int(rand()*65536)); #
+                  }                                   #
+                }'                                    )
+  fi
+  # make a random string from the hexadecimal digit
+  echo $(echo "obase=${#chrs};ibase=16;$hstr"         |
+         bc                                           |
+         tr -d '\\\n'                                 |
+         tr ' ' '\n'                                  |
+         awk 'BEGIN  {for(i=1;i<'$1';i++){print 0;}}  #
+              /[0-9]/{print;                       }' |
+         awk 'BEGIN  {ORS="";                         #
+                      s="'"$chrs"'";                  #
+                      for(i=0;i<length(s);i++){       #
+                        c[i]=substr(s,i+1,1);         #
+                      }                        }      #
+              /[0-9]/{print c[$0*1];           }'     |
+         tail -c $1                                   )
+}
+# escape the string in header if necessary ($1:string for in-header)
+escape_for_header_string() {
+  printf '%s\n' "$1"                      |
+  awk 'index($0,"=?")        >0{exit 1;}  # # when contain "=?"
+       sub(/[\200-\377]/,"")==1{exit 1;}'   # when contain 8-bit chars
+  case $? in
+    0) printf '%s\n' "$1"                                                 |
+       sed 's/"/\\"/g'                                                    ;;
+    *) printf '%s\n' "$1"                                                 |
+       awk -v maxbytes=40 '# UTF-8 string cutter within required bytes    #
+         BEGIN {                                                          #
+           OFS = ""; ORS = "";                                            #
+           while (getline str) {                                          #
+             bytes_thisline = 0;                                          #
+             len = length(str);                                           #
+             for (pos=1; pos<=len; pos+=bytes_a_letter) {                 #
+               c = substr(str, pos, 1);                                   #
+               if      (c < "\200") {bytes_a_letter=1;}                   #
+               else if (c < "\300") {bytes_a_letter=1;} # invalid pattern!#
+               else if (c < "\340") {bytes_a_letter=2;}                   #
+               else if (c < "\360") {bytes_a_letter=3;}                   #
+               else if (c < "\370") {bytes_a_letter=4;}                   #
+               else if (c < "\374") {bytes_a_letter=5;}                   #
+               else if (c < "\376") {bytes_a_letter=6;}                   #
+               else                 {bytes_a_letter=1;} # invalid pattern!#
+               if (bytes_thisline+bytes_a_letter > maxbytes) {            #
+                 print "\n", substr(str, pos, bytes_a_letter);            #
+                 bytes_thisline  = bytes_a_letter;                        #
+               } else                               {                     #
+                 print     substr(str, pos, bytes_a_letter);              #
+                 bytes_thisline += bytes_a_letter;                        #
+               }                                                          #
+             }                                                            #
+             print "\n";                                                  #
+           }                                                              #
+         }'                                                               |
+       while IFS=$LF read -r line; do                                     #
+         printf '%s' "$line" | base64 --wrap=0                            #
+       done                                                               |
+       sed "s/.*/=?UTF-8?B?&?=/"                                          |
+       sed "1!s/^/$TAB/"                                                  |
+       sed "\$!s/\$/$CR/"                                                 ;;
+  esac
+}
+# Base64 Encoder ($1:width a line)
+base64 () {
+  w=''
+  case "${1:-}" in
+    --wrap=*) printf '%s\n' "$1" | grep -q '^--wrap=[0-9]\{1,\}$' && {
+                w=${1#--wrap=}
+              }
+              ;;
+  esac
+  case "$w" in '') w=76;; esac
+  od -A n -t x1 -v                                                         |
+  awk 'BEGIN{OFS=""; ORS="";                                               #
+             x2o["0"]="0000"; x2o["1"]="0001"; x2o["2"]="0010";            #
+             x2o["3"]="0011"; x2o["4"]="0100"; x2o["5"]="0101";            #
+             x2o["6"]="0110"; x2o["7"]="0111"; x2o["8"]="1000";            #
+             x2o["9"]="1001"; x2o["a"]="1010"; x2o["b"]="1011";            #
+             x2o["c"]="1100"; x2o["d"]="1101"; x2o["e"]="1110";            #
+             x2o["f"]="1111";                                              #
+             x2o["A"]="1010"; x2o["B"]="1011"; x2o["C"]="1100";            #
+             x2o["D"]="1101"; x2o["E"]="1110"; x2o["F"]="1111";         }  #
+       {     l=length($0);                                                 #
+             for(i=1;i<=l;i++){print x2o[substr($0,i,1)];}                 #
+             printf("\n");                                              }' |
+  awk 'BEGIN{s="";                                                      }  #
+       {     buf=buf $0;                                                   #
+             l=length(buf);                                                #
+             if(l<6){next;}                                                #
+             u=int(l/6)*6;                                                 #
+             for(p=1;p<u;p+=6){print substr(buf,p,6);}                     #
+             buf=substr(buf,p);                                         }  #
+       END  {if(length(buf)>0){print substr(buf "00000",1,6);}          }' |
+  awk 'BEGIN{ORS=""; w='$w';                                               #
+             o2b6["000000"]="A"; o2b6["000001"]="B"; o2b6["000010"]="C";   #
+             o2b6["000011"]="D"; o2b6["000100"]="E"; o2b6["000101"]="F";   #
+             o2b6["000110"]="G"; o2b6["000111"]="H"; o2b6["001000"]="I";   #
+             o2b6["001001"]="J"; o2b6["001010"]="K"; o2b6["001011"]="L";   #
+             o2b6["001100"]="M"; o2b6["001101"]="N"; o2b6["001110"]="O";   #
+             o2b6["001111"]="P"; o2b6["010000"]="Q"; o2b6["010001"]="R";   #
+             o2b6["010010"]="S"; o2b6["010011"]="T"; o2b6["010100"]="U";   #
+             o2b6["010101"]="V"; o2b6["010110"]="W"; o2b6["010111"]="X";   #
+             o2b6["011000"]="Y"; o2b6["011001"]="Z"; o2b6["011010"]="a";   #
+             o2b6["011011"]="b"; o2b6["011100"]="c"; o2b6["011101"]="d";   #
+             o2b6["011110"]="e"; o2b6["011111"]="f"; o2b6["100000"]="g";   #
+             o2b6["100001"]="h"; o2b6["100010"]="i"; o2b6["100011"]="j";   #
+             o2b6["100100"]="k"; o2b6["100101"]="l"; o2b6["100110"]="m";   #
+             o2b6["100111"]="n"; o2b6["101000"]="o"; o2b6["101001"]="p";   #
+             o2b6["101010"]="q"; o2b6["101011"]="r"; o2b6["101100"]="s";   #
+             o2b6["101101"]="t"; o2b6["101110"]="u"; o2b6["101111"]="v";   #
+             o2b6["110000"]="w"; o2b6["110001"]="x"; o2b6["110010"]="y";   #
+             o2b6["110011"]="z"; o2b6["110100"]="0"; o2b6["110101"]="1";   #
+             o2b6["110110"]="2"; o2b6["110111"]="3"; o2b6["111000"]="4";   #
+             o2b6["111001"]="5"; o2b6["111010"]="6"; o2b6["111011"]="7";   #
+             o2b6["111100"]="8"; o2b6["111101"]="9"; o2b6["111110"]="+";   #
+             o2b6["111111"]="/";                                           #
+             if (getline) {print o2b6[$0];n=1;}                         }  #
+       n==w {printf("\n")  ; n=0;                                       }  #
+       {     print o2b6[$0]; n++;                                       }  #
+       END  {if(NR>0){printf("%s\n",substr("===",1,(4-(NR%4))%4));}     }'
+}
+PATH='/usr/bin:/bin:/usr/local/bin'
+CMD_BASE64=$(which base64 2>/dev/null)
+case "$CMD_BASE64" in
+  '') :                                  ;;
+   *) base64 () { "$CMD_BASE64" ${1:-}; };;
+esac
+# decide "type" from the file extention
+decide_type() {
+  printf '%s\n' "$1" | awk '
+  BEGIN{
+    e2t["123"]="application/vnd.lotus-1-2-3";
+    e2t["3dml"]="text/vnd.in3d.3dml";
+    e2t["3g2"]="video/3gpp2";
+    e2t["3gp"]="video/3gpp";
+    e2t["aab"]="application/x-authorware-bin";
+    e2t["aac"]="audio/x-aac";
+    e2t["aam"]="application/x-authorware-map";
+    e2t["aas"]="application/x-authorware-seg";
+    e2t["abw"]="application/x-abiword";
+    e2t["acc"]="application/vnd.americandynamics.acc";
+    e2t["ace"]="application/x-ace-compressed";
+    e2t["acu"]="application/vnd.acucobol";
+    e2t["acutc"]="application/vnd.acucorp";
+    e2t["adp"]="audio/adpcm";
+    e2t["aep"]="application/vnd.audiograph";
+    e2t["afm"]="application/x-font-type1";
+    e2t["afp"]="application/vnd.ibm.modcap";
+    e2t["ai"]="application/postscript";
+    e2t["aif"]="audio/x-aiff";
+    e2t["aifc"]="audio/x-aiff";
+    e2t["aiff"]="audio/x-aiff";
+    e2t["air"]="application/vnd.adobe.air-application-installer-package+zip";
+    e2t["ami"]="application/vnd.amiga.ami";
+    e2t["apk"]="application/vnd.android.package-archive";
+    e2t["application"]="application/x-ms-application";
+    e2t["apr"]="application/vnd.lotus-approach";
+    e2t["asc"]="application/pgp-signature";
+    e2t["asf"]="video/x-ms-asf";
+    e2t["asm"]="text/x-asm";
+    e2t["aso"]="application/vnd.accpac.simply.aso";
+    e2t["asx"]="video/x-ms-asf";
+    e2t["atc"]="application/vnd.acucorp";
+    e2t["atom"]="application/atom+xml";
+    e2t["atomcat"]="application/atomcat+xml";
+    e2t["atomsvc"]="application/atomsvc+xml";
+    e2t["atx"]="application/vnd.antix.game-component";
+    e2t["au"]="audio/basic";
+    e2t["avi"]="video/x-msvideo";
+    e2t["aw"]="application/applixware";
+    e2t["azf"]="application/vnd.airzip.filesecure.azf";
+    e2t["azs"]="application/vnd.airzip.filesecure.azs";
+    e2t["azw"]="application/vnd.amazon.ebook";
+    e2t["bat"]="application/x-msdownload";
+    e2t["bcpio"]="application/x-bcpio";
+    e2t["bdf"]="application/x-font-bdf";
+    e2t["bdm"]="application/vnd.syncml.dm+wbxml";
+    e2t["bed"]="application/vnd.realvnc.bed";
+    e2t["bh2"]="application/vnd.fujitsu.oasysprs";
+    e2t["bin"]="application/octet-stream";
+    e2t["bmi"]="application/vnd.bmi";
+    e2t["bmp"]="image/bmp";
+    e2t["book"]="application/vnd.framemaker";
+    e2t["box"]="application/vnd.previewsystems.box";
+    e2t["boz"]="application/x-bzip2";
+    e2t["bpk"]="application/octet-stream";
+    e2t["btif"]="image/prs.btif";
+    e2t["bz"]="application/x-bzip";
+    e2t["bz2"]="application/x-bzip2";
+    e2t["c"]="text/x-c";
+    e2t["c4d"]="application/vnd.clonk.c4group";
+    e2t["c4f"]="application/vnd.clonk.c4group";
+    e2t["c4g"]="application/vnd.clonk.c4group";
+    e2t["c4p"]="application/vnd.clonk.c4group";
+    e2t["c4u"]="application/vnd.clonk.c4group";
+    e2t["cab"]="application/vnd.ms-cab-compressed";
+    e2t["car"]="application/vnd.curl.car";
+    e2t["cat"]="application/vnd.ms-pki.seccat";
+    e2t["cc"]="text/x-c";
+    e2t["cct"]="application/x-director";
+    e2t["ccxml"]="application/ccxml+xml";
+    e2t["cdbcmsg"]="application/vnd.contact.cmsg";
+    e2t["cdf"]="application/x-netcdf";
+    e2t["cdkey"]="application/vnd.mediastation.cdkey";
+    e2t["cdx"]="chemical/x-cdx";
+    e2t["cdxml"]="application/vnd.chemdraw+xml";
+    e2t["cdy"]="application/vnd.cinderella";
+    e2t["cer"]="application/pkix-cert";
+    e2t["cgm"]="image/cgm";
+    e2t["chat"]="application/x-chat";
+    e2t["chm"]="application/vnd.ms-htmlhelp";
+    e2t["chrt"]="application/vnd.kde.kchart";
+    e2t["cif"]="chemical/x-cif";
+    e2t["cii"]="application/vnd.anser-web-certificate-issue-initiation";
+    e2t["cil"]="application/vnd.ms-artgalry";
+    e2t["cla"]="application/vnd.claymore";
+    e2t["class"]="application/java-vm";
+    e2t["clkk"]="application/vnd.crick.clicker.keyboard";
+    e2t["clkp"]="application/vnd.crick.clicker.palette";
+    e2t["clkt"]="application/vnd.crick.clicker.template";
+    e2t["clkw"]="application/vnd.crick.clicker.wordbank";
+    e2t["clkx"]="application/vnd.crick.clicker";
+    e2t["clp"]="application/x-msclip";
+    e2t["cmc"]="application/vnd.cosmocaller";
+    e2t["cmdf"]="chemical/x-cmdf";
+    e2t["cml"]="chemical/x-cml";
+    e2t["cmp"]="application/vnd.yellowriver-custom-menu";
+    e2t["cmx"]="image/x-cmx";
+    e2t["cod"]="application/vnd.rim.cod";
+    e2t["com"]="application/x-msdownload";
+    e2t["conf"]="text/plain";
+    e2t["cpio"]="application/x-cpio";
+    e2t["cpp"]="text/x-c";
+    e2t["cpt"]="application/mac-compactpro";
+    e2t["crd"]="application/x-mscardfile";
+    e2t["crl"]="application/pkix-crl";
+    e2t["crt"]="application/x-x509-ca-cert";
+    e2t["csh"]="application/x-csh";
+    e2t["csml"]="chemical/x-csml";
+    e2t["csp"]="application/vnd.commonspace";
+    e2t["css"]="text/css";
+    e2t["cst"]="application/x-director";
+    e2t["csv"]="text/csv";
+    e2t["cu"]="application/cu-seeme";
+    e2t["curl"]="text/vnd.curl";
+    e2t["cww"]="application/prs.cww";
+    e2t["cxt"]="application/x-director";
+    e2t["cxx"]="text/x-c";
+    e2t["daf"]="application/vnd.mobius.daf";
+    e2t["dataless"]="application/vnd.fdsn.seed";
+    e2t["davmount"]="application/davmount+xml";
+    e2t["dcr"]="application/x-director";
+    e2t["dcurl"]="text/vnd.curl.dcurl";
+    e2t["dd2"]="application/vnd.oma.dd2+xml";
+    e2t["ddd"]="application/vnd.fujixerox.ddd";
+    e2t["deb"]="application/x-debian-package";
+    e2t["def"]="text/plain";
+    e2t["deploy"]="application/octet-stream";
+    e2t["der"]="application/x-x509-ca-cert";
+    e2t["dfac"]="application/vnd.dreamfactory";
+    e2t["dic"]="text/x-c";
+    e2t["dir"]="application/x-director";
+    e2t["dis"]="application/vnd.mobius.dis";
+    e2t["dist"]="application/octet-stream";
+    e2t["distz"]="application/octet-stream";
+    e2t["djv"]="image/vnd.djvu";
+    e2t["djvu"]="image/vnd.djvu";
+    e2t["dll"]="application/x-msdownload";
+    e2t["dmg"]="application/octet-stream";
+    e2t["dms"]="application/octet-stream";
+    e2t["dna"]="application/vnd.dna";
+    e2t["doc"]="application/msword";
+    e2t["docm"]="application/vnd.ms-word.document.macroenabled.12";
+    e2t["docx"]="application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    e2t["dot"]="application/msword";
+    e2t["dotm"]="application/vnd.ms-word.template.macroenabled.12";
+    e2t["dotx"]="application/vnd.openxmlformats-officedocument.wordprocessingml.template";
+    e2t["dp"]="application/vnd.osgi.dp";
+    e2t["dpg"]="application/vnd.dpgraph";
+    e2t["dra"]="audio/vnd.dra";
+    e2t["dsc"]="text/prs.lines.tag";
+    e2t["dssc"]="application/dssc+der";
+    e2t["dtb"]="application/x-dtbook+xml";
+    e2t["dtd"]="application/xml-dtd";
+    e2t["dts"]="audio/vnd.dts";
+    e2t["dtshd"]="audio/vnd.dts.hd";
+    e2t["dump"]="application/octet-stream";
+    e2t["dvi"]="application/x-dvi";
+    e2t["dwf"]="model/vnd.dwf";
+    e2t["dwg"]="image/vnd.dwg";
+    e2t["dxf"]="image/vnd.dxf";
+    e2t["dxp"]="application/vnd.spotfire.dxp";
+    e2t["dxr"]="application/x-director";
+    e2t["ecelp4800"]="audio/vnd.nuera.ecelp4800";
+    e2t["ecelp7470"]="audio/vnd.nuera.ecelp7470";
+    e2t["ecelp9600"]="audio/vnd.nuera.ecelp9600";
+    e2t["ecma"]="application/ecmascript";
+    e2t["edm"]="application/vnd.novadigm.edm";
+    e2t["edx"]="application/vnd.novadigm.edx";
+    e2t["efif"]="application/vnd.picsel";
+    e2t["ei6"]="application/vnd.pg.osasli";
+    e2t["elc"]="application/octet-stream";
+    e2t["eml"]="message/rfc822";
+    e2t["emma"]="application/emma+xml";
+    e2t["eol"]="audio/vnd.digital-winds";
+    e2t["eot"]="application/vnd.ms-fontobject";
+    e2t["eps"]="application/postscript";
+    e2t["epub"]="application/epub+zip";
+    e2t["es3"]="application/vnd.eszigno3+xml";
+    e2t["esf"]="application/vnd.epson.esf";
+    e2t["et3"]="application/vnd.eszigno3+xml";
+    e2t["etx"]="text/x-setext";
+    e2t["exe"]="application/x-msdownload";
+    e2t["ext"]="application/vnd.novadigm.ext";
+    e2t["ez"]="application/andrew-inset";
+    e2t["ez2"]="application/vnd.ezpix-album";
+    e2t["ez3"]="application/vnd.ezpix-package";
+    e2t["f"]="text/x-fortran";
+    e2t["f4v"]="video/x-f4v";
+    e2t["f77"]="text/x-fortran";
+    e2t["f90"]="text/x-fortran";
+    e2t["fbs"]="image/vnd.fastbidsheet";
+    e2t["fdf"]="application/vnd.fdf";
+    e2t["fe_launch"]="application/vnd.denovo.fcselayout-link";
+    e2t["fg5"]="application/vnd.fujitsu.oasysgp";
+    e2t["fgd"]="application/x-director";
+    e2t["fh"]="image/x-freehand";
+    e2t["fh4"]="image/x-freehand";
+    e2t["fh5"]="image/x-freehand";
+    e2t["fh7"]="image/x-freehand";
+    e2t["fhc"]="image/x-freehand";
+    e2t["fig"]="application/x-xfig";
+    e2t["fli"]="video/x-fli";
+    e2t["flo"]="application/vnd.micrografx.flo";
+    e2t["flv"]="video/x-flv";
+    e2t["flw"]="application/vnd.kde.kivio";
+    e2t["flx"]="text/vnd.fmi.flexstor";
+    e2t["fly"]="text/vnd.fly";
+    e2t["fm"]="application/vnd.framemaker";
+    e2t["fnc"]="application/vnd.frogans.fnc";
+    e2t["for"]="text/x-fortran";
+    e2t["fpx"]="image/vnd.fpx";
+    e2t["frame"]="application/vnd.framemaker";
+    e2t["fsc"]="application/vnd.fsc.weblaunch";
+    e2t["fst"]="image/vnd.fst";
+    e2t["ftc"]="application/vnd.fluxtime.clip";
+    e2t["fti"]="application/vnd.anser-web-funds-transfer-initiation";
+    e2t["fvt"]="video/vnd.fvt";
+    e2t["fzs"]="application/vnd.fuzzysheet";
+    e2t["g2w"]="application/vnd.geoplan";
+    e2t["g3"]="image/g3fax";
+    e2t["g3w"]="application/vnd.geospace";
+    e2t["gac"]="application/vnd.groove-account";
+    e2t["gdl"]="model/vnd.gdl";
+    e2t["geo"]="application/vnd.dynageo";
+    e2t["gex"]="application/vnd.geometry-explorer";
+    e2t["ggb"]="application/vnd.geogebra.file";
+    e2t["ggt"]="application/vnd.geogebra.tool";
+    e2t["ghf"]="application/vnd.groove-help";
+    e2t["gif"]="image/gif";
+    e2t["gim"]="application/vnd.groove-identity-message";
+    e2t["gmx"]="application/vnd.gmx";
+    e2t["gnumeric"]="application/x-gnumeric";
+    e2t["gph"]="application/vnd.flographit";
+    e2t["gqf"]="application/vnd.grafeq";
+    e2t["gqs"]="application/vnd.grafeq";
+    e2t["gram"]="application/srgs";
+    e2t["gre"]="application/vnd.geometry-explorer";
+    e2t["grv"]="application/vnd.groove-injector";
+    e2t["grxml"]="application/srgs+xml";
+    e2t["gsf"]="application/x-font-ghostscript";
+    e2t["gtar"]="application/x-gtar";
+    e2t["gtm"]="application/vnd.groove-tool-message";
+    e2t["gtw"]="model/vnd.gtw";
+    e2t["gv"]="text/vnd.graphviz";
+    e2t["gxt"]="application/vnd.geonext";
+    e2t["h"]="text/x-c";
+    e2t["h261"]="video/h261";
+    e2t["h263"]="video/h263";
+    e2t["h264"]="video/h264";
+    e2t["hbci"]="application/vnd.hbci";
+    e2t["hdf"]="application/x-hdf";
+    e2t["hh"]="text/x-c";
+    e2t["hlp"]="application/winhlp";
+    e2t["hpgl"]="application/vnd.hp-hpgl";
+    e2t["hpid"]="application/vnd.hp-hpid";
+    e2t["hps"]="application/vnd.hp-hps";
+    e2t["hqx"]="application/mac-binhex40";
+    e2t["htke"]="application/vnd.kenameaapp";
+    e2t["htm"]="text/html";
+    e2t["html"]="text/html";
+    e2t["hvd"]="application/vnd.yamaha.hv-dic";
+    e2t["hvp"]="application/vnd.yamaha.hv-voice";
+    e2t["hvs"]="application/vnd.yamaha.hv-script";
+    e2t["icc"]="application/vnd.iccprofile";
+    e2t["ice"]="x-conference/x-cooltalk";
+    e2t["icm"]="application/vnd.iccprofile";
+    e2t["ico"]="image/x-icon";
+    e2t["ics"]="text/calendar";
+    e2t["ief"]="image/ief";
+    e2t["ifb"]="text/calendar";
+    e2t["ifm"]="application/vnd.shana.informed.formdata";
+    e2t["iges"]="model/iges";
+    e2t["igl"]="application/vnd.igloader";
+    e2t["igs"]="model/iges";
+    e2t["igx"]="application/vnd.micrografx.igx";
+    e2t["iif"]="application/vnd.shana.informed.interchange";
+    e2t["imp"]="application/vnd.accpac.simply.imp";
+    e2t["ims"]="application/vnd.ms-ims";
+    e2t["in"]="text/plain";
+    e2t["ipfix"]="application/ipfix";
+    e2t["ipk"]="application/vnd.shana.informed.package";
+    e2t["irm"]="application/vnd.ibm.rights-management";
+    e2t["irp"]="application/vnd.irepository.package+xml";
+    e2t["iso"]="application/octet-stream";
+    e2t["itp"]="application/vnd.shana.informed.formtemplate";
+    e2t["ivp"]="application/vnd.immervision-ivp";
+    e2t["ivu"]="application/vnd.immervision-ivu";
+    e2t["jad"]="text/vnd.sun.j2me.app-descriptor";
+    e2t["jam"]="application/vnd.jam";
+    e2t["jar"]="application/java-archive";
+    e2t["java"]="text/x-java-source";
+    e2t["jisp"]="application/vnd.jisp";
+    e2t["jlt"]="application/vnd.hp-jlyt";
+    e2t["jnlp"]="application/x-java-jnlp-file";
+    e2t["joda"]="application/vnd.joost.joda-archive";
+    e2t["jpe"]="image/jpeg";
+    e2t["jpeg"]="image/jpeg";
+    e2t["jpg"]="image/jpeg";
+    e2t["jpgm"]="video/jpm";
+    e2t["jpgv"]="video/jpeg";
+    e2t["jpm"]="video/jpm";
+    e2t["js"]="application/javascript";
+    e2t["json"]="application/json";
+    e2t["kar"]="audio/midi";
+    e2t["karbon"]="application/vnd.kde.karbon";
+    e2t["kfo"]="application/vnd.kde.kformula";
+    e2t["kia"]="application/vnd.kidspiration";
+    e2t["kml"]="application/vnd.google-earth.kml+xml";
+    e2t["kmz"]="application/vnd.google-earth.kmz";
+    e2t["kne"]="application/vnd.kinar";
+    e2t["knp"]="application/vnd.kinar";
+    e2t["kon"]="application/vnd.kde.kontour";
+    e2t["kpr"]="application/vnd.kde.kpresenter";
+    e2t["kpt"]="application/vnd.kde.kpresenter";
+    e2t["ksp"]="application/vnd.kde.kspread";
+    e2t["ktr"]="application/vnd.kahootz";
+    e2t["ktz"]="application/vnd.kahootz";
+    e2t["kwd"]="application/vnd.kde.kword";
+    e2t["kwt"]="application/vnd.kde.kword";
+    e2t["latex"]="application/x-latex";
+    e2t["lbd"]="application/vnd.llamagraphics.life-balance.desktop";
+    e2t["lbe"]="application/vnd.llamagraphics.life-balance.exchange+xml";
+    e2t["les"]="application/vnd.hhe.lesson-player";
+    e2t["lha"]="application/octet-stream";
+    e2t["link66"]="application/vnd.route66.link66+xml";
+    e2t["list"]="text/plain";
+    e2t["list3820"]="application/vnd.ibm.modcap";
+    e2t["listafp"]="application/vnd.ibm.modcap";
+    e2t["log"]="text/plain";
+    e2t["lostxml"]="application/lost+xml";
+    e2t["lrf"]="application/octet-stream";
+    e2t["lrm"]="application/vnd.ms-lrm";
+    e2t["ltf"]="application/vnd.frogans.ltf";
+    e2t["lvp"]="audio/vnd.lucent.voice";
+    e2t["lwp"]="application/vnd.lotus-wordpro";
+    e2t["lzh"]="application/octet-stream";
+    e2t["m13"]="application/x-msmediaview";
+    e2t["m14"]="application/x-msmediaview";
+    e2t["m1v"]="video/mpeg";
+    e2t["m2a"]="audio/mpeg";
+    e2t["m2v"]="video/mpeg";
+    e2t["m3a"]="audio/mpeg";
+    e2t["m3u"]="audio/x-mpegurl";
+    e2t["m3u8"]="application/vnd.apple.mpegurl";
+    e2t["m4u"]="video/vnd.mpegurl";
+    e2t["m4v"]="video/x-m4v";
+    e2t["ma"]="application/mathematica";
+    e2t["mag"]="application/vnd.ecowin.chart";
+    e2t["maker"]="application/vnd.framemaker";
+    e2t["man"]="text/troff";
+    e2t["mathml"]="application/mathml+xml";
+    e2t["mb"]="application/mathematica";
+    e2t["mbk"]="application/vnd.mobius.mbk";
+    e2t["mbox"]="application/mbox";
+    e2t["mc1"]="application/vnd.medcalcdata";
+    e2t["mcd"]="application/vnd.mcd";
+    e2t["mcurl"]="text/vnd.curl.mcurl";
+    e2t["mdb"]="application/x-msaccess";
+    e2t["mdi"]="image/vnd.ms-modi";
+    e2t["me"]="text/troff";
+    e2t["mesh"]="model/mesh";
+    e2t["mfm"]="application/vnd.mfmp";
+    e2t["mgz"]="application/vnd.proteus.magazine";
+    e2t["mid"]="audio/midi";
+    e2t["midi"]="audio/midi";
+    e2t["mif"]="application/vnd.mif";
+    e2t["mime"]="message/rfc822";
+    e2t["mj2"]="video/mj2";
+    e2t["mjp2"]="video/mj2";
+    e2t["mlp"]="application/vnd.dolby.mlp";
+    e2t["mmd"]="application/vnd.chipnuts.karaoke-mmd";
+    e2t["mmf"]="application/vnd.smaf";
+    e2t["mmr"]="image/vnd.fujixerox.edmics-mmr";
+    e2t["mny"]="application/x-msmoney";
+    e2t["mobi"]="application/x-mobipocket-ebook";
+    e2t["mov"]="video/quicktime";
+    e2t["movie"]="video/x-sgi-movie";
+    e2t["mp2"]="audio/mpeg";
+    e2t["mp2a"]="audio/mpeg";
+    e2t["mp3"]="audio/mpeg";
+    e2t["mp4"]="video/mp4";
+    e2t["mp4a"]="audio/mp4";
+    e2t["mp4s"]="application/mp4";
+    e2t["mp4v"]="video/mp4";
+    e2t["mpc"]="application/vnd.mophun.certificate";
+    e2t["mpe"]="video/mpeg";
+    e2t["mpeg"]="video/mpeg";
+    e2t["mpg"]="video/mpeg";
+    e2t["mpg4"]="video/mp4";
+    e2t["mpga"]="audio/mpeg";
+    e2t["mpkg"]="application/vnd.apple.installer+xml";
+    e2t["mpm"]="application/vnd.blueice.multipass";
+    e2t["mpn"]="application/vnd.mophun.application";
+    e2t["mpp"]="application/vnd.ms-project";
+    e2t["mpt"]="application/vnd.ms-project";
+    e2t["mpy"]="application/vnd.ibm.minipay";
+    e2t["mqy"]="application/vnd.mobius.mqy";
+    e2t["mrc"]="application/marc";
+    e2t["ms"]="text/troff";
+    e2t["mscml"]="application/mediaservercontrol+xml";
+    e2t["mseed"]="application/vnd.fdsn.mseed";
+    e2t["mseq"]="application/vnd.mseq";
+    e2t["msf"]="application/vnd.epson.msf";
+    e2t["msh"]="model/mesh";
+    e2t["msi"]="application/x-msdownload";
+    e2t["msl"]="application/vnd.mobius.msl";
+    e2t["msty"]="application/vnd.muvee.style";
+    e2t["mts"]="model/vnd.mts";
+    e2t["mus"]="application/vnd.musician";
+    e2t["musicxml"]="application/vnd.recordare.musicxml+xml";
+    e2t["mvb"]="application/x-msmediaview";
+    e2t["mwf"]="application/vnd.mfer";
+    e2t["mxf"]="application/mxf";
+    e2t["mxl"]="application/vnd.recordare.musicxml";
+    e2t["mxml"]="application/xv+xml";
+    e2t["mxs"]="application/vnd.triscape.mxs";
+    e2t["mxu"]="video/vnd.mpegurl";
+    e2t["n-gage"]="application/vnd.nokia.n-gage.symbian.install";
+    e2t["nb"]="application/mathematica";
+    e2t["nbp"]="application/vnd.wolfram.player";
+    e2t["nc"]="application/x-netcdf";
+    e2t["ncx"]="application/x-dtbncx+xml";
+    e2t["ngdat"]="application/vnd.nokia.n-gage.data";
+    e2t["nlu"]="application/vnd.neurolanguage.nlu";
+    e2t["nml"]="application/vnd.enliven";
+    e2t["nnd"]="application/vnd.noblenet-directory";
+    e2t["nns"]="application/vnd.noblenet-sealer";
+    e2t["nnw"]="application/vnd.noblenet-web";
+    e2t["npx"]="image/vnd.net-fpx";
+    e2t["nsf"]="application/vnd.lotus-notes";
+    e2t["oa2"]="application/vnd.fujitsu.oasys2";
+    e2t["oa3"]="application/vnd.fujitsu.oasys3";
+    e2t["oas"]="application/vnd.fujitsu.oasys";
+    e2t["obd"]="application/x-msbinder";
+    e2t["oda"]="application/oda";
+    e2t["odb"]="application/vnd.oasis.opendocument.database";
+    e2t["odc"]="application/vnd.oasis.opendocument.chart";
+    e2t["odf"]="application/vnd.oasis.opendocument.formula";
+    e2t["odft"]="application/vnd.oasis.opendocument.formula-template";
+    e2t["odg"]="application/vnd.oasis.opendocument.graphics";
+    e2t["odi"]="application/vnd.oasis.opendocument.image";
+    e2t["odp"]="application/vnd.oasis.opendocument.presentation";
+    e2t["ods"]="application/vnd.oasis.opendocument.spreadsheet";
+    e2t["odt"]="application/vnd.oasis.opendocument.text";
+    e2t["oga"]="audio/ogg";
+    e2t["ogg"]="audio/ogg";
+    e2t["ogv"]="video/ogg";
+    e2t["ogx"]="application/ogg";
+    e2t["onepkg"]="application/onenote";
+    e2t["onetmp"]="application/onenote";
+    e2t["onetoc"]="application/onenote";
+    e2t["onetoc2"]="application/onenote";
+    e2t["opf"]="application/oebps-package+xml";
+    e2t["oprc"]="application/vnd.palm";
+    e2t["org"]="application/vnd.lotus-organizer";
+    e2t["osf"]="application/vnd.yamaha.openscoreformat";
+    e2t["osfpvg"]="application/vnd.yamaha.openscoreformat.osfpvg+xml";
+    e2t["otc"]="application/vnd.oasis.opendocument.chart-template";
+    e2t["otf"]="application/x-font-otf";
+    e2t["otg"]="application/vnd.oasis.opendocument.graphics-template";
+    e2t["oth"]="application/vnd.oasis.opendocument.text-web";
+    e2t["oti"]="application/vnd.oasis.opendocument.image-template";
+    e2t["otm"]="application/vnd.oasis.opendocument.text-master";
+    e2t["otp"]="application/vnd.oasis.opendocument.presentation-template";
+    e2t["ots"]="application/vnd.oasis.opendocument.spreadsheet-template";
+    e2t["ott"]="application/vnd.oasis.opendocument.text-template";
+    e2t["oxt"]="application/vnd.openofficeorg.extension";
+    e2t["p"]="text/x-pascal";
+    e2t["p10"]="application/pkcs10";
+    e2t["p12"]="application/x-pkcs12";
+    e2t["p7b"]="application/x-pkcs7-certificates";
+    e2t["p7c"]="application/pkcs7-mime";
+    e2t["p7m"]="application/pkcs7-mime";
+    e2t["p7r"]="application/x-pkcs7-certreqresp";
+    e2t["p7s"]="application/pkcs7-signature";
+    e2t["pas"]="text/x-pascal";
+    e2t["paw"]="application/vnd.pawaafile";
+    e2t["pbd"]="application/vnd.powerbuilder6";
+    e2t["pbm"]="image/x-portable-bitmap";
+    e2t["pcf"]="application/x-font-pcf";
+    e2t["pcl"]="application/vnd.hp-pcl";
+    e2t["pclxl"]="application/vnd.hp-pclxl";
+    e2t["pct"]="image/x-pict";
+    e2t["pcurl"]="application/vnd.curl.pcurl";
+    e2t["pcx"]="image/x-pcx";
+    e2t["pdb"]="application/vnd.palm";
+    e2t["pdf"]="application/pdf";
+    e2t["pfa"]="application/x-font-type1";
+    e2t["pfb"]="application/x-font-type1";
+    e2t["pfm"]="application/x-font-type1";
+    e2t["pfr"]="application/font-tdpfr";
+    e2t["pfx"]="application/x-pkcs12";
+    e2t["pgm"]="image/x-portable-graymap";
+    e2t["pgn"]="application/x-chess-pgn";
+    e2t["pgp"]="application/pgp-encrypted";
+    e2t["pic"]="image/x-pict";
+    e2t["pkg"]="application/octet-stream";
+    e2t["pki"]="application/pkixcmp";
+    e2t["pkipath"]="application/pkix-pkipath";
+    e2t["plb"]="application/vnd.3gpp.pic-bw-large";
+    e2t["plc"]="application/vnd.mobius.plc";
+    e2t["plf"]="application/vnd.pocketlearn";
+    e2t["pls"]="application/pls+xml";
+    e2t["pml"]="application/vnd.ctc-posml";
+    e2t["png"]="image/png";
+    e2t["pnm"]="image/x-portable-anymap";
+    e2t["portpkg"]="application/vnd.macports.portpkg";
+    e2t["pot"]="application/vnd.ms-powerpoint";
+    e2t["potm"]="application/vnd.ms-powerpoint.template.macroenabled.12";
+    e2t["potx"]="application/vnd.openxmlformats-officedocument.presentationml.template";
+    e2t["ppam"]="application/vnd.ms-powerpoint.addin.macroenabled.12";
+    e2t["ppd"]="application/vnd.cups-ppd";
+    e2t["ppm"]="image/x-portable-pixmap";
+    e2t["pps"]="application/vnd.ms-powerpoint";
+    e2t["ppsm"]="application/vnd.ms-powerpoint.slideshow.macroenabled.12";
+    e2t["ppsx"]="application/vnd.openxmlformats-officedocument.presentationml.slideshow";
+    e2t["ppt"]="application/vnd.ms-powerpoint";
+    e2t["pptm"]="application/vnd.ms-powerpoint.presentation.macroenabled.12";
+    e2t["pptx"]="application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    e2t["pqa"]="application/vnd.palm";
+    e2t["prc"]="application/x-mobipocket-ebook";
+    e2t["pre"]="application/vnd.lotus-freelance";
+    e2t["prf"]="application/pics-rules";
+    e2t["ps"]="application/postscript";
+    e2t["psb"]="application/vnd.3gpp.pic-bw-small";
+    e2t["psd"]="image/vnd.adobe.photoshop";
+    e2t["psf"]="application/x-font-linux-psf";
+    e2t["ptid"]="application/vnd.pvi.ptid1";
+    e2t["pub"]="application/x-mspublisher";
+    e2t["pvb"]="application/vnd.3gpp.pic-bw-var";
+    e2t["pwn"]="application/vnd.3m.post-it-notes";
+    e2t["pya"]="audio/vnd.ms-playready.media.pya";
+    e2t["pyv"]="video/vnd.ms-playready.media.pyv";
+    e2t["qam"]="application/vnd.epson.quickanime";
+    e2t["qbo"]="application/vnd.intu.qbo";
+    e2t["qfx"]="application/vnd.intu.qfx";
+    e2t["qps"]="application/vnd.publishare-delta-tree";
+    e2t["qt"]="video/quicktime";
+    e2t["qwd"]="application/vnd.quark.quarkxpress";
+    e2t["qwt"]="application/vnd.quark.quarkxpress";
+    e2t["qxb"]="application/vnd.quark.quarkxpress";
+    e2t["qxd"]="application/vnd.quark.quarkxpress";
+    e2t["qxl"]="application/vnd.quark.quarkxpress";
+    e2t["qxt"]="application/vnd.quark.quarkxpress";
+    e2t["ra"]="audio/x-pn-realaudio";
+    e2t["ram"]="audio/x-pn-realaudio";
+    e2t["rar"]="application/x-rar-compressed";
+    e2t["ras"]="image/x-cmu-raster";
+    e2t["rcprofile"]="application/vnd.ipunplugged.rcprofile";
+    e2t["rdf"]="application/rdf+xml";
+    e2t["rdz"]="application/vnd.data-vision.rdz";
+    e2t["rep"]="application/vnd.businessobjects";
+    e2t["res"]="application/x-dtbresource+xml";
+    e2t["rgb"]="image/x-rgb";
+    e2t["rif"]="application/reginfo+xml";
+    e2t["rl"]="application/resource-lists+xml";
+    e2t["rlc"]="image/vnd.fujixerox.edmics-rlc";
+    e2t["rld"]="application/resource-lists-diff+xml";
+    e2t["rm"]="application/vnd.rn-realmedia";
+    e2t["rmi"]="audio/midi";
+    e2t["rmp"]="audio/x-pn-realaudio-plugin";
+    e2t["rms"]="application/vnd.jcp.javame.midlet-rms";
+    e2t["rnc"]="application/relax-ng-compact-syntax";
+    e2t["roff"]="text/troff";
+    e2t["rp9"]="application/vnd.cloanto.rp9";
+    e2t["rpss"]="application/vnd.nokia.radio-presets";
+    e2t["rpst"]="application/vnd.nokia.radio-preset";
+    e2t["rq"]="application/sparql-query";
+    e2t["rs"]="application/rls-services+xml";
+    e2t["rsd"]="application/rsd+xml";
+    e2t["rss"]="application/rss+xml";
+    e2t["rtf"]="application/rtf";
+    e2t["rtx"]="text/richtext";
+    e2t["s"]="text/x-asm";
+    e2t["saf"]="application/vnd.yamaha.smaf-audio";
+    e2t["sbml"]="application/sbml+xml";
+    e2t["sc"]="application/vnd.ibm.secure-container";
+    e2t["scd"]="application/x-msschedule";
+    e2t["scm"]="application/vnd.lotus-screencam";
+    e2t["scq"]="application/scvp-cv-request";
+    e2t["scs"]="application/scvp-cv-response";
+    e2t["scurl"]="text/vnd.curl.scurl";
+    e2t["sda"]="application/vnd.stardivision.draw";
+    e2t["sdc"]="application/vnd.stardivision.calc";
+    e2t["sdd"]="application/vnd.stardivision.impress";
+    e2t["sdkd"]="application/vnd.solent.sdkm+xml";
+    e2t["sdkm"]="application/vnd.solent.sdkm+xml";
+    e2t["sdp"]="application/sdp";
+    e2t["sdw"]="application/vnd.stardivision.writer";
+    e2t["see"]="application/vnd.seemail";
+    e2t["seed"]="application/vnd.fdsn.seed";
+    e2t["sema"]="application/vnd.sema";
+    e2t["semd"]="application/vnd.semd";
+    e2t["semf"]="application/vnd.semf";
+    e2t["ser"]="application/java-serialized-object";
+    e2t["setpay"]="application/set-payment-initiation";
+    e2t["setreg"]="application/set-registration-initiation";
+    e2t["sfd-hdstx"]="application/vnd.hydrostatix.sof-data";
+    e2t["sfs"]="application/vnd.spotfire.sfs";
+    e2t["sgl"]="application/vnd.stardivision.writer-global";
+    e2t["sgm"]="text/sgml";
+    e2t["sgml"]="text/sgml";
+    e2t["sh"]="application/x-sh";
+    e2t["shar"]="application/x-shar";
+    e2t["shf"]="application/shf+xml";
+    e2t["sig"]="application/pgp-signature";
+    e2t["silo"]="model/mesh";
+    e2t["sis"]="application/vnd.symbian.install";
+    e2t["sisx"]="application/vnd.symbian.install";
+    e2t["sit"]="application/x-stuffit";
+    e2t["sitx"]="application/x-stuffitx";
+    e2t["skd"]="application/vnd.koan";
+    e2t["skm"]="application/vnd.koan";
+    e2t["skp"]="application/vnd.koan";
+    e2t["skt"]="application/vnd.koan";
+    e2t["sldm"]="application/vnd.ms-powerpoint.slide.macroenabled.12";
+    e2t["sldx"]="application/vnd.openxmlformats-officedocument.presentationml.slide";
+    e2t["slt"]="application/vnd.epson.salt";
+    e2t["smf"]="application/vnd.stardivision.math";
+    e2t["smi"]="application/smil+xml";
+    e2t["smil"]="application/smil+xml";
+    e2t["snd"]="audio/basic";
+    e2t["snf"]="application/x-font-snf";
+    e2t["so"]="application/octet-stream";
+    e2t["spc"]="application/x-pkcs7-certificates";
+    e2t["spf"]="application/vnd.yamaha.smaf-phrase";
+    e2t["spl"]="application/x-futuresplash";
+    e2t["spot"]="text/vnd.in3d.spot";
+    e2t["spp"]="application/scvp-vp-response";
+    e2t["spq"]="application/scvp-vp-request";
+    e2t["spx"]="audio/ogg";
+    e2t["src"]="application/x-wais-source";
+    e2t["srx"]="application/sparql-results+xml";
+    e2t["sse"]="application/vnd.kodak-descriptor";
+    e2t["ssf"]="application/vnd.epson.ssf";
+    e2t["ssml"]="application/ssml+xml";
+    e2t["st"]="application/vnd.sailingtracker.track";
+    e2t["stc"]="application/vnd.sun.xml.calc.template";
+    e2t["std"]="application/vnd.sun.xml.draw.template";
+    e2t["stf"]="application/vnd.wt.stf";
+    e2t["sti"]="application/vnd.sun.xml.impress.template";
+    e2t["stk"]="application/hyperstudio";
+    e2t["stl"]="application/vnd.ms-pki.stl";
+    e2t["str"]="application/vnd.pg.format";
+    e2t["stw"]="application/vnd.sun.xml.writer.template";
+    e2t["sus"]="application/vnd.sus-calendar";
+    e2t["susp"]="application/vnd.sus-calendar";
+    e2t["sv4cpio"]="application/x-sv4cpio";
+    e2t["sv4crc"]="application/x-sv4crc";
+    e2t["svd"]="application/vnd.svd";
+    e2t["svg"]="image/svg+xml";
+    e2t["svgz"]="image/svg+xml";
+    e2t["swa"]="application/x-director";
+    e2t["swf"]="application/x-shockwave-flash";
+    e2t["swi"]="application/vnd.aristanetworks.swi";
+    e2t["sxc"]="application/vnd.sun.xml.calc";
+    e2t["sxd"]="application/vnd.sun.xml.draw";
+    e2t["sxg"]="application/vnd.sun.xml.writer.global";
+    e2t["sxi"]="application/vnd.sun.xml.impress";
+    e2t["sxm"]="application/vnd.sun.xml.math";
+    e2t["sxw"]="application/vnd.sun.xml.writer";
+    e2t["t"]="text/troff";
+    e2t["tao"]="application/vnd.tao.intent-module-archive";
+    e2t["tar"]="application/x-tar";
+    e2t["tcap"]="application/vnd.3gpp2.tcap";
+    e2t["tcl"]="application/x-tcl";
+    e2t["teacher"]="application/vnd.smart.teacher";
+    e2t["tex"]="application/x-tex";
+    e2t["texi"]="application/x-texinfo";
+    e2t["texinfo"]="application/x-texinfo";
+    e2t["text"]="text/plain";
+    e2t["tfm"]="application/x-tex-tfm";
+    e2t["tif"]="image/tiff";
+    e2t["tiff"]="image/tiff";
+    e2t["tmo"]="application/vnd.tmobile-livetv";
+    e2t["torrent"]="application/x-bittorrent";
+    e2t["tpl"]="application/vnd.groove-tool-template";
+    e2t["tpt"]="application/vnd.trid.tpt";
+    e2t["tr"]="text/troff";
+    e2t["tra"]="application/vnd.trueapp";
+    e2t["trm"]="application/x-msterminal";
+    e2t["tsv"]="text/tab-separated-values";
+    e2t["ttc"]="application/x-font-ttf";
+    e2t["ttf"]="application/x-font-ttf";
+    e2t["twd"]="application/vnd.simtech-mindmapper";
+    e2t["twds"]="application/vnd.simtech-mindmapper";
+    e2t["txd"]="application/vnd.genomatix.tuxedo";
+    e2t["txf"]="application/vnd.mobius.txf";
+    e2t["txt"]="text/plain";
+    e2t["u32"]="application/x-authorware-bin";
+    e2t["udeb"]="application/x-debian-package";
+    e2t["ufd"]="application/vnd.ufdl";
+    e2t["ufdl"]="application/vnd.ufdl";
+    e2t["umj"]="application/vnd.umajin";
+    e2t["unityweb"]="application/vnd.unity";
+    e2t["uoml"]="application/vnd.uoml+xml";
+    e2t["uri"]="text/uri-list";
+    e2t["uris"]="text/uri-list";
+    e2t["urls"]="text/uri-list";
+    e2t["ustar"]="application/x-ustar";
+    e2t["utz"]="application/vnd.uiq.theme";
+    e2t["uu"]="text/x-uuencode";
+    e2t["vcd"]="application/x-cdlink";
+    e2t["vcf"]="text/x-vcard";
+    e2t["vcg"]="application/vnd.groove-vcard";
+    e2t["vcs"]="text/x-vcalendar";
+    e2t["vcx"]="application/vnd.vcx";
+    e2t["vis"]="application/vnd.visionary";
+    e2t["viv"]="video/vnd.vivo";
+    e2t["vor"]="application/vnd.stardivision.writer";
+    e2t["vox"]="application/x-authorware-bin";
+    e2t["vrml"]="model/vrml";
+    e2t["vsd"]="application/vnd.visio";
+    e2t["vsf"]="application/vnd.vsf";
+    e2t["vss"]="application/vnd.visio";
+    e2t["vst"]="application/vnd.visio";
+    e2t["vsw"]="application/vnd.visio";
+    e2t["vtu"]="model/vnd.vtu";
+    e2t["vxml"]="application/voicexml+xml";
+    e2t["w3d"]="application/x-director";
+    e2t["wad"]="application/x-doom";
+    e2t["wav"]="audio/x-wav";
+    e2t["wax"]="audio/x-ms-wax";
+    e2t["wbmp"]="image/vnd.wap.wbmp";
+    e2t["wbs"]="application/vnd.criticaltools.wbs+xml";
+    e2t["wbxml"]="application/vnd.wap.wbxml";
+    e2t["wcm"]="application/vnd.ms-works";
+    e2t["wdb"]="application/vnd.ms-works";
+    e2t["wg"]="application/vnd.pmi.widget";
+    e2t["wks"]="application/vnd.ms-works";
+    e2t["wm"]="video/x-ms-wm";
+    e2t["wma"]="audio/x-ms-wma";
+    e2t["wmd"]="application/x-ms-wmd";
+    e2t["wmf"]="application/x-msmetafile";
+    e2t["wml"]="text/vnd.wap.wml";
+    e2t["wmlc"]="application/vnd.wap.wmlc";
+    e2t["wmls"]="text/vnd.wap.wmlscript";
+    e2t["wmlsc"]="application/vnd.wap.wmlscriptc";
+    e2t["wmv"]="video/x-ms-wmv";
+    e2t["wmx"]="video/x-ms-wmx";
+    e2t["wmz"]="application/x-ms-wmz";
+    e2t["wpd"]="application/vnd.wordperfect";
+    e2t["wpl"]="application/vnd.ms-wpl";
+    e2t["wps"]="application/vnd.ms-works";
+    e2t["wqd"]="application/vnd.wqd";
+    e2t["wri"]="application/x-mswrite";
+    e2t["wrl"]="model/vrml";
+    e2t["wsdl"]="application/wsdl+xml";
+    e2t["wspolicy"]="application/wspolicy+xml";
+    e2t["wtb"]="application/vnd.webturbo";
+    e2t["wvx"]="video/x-ms-wvx";
+    e2t["x32"]="application/x-authorware-bin";
+    e2t["x3d"]="application/vnd.hzn-3d-crossword";
+    e2t["xap"]="application/x-silverlight-app";
+    e2t["xar"]="application/vnd.xara";
+    e2t["xbap"]="application/x-ms-xbap";
+    e2t["xbd"]="application/vnd.fujixerox.docuworks.binder";
+    e2t["xbm"]="image/x-xbitmap";
+    e2t["xdm"]="application/vnd.syncml.dm+xml";
+    e2t["xdp"]="application/vnd.adobe.xdp+xml";
+    e2t["xdssc"]="application/dssc+xml";
+    e2t["xdw"]="application/vnd.fujixerox.docuworks";
+    e2t["xenc"]="application/xenc+xml";
+    e2t["xer"]="application/patch-ops-error+xml";
+    e2t["xfdf"]="application/vnd.adobe.xfdf";
+    e2t["xfdl"]="application/vnd.xfdl";
+    e2t["xht"]="application/xhtml+xml";
+    e2t["xhtml"]="application/xhtml+xml";
+    e2t["xhvml"]="application/xv+xml";
+    e2t["xif"]="image/vnd.xiff";
+    e2t["xla"]="application/vnd.ms-excel";
+    e2t["xlam"]="application/vnd.ms-excel.addin.macroenabled.12";
+    e2t["xlc"]="application/vnd.ms-excel";
+    e2t["xlm"]="application/vnd.ms-excel";
+    e2t["xls"]="application/vnd.ms-excel";
+    e2t["xlsb"]="application/vnd.ms-excel.sheet.binary.macroenabled.12";
+    e2t["xlsm"]="application/vnd.ms-excel.sheet.macroenabled.12";
+    e2t["xlsx"]="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    e2t["xlt"]="application/vnd.ms-excel";
+    e2t["xltm"]="application/vnd.ms-excel.template.macroenabled.12";
+    e2t["xltx"]="application/vnd.openxmlformats-officedocument.spreadsheetml.template";
+    e2t["xlw"]="application/vnd.ms-excel";
+    e2t["xml"]="application/xml";
+    e2t["xo"]="application/vnd.olpc-sugar";
+    e2t["xop"]="application/xop+xml";
+    e2t["xpi"]="application/x-xpinstall";
+    e2t["xpm"]="image/x-xpixmap";
+    e2t["xpr"]="application/vnd.is-xpr";
+    e2t["xps"]="application/vnd.ms-xpsdocument";
+    e2t["xpw"]="application/vnd.intercon.formnet";
+    e2t["xpx"]="application/vnd.intercon.formnet";
+    e2t["xsl"]="application/xml";
+    e2t["xslt"]="application/xslt+xml";
+    e2t["xsm"]="application/vnd.syncml+xml";
+    e2t["xspf"]="application/xspf+xml";
+    e2t["xul"]="application/vnd.mozilla.xul+xml";
+    e2t["xvm"]="application/xv+xml";
+    e2t["xvml"]="application/xv+xml";
+    e2t["xwd"]="image/x-xwindowdump";
+    e2t["xyz"]="chemical/x-xyz";
+    e2t["zaz"]="application/vnd.zzazz.deck+xml";
+    e2t["zip"]="application/zip";
+    e2t["zir"]="application/vnd.zul";
+    e2t["zirz"]="application/vnd.zul";
+    e2t["zmm"]="application/vnd.handheld-entertainment+xml";
+  }
+  { s=tolower($0);
+    print (s in e2t) ? e2t[s] : "application/octet-stream";
+  }'
+}
+
+
+# --- initalization --------------------------------------------------
+set -u
+umask 0022
+PATH='/usr/bin:/bin'
+IFS=$(printf ' \t\n_'); IFS=${IFS%_}
+export IFS LANG=C LC_ALL=C PATH
+#
+TAB=$(printf '\t')
+CR=$(printf '\r_'); CR=${CR%_}
+LF=$(printf '\n_'); LF=${LF%_}
+#
+use_stdin=0
+validate_file() {
+  case $1 in
+    '-'|'/dev/stdin'|'/dev/fd/0'|'/dev/self/fd/0')
+      use_stdin=$((use_stdin+1))
+      case $use_stdin in
+        [01]) return 0;;
+           *) printf '%s: stdin can be used only once in the arguments\n' \
+                     "${0##*/}" 1>&2
+              exit 1
+              ;;
+      esac
+      ;;
+    *)
+      [ \( -f "$1" \) -o \( -c "$1" \) -o \( -p "$1" \) ] || {
+        printf '%s: Invalid file: %s\n' "${0##*/}" "$1" 1>&2
+        exit 1
+      }
+      ;;
+  esac
+}
+
+
+# --- parse options --------------------------------------------------
+# parse the -m option and only generate a mime boundary string if exists
+case "${1:-}" in
+  '-m'|'--generatemimeboundary') echo "MimeBoundary-$(randstr 61)"; exit 0;;
+esac
+#
+# parse and validate the some kinds of options
+base64=0
+mime_b_is_set=0
+while :; do
+  [ $# -ge 2 ] || print_usage_and_exit
+  case "$1" in
+    --crlf) CR=$(printf '\r_'); CR=${CR%_}; shift  ; continue;;
+    --lf)   CR=''                         ; shift  ; continue;;
+    --b64)  base64=1                      ; shift  ; continue;;
+    --raw)  base64=0                      ; shift  ; continue;;
+    -b)     mime_b=$2; mime_b_is_set=1    ; shift 2; continue;;
+     *)                                           break   ;;
+  esac
+done
+case $mime_b_is_set in 0) mime_b="MimeBoundary-$(randstr 61)";; esac
+
+
+# --- main loop ------------------------------------------------------
+while [ $# -gt 0 ]; do
+  # 1) parse arguments for a form
+  mode=''; name=''; type=''; text=''; file=''; filename=''
+  case $1 in
+    --b64) base64=1; shift; continue;; # switch to Base64 Encoding mode
+    --raw) base64=0; shift; continue;; # switch to RAW mode
+    -T)   mode='textform'
+          case $# in [12]) print_usage_and_exit;; esac
+          text=$3
+          name=$2
+          shift 3
+          ;;
+    -Tf)  mode='textform'
+          case $# in
+            1) print_usage_and_exit;;
+            2) file='-'            ;;
+            *) file=$3             ;;
+          esac
+          validate_file "$file"
+          text=$(cat "$file")
+          name=$2
+          case $# in 2) shift 2;; *) shift 3;; esac
+          ;;
+    -F)   mode='fileform'
+          case $# in
+            1) print_usage_and_exit         ;;
+            2) file='-'                     ;;
+            *) file=$3; filename=${file##*/};;
+          esac
+          validate_file "$file"
+          ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
+          type=$(decide_type "${ext##*.}")
+          name=$2
+          case $# in 2) shift 2;; *) shift 3;; esac
+          ;;
+    -Ff)  mode='fileform'
+          case $# in
+            [12]) print_usage_and_exit;;
+               3) file='-'            ;;
+               *) file=$4             ;;
+          esac
+          validate_file "$file"
+          filename=$3
+          ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
+          type=$(decide_type "${ext##*.}")
+          name=$2
+          case $# in 3) shift 3;; *) shift 4;; esac
+          ;;
+    -Ft)  mode='fileform'
+          case $# in
+            [12]) print_usage_and_exit         ;;
+               3) file='-'                     ;;
+               *) file=$4; filename=${file##*/};;
+          esac
+          validate_file "$file"
+          type=$3
+          name=$2
+          case $# in 3) shift 3;; *) shift 4;; esac
+          ;;
+    -Ftf) mode='fileform'
+          case $# in
+            [123]) print_usage_and_exit;;
+                4) file='-'            ;;
+                *) file=$5             ;;
+          esac
+          validate_file "$file"
+          filename=$4
+          type=$3
+          name=$2
+          case $# in 4) shift 4;; *) shift 5;; esac
+          ;;
+    -M)   mode='mailbody'
+          case $# in
+            1) file='-'            ;;
+            *) file=$2             ;;
+          esac
+          validate_file "$file"
+          case $# in 1) shift  ;; *) shift 2;; esac
+          ;;
+    -A)   mode='mailatch'
+          case $# in
+            1) file='-'                     ;;
+            *) file=$2; filename=${file##*/};;
+          esac
+          name=$filename
+          validate_file "$file"
+          ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
+          type=$(decide_type "${ext##*.}")
+          case $# in 1) shift 1;; *) shift 2;; esac
+          ;;
+    -Af)  mode='mailatch'
+          case $# in
+            1) print_usage_and_exit;;
+            2) file='-'            ;;
+            *) file=$3             ;;
+          esac
+          validate_file "$file"
+          filename=$2
+          name=$filename
+          ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
+          type=$(decide_type "${ext##*.}")
+          case $# in 2) shift 2;; *) shift 3;; esac
+          ;;
+    -At)  mode='mailatch'
+          case $# in
+            1) print_usage_and_exit         ;;
+            2) file='-'                     ;;
+            *) file=$3; filename=${file##*/};;
+          esac
+          validate_file "$file"
+          name=$filename
+          type=$2
+          case $# in 2) shift 2;; *) shift 3;; esac
+          ;;
+    -Atf) mode='mailatch'
+          case $# in
+            [12]) print_usage_and_exit;;
+               3) file='-'            ;;
+               *) file=$4             ;;
+          esac
+          validate_file "$file"
+          filename=$3
+          name=$filename
+          type=$2
+          case $# in 3) shift 3;; *) shift 4;; esac
+          ;;
+    *)    print_usage_and_exit;;
+  esac
+  name=$(    escape_for_header_string "$name"    )
+  type=$(    escape_for_header_string "$type"    )
+  filename=$(escape_for_header_string "$filename")
+
+  # 2) output
+  printf '%s%s\n' "--$mime_b" "$CR"
+  case "$mode" in
+    # a) a text string
+    'textform') printf 'Content-Disposition: form-data; name="%s"%s\n%s\n' \
+                       "$name" "$CR" "$CR"
+                printf '%s%s\n'                                            \
+                       "$text" "$CR"
+                ;;
+    # b) an attached file
+    'fileform') printf 'Content-Disposition: form-data; name="%s"' "$name"
+                case "$filename" in
+                  '') printf '%s\n'                            "$CR";;
+                   *) printf '; filename="%s"%s\n' "$filename" "$CR";;
+                esac
+                case "$base64" in
+                   0) :                                                   ;;
+                   *) printf 'Content-Transfer-Encoding: base64%s\n' "$CR";;
+                esac
+                case "$type" in
+                  '') :                                          ;;
+                   *) printf 'Content-Type: %s%s\n' "$type" "$CR";;
+                esac
+                printf '%s\n' "$CR"
+                case "$base64" in
+                   0) cat "$file"           ;;
+                   *) cat "$file"           |
+                      base64 --wrap=76      |
+                      sed '$!s/$/@ /'       |
+                      tr -d '\n'            |
+                      tr '@ ' '\r\n'        |
+                      if [ -n "$CR" ]; then #
+                        cat                 #
+                      else                  #
+                        tr -d "$CR"         #
+                      fi                    ;;
+                esac
+                printf '%s\n' "$CR"
+                ;;
+    # c) a mail body
+    'mailbody') printf 'Content-Transfer-Encoding: base64%s\n'           \
+                       "$CR"
+                printf 'Content-Type: text/plain; charset=UTF-8%s\n%s\n' \
+                       "$CR" "$CR"
+                
+                cat "$file"                                        |
+                if [ -n "$CR" ]; then                              #
+                  sed "/^\$/s/\$/$CR/" | sed "/[^$CR]\$/s/\$/$CR/" #
+                else                                               #
+                  tr -d '\r'                                       #
+                fi                                                 |
+                base64 --wrap=76                                   |
+                sed '$!s/$/@ /'                                    |
+                tr -d '\n'                                         |
+                tr '@ ' '\r\n'                                     |
+                if [ -n "$CR" ]; then                              #
+                  cat                                              #
+                else                                               #
+                  tr -d "$CR"                                      #
+                fi
+                printf '%s\n' "$CR"
+                ;;
+    'mailatch') printf 'Content-Disposition: attachment; filename="%s"%s\n' \
+                       "$filename" "$CR"
+                printf 'Content-Transfer-Encoding: base64%s\n'              \
+                       "$CR"
+                printf 'Content-Type: %s; name="%s"%s\n%s\n'                \
+                       "$type" "$name" "$CR" "$CR"
+                cat "$file"           |
+                base64 --wrap=76      |
+                sed '$!s/$/@ /'       |
+                tr -d '\n'            |
+                tr '@ ' '\r\n'        |
+                if [ -n "$CR" ]; then #
+                  cat                 #
+                else                  #
+                  tr -d "$CR"         #
+                fi
+                printf '%s\n' "$CR"
+                ;;
+  esac
+done
+printf '%s--%s\n' "--$mime_b" "$CR"

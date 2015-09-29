@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# twfav.sh
-# Twitterでお気に入りに登録する
+# twmediup.sh
+# Twitterに画像等をアップロードするシェルスクリプト
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2015/09/30
 #
@@ -32,8 +32,8 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} <tweet_id>
-	Wed Sep 30 00:50:54 JST 2015
+	Usage : ${0##*/} <file>
+	Wed Sep 30 00:35:11 JST 2015
 __USAGE
   exit 1
 }
@@ -70,16 +70,28 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-tweetid=''
+mimemake_args='' # mime-makeコマンドに渡す引数
 
-# === リツイート用のツイートIDを取得 =================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
-}
+# === オプション読取 =================================================
+case $# in [^1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
+for arg in "$@"; do
+  ext=$(printf '%s' "${arg##*/}" | tr -d '\n')
+  case "${ext##*.}" in
+    "$ext") ext=''                                                        ;;
+         *) ext=$(printf '%s\n' "${ext##*.}" | awk '{print tolower($0);}');;
+  esac
+  case "$ext" in
+    'png')  type='image/png' ;;
+    'jpg')  type='image/jpeg';;
+    'jpeg') type='image/jpeg';;
+    'bmp')  type='image/bmp' ;;
+    'gif')  type='image/gif' ;;
+    'webp') type='image/webp';;
+    *)      error_exit 1 "Unsupported file format: $arg";;
+  esac
+  s=$(printf '%s' "$arg" | sed 's/\\/\\\\/g' | sed 's/"/\\"/'g)
+  mimemake_args="$mimemake_args -Ft media \"$type\" \"$s\""
+done
 
 
 ######################################################################
@@ -88,15 +100,10 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-readonly API_endpt='https://api.twitter.com/1.1/favorites/create.json'
+readonly API_endpt='https://upload.twitter.com/1.1/media/upload.json'
 readonly API_methd='POST'
 # (2)パラメーター 注意:パラメーターの順番は変数名の辞書順に連結すること
-API_param=$(cat <<______________PARAM      |
-              id=$tweetid
-______________PARAM
-            sed 's/^ *//'                  |
-            grep -v '^[A-Za-z0-9_]\{1,\}=$')
-readonly API_param
+readonly API_param=''
 
 # === 署名や送信リクエストの材料を作成 ===============================
 # --- 1.ランダム文字列
@@ -119,6 +126,7 @@ _____________OAUTHPARAM
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
            sed 's/%3[Dd]/=/'            )
 # --- 5.URL貼付用のAPIパラメーター（4を利用して作成）
 apip_pos=$(printf '%s' "${apip_enc}" |
@@ -158,66 +166,52 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                |
+cat <<-__OAUTH_HEADER                                                  |
 	${oa_param}
 	oauth_signature=${sig_strin}
 	${API_param}
 __OAUTH_HEADER
-urlencode -r                                                         |
-sed 's/%3[Dd]/=/'                                                    |
-sort -k 1,1 -t '='                                                   |
-tr '\n' ','                                                          |
-sed 's/^,*//'                                                        |
-sed 's/,*$//'                                                        |
-sed 's/^/Authorization: OAuth /'                                     |
-grep ^                                                               |
-while read -r oa_hdr; do                                             #
-  if   [ -n "${CMD_WGET:-}" ]; then                                  #
-    "$CMD_WGET" --no-check-certificate -q -O -                       \
-                --header="$oa_hdr"                                   \
-                --post-data="$apip_pos"                              \
-                "$API_endpt"                                         #
-  elif [ -n "${CMD_CURL:-}" ]; then                                  #
-    "$CMD_CURL" -s                                                   \
-                -H "$oa_hdr"                                         \
-                -d "$apip_pos"                                       \
-                "$API_endpt"                                         #
-  fi                                                                 #
-done                                                                 |
-# --- 2.レスポンスパース                                             #
-parsrj.sh 2>/dev/null                                                |
-awk 'BEGIN                {fid=0; fca=0;                         }   #
-     $1~/^\$\.created_at$/{fca=1; sca=substr($0,index($0," ")+1);}   #
-     $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
-     END                  {if(fid*fca) {print sca,sid}           }'  |
-# 1:曜日 2:月名 3:日 4:HH:MM:SS 5:UTCとの差 6:年 7:ID                #
-# --- 3.日時フォーマット変換                                         #
-awk 'BEGIN                                                        {  #
-       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
-       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #
-       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";}  #
-     /^[A-Z]/                                                     {  #
-       t=$4;                                                         #
-       gsub(/:/,"",t);                                               #
-       d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);       #
-       d*=1;                                                         #
-       printf("%04d%02d%02d%s %s %s\n",$6,m[$2],$3,t,d,$7);       }' |
-# 1:YYYYMMDDHHMMSS 2:UTCとの差(秒) 3:ID                              #
-TZ=UTC+0 calclock 1                                                  |
-# 1:YYYYMMDDHHMMSS 2:UNIX時間 3:UTCとの差(秒) 4:ID                   #
-awk '{print $2-$3,$4;}'                                              |
-# 1:UNIX時間（補正後） 2:ID                                          #
-calclock -r 1                                                        |
-# 1:UNIX時間（補正後） 2:現地日時 3:ID                               #
-self 2 3                                                             |
-# 1:現地日時 2:ID                                                    #
-awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
-           {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
-            printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
-# --- 4.通信に失敗していた場合はエラーを返して終了
+urlencode -r                                                           |
+sed 's/%1[Ee]/%0A/g'                                                   | #<退避
+sed 's/%3[Dd]/=/'                                                      | # 改行
+sort -k 1,1 -t '='                                                     | # 復帰
+tr '\n' ','                                                            |
+sed 's/^,*//'                                                          |
+sed 's/,*$//'                                                          |
+sed 's/^/Authorization: OAuth /'                                       |
+grep ^                                                                 |
+while read -r oa_hdr; do                                               #
+  s=$(mime-make -m)                                                    #
+  ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\""          #
+  eval mime-make -b "$s" $mimemake_args        |                       #
+  if   [ -n "${CMD_WGET:-}" ]; then                                    #
+    cat > $Tmp-mimedata                                                #
+    "$CMD_WGET" --no-check-certificate -q -O -                         \
+                --header="$oa_hdr"                                     \
+                --header="$ct_hdr"                                     \
+                --post-file="$Tmp-mimedata"                            \
+                "$API_endpt"                                           #
+  elif [ -n "${CMD_CURL:-}" ]; then                                    #
+    "$CMD_CURL" -s                                                     \
+                -H "$oa_hdr"                                           \
+                -H "$ct_hdr"                                           \
+                --data-binary @-                                       \
+                "$API_endpt"                                           #
+  fi                                                                   #
+done                                                                   |
+# --- 2.レスポンスパース                                               #
+parsrj.sh 2>/dev/null                                                  |
+unescj.sh 2>/dev/null                                                  |
+awk 'BEGIN                        {id= 0; ex=0;                     }  #
+     $1~/^\$\.media_id$/          {id=$2;                           }  #
+     $1~/^\$\.expires_after_secs$/{ex=$2;                           }  #
+     END                          {if (id*ex) {                        #
+                                     printf("id=%s\nex=%s\n",id,ex);   #
+                                   }                                }' |
+# --- 3.通信に失敗していた場合はエラーを返して終了
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 case $? in [!0]*)
-  error_exit 1 'Failed to favor';;
+  error_exit 1 'Failed to tweet';;
 esac
 
 

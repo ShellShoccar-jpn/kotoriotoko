@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterに投稿するシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/24
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,9 +32,9 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [--reply=<tweet_id>] <tweet>
+	Usage : ${0##*/} [--mediaid=<media_id>] [--reply=<tweet_id>] <tweet>
 	        echo <tweet> | ${0##*/} [--reply=<tweet_id>] -
-	Thu Sep 24 21:07:43 JST 2015
+	Wed Sep 30 01:26:13 JST 2015
 __USAGE
   exit 1
 }
@@ -73,24 +73,89 @@ esac
 # === 変数初期化 =====================================================
 message=''
 replyto=''
+mediaids=''
 
-# === 返信指定がある場合はIDを取得 ===================================
-case "${1:-}" in
-  --reply=*) replyto=${1#--reply=}
-             shift
-             ;;
-  -r)        case $# in 1) error_exit 1 'Invalid -r option';; esac
-             replyto=$2
-             shift 2
-             ;;
-  --|-)      :
-             ;;
-  --*|-*)    error_exit 1 'Invalid option'
-             ;;
-esac
-printf '%s\n' "$replyto" | grep -Eq '^$|^[0-9]+$' || {
-  error_exit 1 'Invalid -r option'
-}
+# === オプション読取 =================================================
+while :; do
+  case "${1:-}" in
+    --file=*)    [ -x "$Homedir/BIN/twmediup.sh" ] || {
+                   error_exit 1 'twmediup.sh command is required, but not found'
+                 }
+                 s=$(printf '%s' "${1#--file=}")
+                 [ -n "$s" ] || error_exit 1 'Invalid --file option'
+                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
+                 s=$(printf '%s\n' "$s"                               |
+                     while IFS='' read -r file; do                    #
+                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
+                     done                                             |
+                     awk 'sub(/^id=/,""){print;}'                     )
+                 case "$s" in
+                   '') error_exit 1 "Failed to upload: \"${1#--file=}\"";;
+                 esac
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift
+                 ;;
+    -f)          [ -x "$Homedir/BIN/twmediup.sh" ] || {
+                   error_exit 1 'twmediup.sh command is required, but not found'
+                 }
+                 s=$(printf '%s' "${2:-}")
+                 [ -n "$s" ] || error_exit 1 'Invalid -f option'
+                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
+                 s=$(printf '%s\n' "$s"                               |
+                     while IFS='' read -r file; do                    #
+                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
+                     done                                             |
+                     awk 'sub(/^id=/,""){print;}'                     )
+                 case "$s" in
+                   '') error_exit 1 "Failed to upload: \"${2:-}\"";;
+                 esac
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift 2
+                 ;;
+    --mediaid=*) s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
+                   error_exit 1 'Invalid --mediaid option'
+                 }
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift
+                 ;;
+    -m)          s=$(printf '%s' "${2:-}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
+                   error_exit 1 'Invalid -m option'
+                 }
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift 2
+                 ;;
+    --reply=*)   s=$(printf '%s' "${1#--reply=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid --reply option'
+                 }
+                 replyto=$s
+                 shift
+                 ;;
+    -r)          s=$(printf '%s' "${2:-}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid -r option'
+                 }
+                 replyto=$s
+                 shift 2
+                 ;;
+    --|-)        break
+                 ;;
+    --*|-*)      error_exit 1 'Invalid option'
+                 ;;
+    *)           break
+                 ;;
+  esac
+done
 
 
 # === メッセージを取得 ===============================================
@@ -119,8 +184,9 @@ readonly API_endpt='https://api.twitter.com/1.1/statuses/update.json'
 readonly API_methd='POST'
 # (2)パラメーター 注意:パラメーターの順番は変数名の辞書順に連結すること
 API_param=$(cat <<______________PARAM         |
-              status=$message
               in_reply_to_status_id=$replyto
+              media_ids=$mediaids
+              status=$message
 ______________PARAM
             sed 's/^ *//'                     |
             grep -v '^[A-Za-z0-9_]\{1,\}=$'   )
@@ -197,7 +263,8 @@ sed 's/%1[Ee]/%0A/g'                                                 | #<退避
 sed 's/%3[Dd]/=/'                                                    | # 改行
 sort -k 1,1 -t '='                                                   | # 復帰
 tr '\n' ','                                                          |
-sed 's/,$//'                                                         |
+sed 's/^,*//'                                                        |
+sed 's/,*$//'                                                        |
 sed 's/^/Authorization: OAuth /'                                     |
 grep ^                                                               |
 while read -r oa_hdr; do                                             #
