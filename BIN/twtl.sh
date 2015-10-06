@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/09/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/06
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Wed Sep 30 00:53:12 JST 2015
+	Tue Oct  6 16:41:35 JST 2015
 __USAGE
   exit 1
 }
@@ -120,7 +120,7 @@ readonly API_param
 
 # === 署名や送信リクエストの材料を作成 ===============================
 # --- 1.ランダム文字列
-randmstr=$("$CMD_OSSL" rand -hex 8)
+randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
 # --- 2.現在のUNIX時間
 nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
