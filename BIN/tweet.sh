@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterに投稿するシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/06
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/09
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,9 +32,9 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [--mediaid=<media_id>] [--reply=<tweet_id>] <tweet>
-	        echo <tweet> | ${0##*/} [--reply=<tweet_id>] -
-	Tue Oct  6 16:36:57 JST 2015
+	Usage : ${0##*/} [-f <media_file>] [-m <media_id>] [-r <tweet_id>] <tweet>
+	      : echo <tweet> | ${0##*/} [-f, -m, -r options]
+	Fri Oct  9 03:02:02 JST 2015
 __USAGE
   exit 1
 }
@@ -160,7 +160,8 @@ done
 
 # === メッセージを取得 ===============================================
 case $# in
-  0) print_usage_and_exit;;
+  0) message=$(cat -)
+     ;;
   1) case "${1:-}" in
        '--') print_usage_and_exit;;
         '-') message=$(cat -)    ;;
