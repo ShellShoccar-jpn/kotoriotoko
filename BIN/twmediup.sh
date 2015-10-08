@@ -5,7 +5,7 @@
 # twmediup.sh
 # Twitterに画像等をアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/06
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/08
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Tue Oct  6 16:40:30 JST 2015
+	Thu Oct  8 13:19:06 JST 2015
 __USAGE
   exit 1
 }
@@ -88,6 +88,9 @@ for arg in "$@"; do
     'bmp')  type='image/bmp' ;;
     'gif')  type='image/gif' ;;
     'webp') type='image/webp';;
+    'mp4')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # 動画(MP4)だった場合は
+    'mp4v') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # 下請けコマンドに委任
+    'mpg4') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # （復帰しない）
     *)      error_exit 1 "Unsupported file format: $arg";;
   esac
   s=$(printf '%s' "$arg" | sed 's/\\/\\\\/g' | sed 's/"/\\"/'g)

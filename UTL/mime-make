@@ -9,7 +9,7 @@
 #
 # * Only generate MIME boundary string if -m option is specified.
 # * One of the <arg_group>s consists of one of the following formats.
-#   For HTML form:
+#   For HTML form-mode:
 #   (a) -T  <name> <value>
 #   (b) -Tf <name> <file>
 #       <name> is as a text string <vaule> or in the <file>.
@@ -20,7 +20,7 @@
 #       <name> is as an attached file <file>. (default is standard input)
 #       filetype is <type_str> (default is auto-detected by the file extension)
 #       filename is <filename_str> (default is same as the <file>)
-#   For mail with attached files:
+#   For mail with attached files (mail-mode):
 #   (g) -M <file>
 #       mail-bodypart is read from <file>. (default is standard input)
 #   (h) -A                             <file>
@@ -30,15 +30,18 @@
 #       mail-attached-filepart is read from <file>. (default is standard input)
 #       (every parameter is same as in (c)-(f))
 #   OPTIONS:
+#   --bo/--wh   : When output, data is body-only or with header (Content-Type)
+#                 (default is --bo)
 #   -b <mimeboundary> : MIME boundary string (default is auto-generated)
-#   --crlf/--lf : Use CR+LF or LF when line feeding (default is --crlf)
-#   --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
+#   --crlf/--lf : Use CR+LF or LF when line feeding
+#                 (default is --crlf when form-mode, --lf when mail-mode)
+#   --raw/--b64 : Switch about applying or not Base64 to the <file> of (c)-(f)
 #                 (default is --raw)
 #
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/09/29
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/10/07
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -55,7 +58,7 @@ print_usage_and_exit () {
 
 	* Only generate MIME boundary string if -m option is specified.
 	* One of the <arg_group>s consists of one of the following formats.
-	  For HTML form:
+	  For HTML form-mode:
 	  (a) -T  <name> <value>
 	  (b) -Tf <name> <file>
 	      <name> is as a text string <vaule> or in the <file>.
@@ -66,7 +69,7 @@ print_usage_and_exit () {
 	      <name> is as an attached file <file>. (default is standard input)
 	      filetype is <type_str> (default is auto-detected by the file extension)
 	      filename is <filename_str> (default is same as the <file>)
-	  For mail with attached files:
+	  For mail with attached files (mail-mode):
 	  (g) -M <file>
 	      mail-bodypart is read from <file>. (default is standard input)
 	  (h) -A                             <file>
@@ -76,11 +79,15 @@ print_usage_and_exit () {
 	      mail-attached-filepart is read from <file>. (default is standard input)
 	      (every parameter is same as in (c)-(f))
 	  OPTIONS:
+	  --bo/--wh   : When output, data is body-only or with header (Content-Type)
+	                (default is --bo)
 	  -b <mimeboundary> : MIME boundary string (default is auto-generated)
-	  --crlf/--lf : Use CR+LF or LF when line feeding (default is --crlf)
+	  --crlf/--lf : Use CR+LF or LF when line feeding
+	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : Tue Sep 29 23:48:39 JST 2015
+	Version : Wed Oct  7 21:56:54 JST 2015
+	        : (POSIX.1 Bourne Shell/POSIX.1 commands/UTF-8)
 __USAGE
   exit 1
 }
@@ -179,12 +186,17 @@ escape_for_header_string() {
              print "\n";                                                  #
            }                                                              #
          }'                                                               |
-       while IFS=$LF read -r line; do                                     #
-         printf '%s' "$line" | base64 --wrap=0                            #
+       sed 's/^/_/'                                                       |
+       sed 's/$/_/'                                                       |
+       while read -r line; do                                             #
+         printf '%s' "${line#_}" |                                        #
+         sed 's/_$//'            |                                        #
+         base64 --wrap=0         |                                        #
+         grep '^'                                                         #
        done                                                               |
-       sed "s/.*/=?UTF-8?B?&?=/"                                          |
-       sed "1!s/^/$TAB/"                                                  |
-       sed "\$!s/\$/$CR/"                                                 ;;
+       sed 's/.*/=?UTF-8?B?&?=/'                                          |
+       sed '1!s/^/'"$TAB"'/'                                              |
+       sed '$!s/$/'"$CR"'/'                                               ;;
   esac
 }
 # Base64 Encoder ($1:width a line)
@@ -1108,24 +1120,39 @@ case "${1:-}" in
   '-m'|'--generatemimeboundary') echo "MimeBoundary-$(randstr 61)"; exit 0;;
 esac
 #
+# decide that line-feed default whether --crlf or --lf
+s=$(printf '%s\n' "$*" | awk 'match($0,/-[TFMA]/){print substr($0,RSTART+1,1)}')
+case "$s" in
+  [TF]) cr=$CR; mpart_subtype='form-data';;
+  [MA]) cr='' ; mpart_subtype='mixed'    ;;
+     *) print_usage_and_exit             ;;
+esac
+#
 # parse and validate the some kinds of options
+header=0
 base64=0
 mime_b_is_set=0
 while :; do
   [ $# -ge 2 ] || print_usage_and_exit
   case "$1" in
-    --crlf) CR=$(printf '\r_'); CR=${CR%_}; shift  ; continue;;
-    --lf)   CR=''                         ; shift  ; continue;;
-    --b64)  base64=1                      ; shift  ; continue;;
-    --raw)  base64=0                      ; shift  ; continue;;
-    -b)     mime_b=$2; mime_b_is_set=1    ; shift 2; continue;;
-     *)                                           break   ;;
+    --bo)   header=0                  ; shift  ; continue;;
+    --wh)   header=1                  ; shift  ; continue;;
+    --crlf) cr=$CR                    ; shift  ; continue;;
+    --lf)   cr=''                     ; shift  ; continue;;
+    --b64)  base64=1                  ; shift  ; continue;;
+    --raw)  base64=0                  ; shift  ; continue;;
+    -b)     mime_b=$2; mime_b_is_set=1; shift 2; continue;;
+     *)                                          break   ;;
   esac
 done
 case $mime_b_is_set in 0) mime_b="MimeBoundary-$(randstr 61)";; esac
 
-
 # --- main loop ------------------------------------------------------
+case $header in 1)
+  printf 'Content-Type: multipart/%s; boundary="%s"%s\n%s\n' \
+         "$mpart_subtype" "$mime_b" "$cr" "$cr"
+  ;;
+esac
 while [ $# -gt 0 ]; do
   # 1) parse arguments for a form
   mode=''; name=''; type=''; text=''; file=''; filename=''
@@ -1259,29 +1286,34 @@ while [ $# -gt 0 ]; do
   filename=$(escape_for_header_string "$filename")
 
   # 2) output
-  printf '%s%s\n' "--$mime_b" "$CR"
+  printf '%s%s\n' "--$mime_b" "$cr"
   case "$mode" in
     # a) a text string
     'textform') printf 'Content-Disposition: form-data; name="%s"%s\n%s\n' \
-                       "$name" "$CR" "$CR"
+                       "$name" "$cr" "$cr"
                 printf '%s%s\n'                                            \
-                       "$text" "$CR"
+                       "$text" "$cr"                                       |
+                if [ -n "$cr" ]; then                                      #
+                  sed "/^\$/s/\$/$cr/" | sed "/[^$cr]\$/s/\$/$cr/"         #
+                else                                                       #
+                  tr -d '\r'                                               #
+                fi
                 ;;
     # b) an attached file
     'fileform') printf 'Content-Disposition: form-data; name="%s"' "$name"
                 case "$filename" in
-                  '') printf '%s\n'                            "$CR";;
-                   *) printf '; filename="%s"%s\n' "$filename" "$CR";;
+                  '') printf '%s\n'                            "$cr";;
+                   *) printf '; filename="%s"%s\n' "$filename" "$cr";;
                 esac
                 case "$base64" in
                    0) :                                                   ;;
-                   *) printf 'Content-Transfer-Encoding: base64%s\n' "$CR";;
+                   *) printf 'Content-Transfer-Encoding: base64%s\n' "$cr";;
                 esac
                 case "$type" in
                   '') :                                          ;;
-                   *) printf 'Content-Type: %s%s\n' "$type" "$CR";;
+                   *) printf 'Content-Type: %s%s\n' "$type" "$cr";;
                 esac
-                printf '%s\n' "$CR"
+                printf '%s\n' "$cr"
                 case "$base64" in
                    0) cat "$file"           ;;
                    *) cat "$file"           |
@@ -1289,55 +1321,51 @@ while [ $# -gt 0 ]; do
                       sed '$!s/$/@ /'       |
                       tr -d '\n'            |
                       tr '@ ' '\r\n'        |
-                      if [ -n "$CR" ]; then #
+                      if [ -n "$cr" ]; then #
                         cat                 #
                       else                  #
-                        tr -d "$CR"         #
+                        tr -d "$cr"         #
                       fi                    ;;
                 esac
-                printf '%s\n' "$CR"
+                printf '%s\n' "$cr"
                 ;;
     # c) a mail body
-    'mailbody') printf 'Content-Transfer-Encoding: base64%s\n'           \
-                       "$CR"
-                printf 'Content-Type: text/plain; charset=UTF-8%s\n%s\n' \
-                       "$CR" "$CR"
-                
-                cat "$file"                                        |
-                if [ -n "$CR" ]; then                              #
-                  sed "/^\$/s/\$/$CR/" | sed "/[^$CR]\$/s/\$/$CR/" #
-                else                                               #
-                  tr -d '\r'                                       #
-                fi                                                 |
-                base64 --wrap=76                                   |
-                sed '$!s/$/@ /'                                    |
-                tr -d '\n'                                         |
-                tr '@ ' '\r\n'                                     |
-                if [ -n "$CR" ]; then                              #
-                  cat                                              #
-                else                                               #
-                  tr -d "$CR"                                      #
+    'mailbody') printf 'Content-Transfer-Encoding: base64%s\n'             \
+                       "$cr"
+                printf 'Content-Type: text/plain; charset="UTF-8"%s\n%s\n' \
+                       "$cr" "$cr"
+                cat "$file"               | # For the mailbody text,
+                sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>
+                sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line
+                base64 --wrap=76          |
+                sed '$!s/$/@ /'           |
+                tr -d '\n'                |
+                tr '@ ' '\r\n'            |
+                if [ -n "$cr" ]; then     #
+                  cat                     #
+                else                      #
+                  tr -d "$cr"             #
                 fi
-                printf '%s\n' "$CR"
+                printf '%s\n' "$cr"
                 ;;
     'mailatch') printf 'Content-Disposition: attachment; filename="%s"%s\n' \
-                       "$filename" "$CR"
+                       "$filename" "$cr"
                 printf 'Content-Transfer-Encoding: base64%s\n'              \
-                       "$CR"
+                       "$cr"
                 printf 'Content-Type: %s; name="%s"%s\n%s\n'                \
-                       "$type" "$name" "$CR" "$CR"
+                       "$type" "$name" "$cr" "$cr"
                 cat "$file"           |
                 base64 --wrap=76      |
                 sed '$!s/$/@ /'       |
                 tr -d '\n'            |
                 tr '@ ' '\r\n'        |
-                if [ -n "$CR" ]; then #
+                if [ -n "$cr" ]; then #
                   cat                 #
                 else                  #
-                  tr -d "$CR"         #
+                  tr -d "$cr"         #
                 fi
-                printf '%s\n' "$CR"
+                printf '%s\n' "$cr"
                 ;;
   esac
 done
-printf '%s--%s\n' "--$mime_b" "$CR"
+printf '%s--%s\n' "--$mime_b" "$cr"
