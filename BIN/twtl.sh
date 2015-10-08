@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/06
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/09
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Tue Oct  6 16:41:35 JST 2015
+	Fri Oct  9 02:38:54 JST 2015
 __USAGE
   exit 1
 }
@@ -93,11 +93,12 @@ printf '%s' "$count" | grep -q '^[0-9]\{1,\}$' || {
 
 # === ユーザーログイン名を取得 =======================================
 case $# in
-  0) scname=$MY_scname                          ;;
-  1) scname=$(printf '%s' "${1#@}" | tr -d '\n');;
+  0) scname=''                                  ;;
+  1) scname=$(printf '%s' "${1#@}" | tr -d '\n')
+     [ -z "$scname" ] && scname=$MY_scname      ;;
   *) print_usage_and_exit                       ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
+printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$|' || {
   print_usage_and_exit
 }
 
@@ -108,14 +109,18 @@ printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-API_endpt='https://api.twitter.com/1.1/statuses/user_timeline.json'
+case "$scname" in
+  '') API_endpt='https://api.twitter.com/1.1/statuses/home_timeline.json';;
+   *) API_endpt='https://api.twitter.com/1.1/statuses/user_timeline.json';;
+esac
 API_methd='GET'
 # (2)パラメーター 注意:パラメーターの順番は変数名の辞書順に連結すること
-API_param=$(cat <<______________PARAM |
+API_param=$(cat <<______________PARAM      |
               count=${count}
               screen_name=@${scname}
 ______________PARAM
-            sed 's/^ *//'             )
+            sed 's/^ *//'                  |
+            grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
 # === 署名や送信リクエストの材料を作成 ===============================
@@ -179,7 +184,7 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                   |
+cat <<-__OAUTH_HEADER                                                     |
 	${oa_param}
 	oauth_signature=${sig_strin}
 	${API_param}
