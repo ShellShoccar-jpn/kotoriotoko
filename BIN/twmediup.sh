@@ -5,7 +5,7 @@
 # twmediup.sh
 # Twitterに画像等をアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/25
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Thu Oct  8 13:19:06 JST 2015
+	Wed Nov 25 00:17:52 JST 2015
 __USAGE
   exit 1
 }
@@ -196,7 +196,7 @@ while read -r oa_hdr; do                                               #
                 --post-file="$Tmp-mimedata"                            \
                 "$API_endpt"                                           #
   elif [ -n "${CMD_CURL:-}" ]; then                                    #
-    "$CMD_CURL" -s                                                     \
+    "$CMD_CURL" -ks                                                    \
                 -H "$oa_hdr"                                           \
                 -H "$ct_hdr"                                           \
                 --data-binary @-                                       \

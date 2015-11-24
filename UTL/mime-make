@@ -41,7 +41,7 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/10/07
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/11/25
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -86,7 +86,7 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : Wed Oct  7 21:56:54 JST 2015
+	Version : Wed Nov 25 01:46:03 JST 2015
 	        : (POSIX.1 Bourne Shell/POSIX.1 commands/UTF-8)
 __USAGE
   exit 1
@@ -152,9 +152,9 @@ randstr() {
 }
 # escape the string in header if necessary ($1:string for in-header)
 escape_for_header_string() {
-  printf '%s\n' "$1"                      |
-  awk 'index($0,"=?")        >0{exit 1;}  # # when contain "=?"
-       sub(/[\200-\377]/,"")==1{exit 1;}'   # when contain 8-bit chars
+  printf '%s\n' "$1"                  |
+  awk 'index($0,"=?")>0    {exit 1;}  # # when contain "=?"
+       $0!~/^[\001-\177]*$/{exit 1;}'   # when contain 8-bit chars
   case $? in
     0) printf '%s\n' "$1"                                                 |
        sed 's/"/\\"/g'                                                    ;;
@@ -200,70 +200,88 @@ escape_for_header_string() {
   esac
 }
 # Base64 Encoder ($1:width a line)
-base64 () {
-  w=''
-  case "${1:-}" in
-    --wrap=*) printf '%s\n' "$1" | grep -q '^--wrap=[0-9]\{1,\}$' && {
-                w=${1#--wrap=}
-              }
-              ;;
-  esac
-  case "$w" in '') w=76;; esac
-  od -A n -t x1 -v                                                         |
-  awk 'BEGIN{OFS=""; ORS="";                                               #
-             x2o["0"]="0000"; x2o["1"]="0001"; x2o["2"]="0010";            #
-             x2o["3"]="0011"; x2o["4"]="0100"; x2o["5"]="0101";            #
-             x2o["6"]="0110"; x2o["7"]="0111"; x2o["8"]="1000";            #
-             x2o["9"]="1001"; x2o["a"]="1010"; x2o["b"]="1011";            #
-             x2o["c"]="1100"; x2o["d"]="1101"; x2o["e"]="1110";            #
-             x2o["f"]="1111";                                              #
-             x2o["A"]="1010"; x2o["B"]="1011"; x2o["C"]="1100";            #
-             x2o["D"]="1101"; x2o["E"]="1110"; x2o["F"]="1111";         }  #
-       {     l=length($0);                                                 #
-             for(i=1;i<=l;i++){print x2o[substr($0,i,1)];}                 #
-             printf("\n");                                              }' |
-  awk 'BEGIN{s="";                                                      }  #
-       {     buf=buf $0;                                                   #
-             l=length(buf);                                                #
-             if(l<6){next;}                                                #
-             u=int(l/6)*6;                                                 #
-             for(p=1;p<u;p+=6){print substr(buf,p,6);}                     #
-             buf=substr(buf,p);                                         }  #
-       END  {if(length(buf)>0){print substr(buf "00000",1,6);}          }' |
-  awk 'BEGIN{ORS=""; w='$w';                                               #
-             o2b6["000000"]="A"; o2b6["000001"]="B"; o2b6["000010"]="C";   #
-             o2b6["000011"]="D"; o2b6["000100"]="E"; o2b6["000101"]="F";   #
-             o2b6["000110"]="G"; o2b6["000111"]="H"; o2b6["001000"]="I";   #
-             o2b6["001001"]="J"; o2b6["001010"]="K"; o2b6["001011"]="L";   #
-             o2b6["001100"]="M"; o2b6["001101"]="N"; o2b6["001110"]="O";   #
-             o2b6["001111"]="P"; o2b6["010000"]="Q"; o2b6["010001"]="R";   #
-             o2b6["010010"]="S"; o2b6["010011"]="T"; o2b6["010100"]="U";   #
-             o2b6["010101"]="V"; o2b6["010110"]="W"; o2b6["010111"]="X";   #
-             o2b6["011000"]="Y"; o2b6["011001"]="Z"; o2b6["011010"]="a";   #
-             o2b6["011011"]="b"; o2b6["011100"]="c"; o2b6["011101"]="d";   #
-             o2b6["011110"]="e"; o2b6["011111"]="f"; o2b6["100000"]="g";   #
-             o2b6["100001"]="h"; o2b6["100010"]="i"; o2b6["100011"]="j";   #
-             o2b6["100100"]="k"; o2b6["100101"]="l"; o2b6["100110"]="m";   #
-             o2b6["100111"]="n"; o2b6["101000"]="o"; o2b6["101001"]="p";   #
-             o2b6["101010"]="q"; o2b6["101011"]="r"; o2b6["101100"]="s";   #
-             o2b6["101101"]="t"; o2b6["101110"]="u"; o2b6["101111"]="v";   #
-             o2b6["110000"]="w"; o2b6["110001"]="x"; o2b6["110010"]="y";   #
-             o2b6["110011"]="z"; o2b6["110100"]="0"; o2b6["110101"]="1";   #
-             o2b6["110110"]="2"; o2b6["110111"]="3"; o2b6["111000"]="4";   #
-             o2b6["111001"]="5"; o2b6["111010"]="6"; o2b6["111011"]="7";   #
-             o2b6["111100"]="8"; o2b6["111101"]="9"; o2b6["111110"]="+";   #
-             o2b6["111111"]="/";                                           #
-             if (getline) {print o2b6[$0];n=1;}                         }  #
-       n==w {printf("\n")  ; n=0;                                       }  #
-       {     print o2b6[$0]; n++;                                       }  #
-       END  {if(NR>0){printf("%s\n",substr("===",1,(4-(NR%4))%4));}     }'
-}
 PATH='/usr/bin:/bin:/usr/local/bin'
-CMD_BASE64=$(which base64 2>/dev/null)
-case "$CMD_BASE64" in
-  '') :                                  ;;
-   *) base64 () { "$CMD_BASE64" ${1:-}; };;
-esac
+if   CMD_BASE64=$(which base64 2>/dev/null)      ; then
+  base64 () { "$CMD_BASE64" ${1:-}; }
+elif uuencode -m dummy </dev/null >/dev/null 2>&1; then
+  CMD_UUENCODE=$(which uuencode 2>/dev/null)
+  base64 () {
+    w=''
+    case "${1:-}" in
+      --wrap=*) printf '%s\n' "$1" | grep -q '^--wrap=[0-9]\{1,\}$' && {
+                  w=${1#--wrap=}
+                }
+                ;;
+    esac
+    case "$w" in '') w=76;; esac
+    "$CMD_UUENCODE" -m dummy                     |
+    sed '1d;$d'                                  |
+    case $w in                                   #
+      76) cat                                 ;; #
+       0) tr -d '\n'                 ; echo '';; #
+       *) tr -d '\n' | fold -w $width; echo '';; #
+    esac
+  }
+else
+  base64 () {
+    w=''
+    case "${1:-}" in
+      --wrap=*) printf '%s\n' "$1" | grep -q '^--wrap=[0-9]\{1,\}$' && {
+                  w=${1#--wrap=}
+                }
+                ;;
+    esac
+    case "$w" in '') w=76;; esac
+    od -A n -t x1 -v                                                         |
+    awk 'BEGIN{OFS=""; ORS="";                                               #
+               x2o["0"]="0000"; x2o["1"]="0001"; x2o["2"]="0010";            #
+               x2o["3"]="0011"; x2o["4"]="0100"; x2o["5"]="0101";            #
+               x2o["6"]="0110"; x2o["7"]="0111"; x2o["8"]="1000";            #
+               x2o["9"]="1001"; x2o["a"]="1010"; x2o["b"]="1011";            #
+               x2o["c"]="1100"; x2o["d"]="1101"; x2o["e"]="1110";            #
+               x2o["f"]="1111";                                              #
+               x2o["A"]="1010"; x2o["B"]="1011"; x2o["C"]="1100";            #
+               x2o["D"]="1101"; x2o["E"]="1110"; x2o["F"]="1111";         }  #
+         {     l=length($0);                                                 #
+               for(i=1;i<=l;i++){print x2o[substr($0,i,1)];}                 #
+               printf("\n");                                              }' |
+    awk 'BEGIN{s="";                                                      }  #
+         {     buf=buf $0;                                                   #
+               l=length(buf);                                                #
+               if(l<6){next;}                                                #
+               u=int(l/6)*6;                                                 #
+               for(p=1;p<u;p+=6){print substr(buf,p,6);}                     #
+               buf=substr(buf,p);                                         }  #
+         END  {if(length(buf)>0){print substr(buf "00000",1,6);}          }' |
+    awk 'BEGIN{ORS=""; w='$w';                                               #
+               o2b6["000000"]="A"; o2b6["000001"]="B"; o2b6["000010"]="C";   #
+               o2b6["000011"]="D"; o2b6["000100"]="E"; o2b6["000101"]="F";   #
+               o2b6["000110"]="G"; o2b6["000111"]="H"; o2b6["001000"]="I";   #
+               o2b6["001001"]="J"; o2b6["001010"]="K"; o2b6["001011"]="L";   #
+               o2b6["001100"]="M"; o2b6["001101"]="N"; o2b6["001110"]="O";   #
+               o2b6["001111"]="P"; o2b6["010000"]="Q"; o2b6["010001"]="R";   #
+               o2b6["010010"]="S"; o2b6["010011"]="T"; o2b6["010100"]="U";   #
+               o2b6["010101"]="V"; o2b6["010110"]="W"; o2b6["010111"]="X";   #
+               o2b6["011000"]="Y"; o2b6["011001"]="Z"; o2b6["011010"]="a";   #
+               o2b6["011011"]="b"; o2b6["011100"]="c"; o2b6["011101"]="d";   #
+               o2b6["011110"]="e"; o2b6["011111"]="f"; o2b6["100000"]="g";   #
+               o2b6["100001"]="h"; o2b6["100010"]="i"; o2b6["100011"]="j";   #
+               o2b6["100100"]="k"; o2b6["100101"]="l"; o2b6["100110"]="m";   #
+               o2b6["100111"]="n"; o2b6["101000"]="o"; o2b6["101001"]="p";   #
+               o2b6["101010"]="q"; o2b6["101011"]="r"; o2b6["101100"]="s";   #
+               o2b6["101101"]="t"; o2b6["101110"]="u"; o2b6["101111"]="v";   #
+               o2b6["110000"]="w"; o2b6["110001"]="x"; o2b6["110010"]="y";   #
+               o2b6["110011"]="z"; o2b6["110100"]="0"; o2b6["110101"]="1";   #
+               o2b6["110110"]="2"; o2b6["110111"]="3"; o2b6["111000"]="4";   #
+               o2b6["111001"]="5"; o2b6["111010"]="6"; o2b6["111011"]="7";   #
+               o2b6["111100"]="8"; o2b6["111101"]="9"; o2b6["111110"]="+";   #
+               o2b6["111111"]="/";                                           #
+               if (getline) {print o2b6[$0];n=1;}                         }  #
+         n==w {printf("\n")  ; n=0;                                       }  #
+         {     print o2b6[$0]; n++;                                       }  #
+         END  {if(NR>0){printf("%s\n",substr("===",1,(4-(NR%4))%4));}     }'
+  }
+fi
 # decide "type" from the file extention
 decide_type() {
   printf '%s\n' "$1" | awk '

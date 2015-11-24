@@ -9,7 +9,7 @@
 #                  replaced with "%20" instead of "+".
 #        --raw ... same as the "-r" option
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/09/21
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/11/24
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -20,7 +20,7 @@
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage   : ${0##*/} [-r|--raw] <file> ...
-	Version : Mon Sep 21 20:09:32 JST 2015
+	Version : Tue Nov 24 23:53:35 JST 2015
 __USAGE
   exit 1
 }
@@ -37,13 +37,16 @@ case "${1:-}" in
   --help|--version|-h) print_usage_and_exit;;
 esac
 instead_of_spc='+';
-for arg in "$@"; do
-  case "$arg" in
-    -r|--raw) instead_of_spc='%20'; shift;break;;
-    --)                             shift;break;;
-    *)        :                                ;;
-  esac
-done
+case $# in [!0]*)
+  for arg in "$@"; do
+    case "$arg" in
+      -r|--raw) instead_of_spc='%20'; shift;break;;
+      --)                             shift;break;;
+      *)        :                                ;;
+    esac
+  done
+  ;;
+esac
 
 # --- main -----------------------------------------------------------
 case $# in

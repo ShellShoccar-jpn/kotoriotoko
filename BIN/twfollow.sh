@@ -5,7 +5,7 @@
 # twfollow.sh
 # Twitterで指定ユーザーをフォローする
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/06
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/25
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <loginname>
-	Tue Oct  6 16:39:54 JST 2015
+	Wed Nov 25 00:17:28 JST 2015
 __USAGE
   exit 1
 }
@@ -178,7 +178,7 @@ while read -r oa_hdr; do                                             #
                 --post-data="$apip_pos"                              \
                 "$API_endpt"                                         #
   elif [ -n "${CMD_CURL:-}" ]; then                                  #
-    "$CMD_CURL" -s                                                   \
+    "$CMD_CURL" -ks                                                  \
                 -H "$oa_hdr"                                         \
                 -d "$apip_pos"                                       \
                 "$API_endpt"                                         #

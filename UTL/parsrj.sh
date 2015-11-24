@@ -35,7 +35,7 @@
 #         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
 #         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Jun 21, 2015
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Nov 25, 2015
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -60,39 +60,40 @@ fn=0
 unoptli='#'
 optt=''
 unoptt='#'
-for arg in "$@"; do
-  if [ \( "_${arg#-sk}" != "_$arg" \) -a \( -z "$file" \) ]; then
-    sk=${arg#-sk}
-  elif [ \( "_${arg#-rt}" != "_$arg" \) -a \( -z "$file" \) ]; then
-    rt=${arg#-rt}
-  elif [ \( "_${arg#-kd}" != "_$arg" \) -a \( -z "$file" \) ]; then
-    kd=${arg#-kd}
-  elif [ \( "_${arg#-lp}" != "_$arg" \) -a \( -z "$file" \) ]; then
-    lp=${arg#-lp}
-  elif [ \( "_${arg#-ls}" != "_$arg" \) -a \( -z "$file" \) ]; then
-    ls=${arg#-ls}
-  elif [ \( "_${arg#-fn}" != "_$arg" \) -a \( -z "$file" \) -a \
-         -n "$(echo -n "_${arg#-fn}" | grep '^_[0-9]\{1,\}$')" ]; then
-    fn=${arg#-fn}
-    fn=$((fn+0))
-  elif [ \( "_$arg" = '_-li' \) -a \( -z "$file" \) ]; then
-    unoptli=''
-  elif [ \( "_$arg" = '_--xpath' \) -a \( -z "$file" \) ]; then
-    rt=''
-    kd='/'
-    lp='['
-    ls=']'
-    fn=1
-    unoptli=''
-  elif [ \( "_$arg" = '_-t' \) -a \( -z "$file" \) ]; then
-    optt='#'
-    unoptt=''
-  elif [ \( \( -f "$arg" \) -o \( -c "$arg" \) \) -a \( -z "$file" \) ]; then
-    file=$arg
-  elif [ \( "_$arg" = "_-" \) -a \( -z "$file" \) ]; then
-    file='-'
-  else
-    cat <<____USAGE 1>&2
+case $# in [!0]*)
+  for arg in "$@"; do
+    if [ \( "_${arg#-sk}" != "_$arg" \) -a \( -z "$file" \) ]; then
+      sk=${arg#-sk}
+    elif [ \( "_${arg#-rt}" != "_$arg" \) -a \( -z "$file" \) ]; then
+      rt=${arg#-rt}
+    elif [ \( "_${arg#-kd}" != "_$arg" \) -a \( -z "$file" \) ]; then
+      kd=${arg#-kd}
+    elif [ \( "_${arg#-lp}" != "_$arg" \) -a \( -z "$file" \) ]; then
+      lp=${arg#-lp}
+    elif [ \( "_${arg#-ls}" != "_$arg" \) -a \( -z "$file" \) ]; then
+      ls=${arg#-ls}
+    elif [ \( "_${arg#-fn}" != "_$arg" \) -a \( -z "$file" \) -a \
+           -n "$(echo -n "_${arg#-fn}" | grep '^_[0-9]\{1,\}$')" ]; then
+      fn=${arg#-fn}
+      fn=$((fn+0))
+    elif [ \( "_$arg" = '_-li' \) -a \( -z "$file" \) ]; then
+      unoptli=''
+    elif [ \( "_$arg" = '_--xpath' \) -a \( -z "$file" \) ]; then
+      rt=''
+      kd='/'
+      lp='['
+      ls=']'
+      fn=1
+      unoptli=''
+    elif [ \( "_$arg" = '_-t' \) -a \( -z "$file" \) ]; then
+      optt='#'
+      unoptt=''
+    elif [ \( \( -f "$arg" \) -o \( -c "$arg" \) \) -a \( -z "$file" \) ]; then
+      file=$arg
+    elif [ \( "_$arg" = "_-" \) -a \( -z "$file" \) ]; then
+      file='-'
+    else
+      cat <<______USAGE 1>&2
 Usage   : ${0##*/} [JSON_file]                       ←JSONPath表現
         : ${0##*/} --xpath [JSON_file]               ←XPath表現
         : ${0##*/} [2letters_options...] [JSON_file] ←カスタム表現
@@ -105,10 +106,12 @@ Options : -sk<s> はキー名文字列内にあるスペースの置換文字列
         : -li    は配列行終了時に添字なしの配列フルパス行(値は空)を挿入する
         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
-____USAGE
-    exit 1
-  fi
-done
+______USAGE
+      exit 1
+    fi
+  done
+  ;;
+esac
 export sk
 export rt
 export kd

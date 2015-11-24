@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/10/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/25
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Thu Oct  8 13:09:12 JST 2015
+	Wed Nov 25 00:19:20 JST 2015
 __USAGE
   exit 1
 }
@@ -201,7 +201,7 @@ _____OAUTH_HEADER
                      --post-data="$apip_pos"                       \
                      "$API_endpt"                                  #
        elif [ -n "${CMD_CURL:-}" ]; then                           #
-         "$CMD_CURL" -s                                            \
+         "$CMD_CURL" -ks                                           \
                      -H "$oa_hdr"                                  \
                      -d "$apip_pos"                                \
                      "$API_endpt"                                  #
