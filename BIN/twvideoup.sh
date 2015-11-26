@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/25
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Wed Nov 25 00:19:20 JST 2015
+	Thu Nov 26 16:41:41 JST 2015
 __USAGE
   exit 1
 }
@@ -111,6 +111,7 @@ readonly API_methd='POST'
 ######################################################################
 
 # === Twitter API関連（エンドポイント固有） ==========================
+# 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM               |
               command=INIT
               media_type=$type
@@ -119,7 +120,19 @@ ______________PARAM
             sed 's/^ *//'                           |
             grep -v '^[A-Za-z0-9_]\{1,\}=$'         )
 
-# === 署名や送信リクエストの材料を作成 ===============================
+# === パラメーターをAPIに向けて送信するために加工 ====================
+# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
+#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+apip_enc=$(printf '%s\n' "${API_param}" |
+           grep -v '^$'                 |
+           urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
+           sed 's/%3[Dd]/=/'            )
+# --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
+apip_pos=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               )
+
+# === OAuth1.0署名の作成 =============================================
 # --- 1.ランダム文字列
 randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
 # --- 2.現在のUNIX時間
@@ -127,6 +140,7 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
 # --- 3.OAuth1.0パラメーター（1,2を利用して作成）
+#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
 oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_version=1.0
              oauth_signature_method=HMAC-SHA1
@@ -136,18 +150,9 @@ oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_nonce=${randmstr}
 _____________OAUTHPARAM
            sed 's/^ *//'                      )
-# --- 4.URLencodeされたAPIパラメーター
-apip_enc=$(printf '%s\n' "${API_param}" |
-           grep -v '^$'                 |
-           urlencode -r                 |
-           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
-           sed 's/%3[Dd]/=/'            )
-# --- 5.URL貼付用のAPIパラメーター（4を利用して作成）
-apip_pos=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               )
-
-# === OAuth1.0署名の作成 =============================================
-# --- 1.署名用のパラメーターセットを作成
+# --- 4.署名用の材料となる文字列の作成
+#       註)APIパラメーターとOAuth1.0パラメーターを、
+#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
 sig_param=$(cat <<______________OAUTHPARAM |
               ${oa_param}
               ${apip_enc}
@@ -157,7 +162,10 @@ ______________OAUTHPARAM
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
             sed 's/&$//'                   )
-# --- 2.署名文字列を作成（各種API設定値と1を利用して作成）
+# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
+#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
+#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
+#          キー文字列として、HMAC-SHA1符号化
 sig_strin=$(cat <<______________KEY_AND_DATA                     |
               ${MY_apisec}
               ${MY_atksec}
@@ -218,11 +226,24 @@ case "$id" in '') error_exit 1 'Failed to upload a video in step (1/3)';; esac
 ######################################################################
 
 # === Twitter API関連（エンドポイント固有） ==========================
+# 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=''
 s="-T command APPEND -T media_id $id -T segment_index 0"
 mimemake_args="$s $mimemake_args"
 
-# === 署名や送信リクエストの材料を作成 ===============================
+# === パラメーターをAPIに向けて送信するために加工 ====================
+# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
+#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+apip_enc=$(printf '%s\n' "${API_param}" |
+           grep -v '^$'                 |
+           urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
+           sed 's/%3[Dd]/=/'            )
+# --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
+apip_pos=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               )
+
+# === OAuth1.0署名の作成 =============================================
 # --- 1.ランダム文字列
 randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
 # --- 2.現在のUNIX時間
@@ -230,6 +251,7 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
 # --- 3.OAuth1.0パラメーター（1,2を利用して作成）
+#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
 oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_version=1.0
              oauth_signature_method=HMAC-SHA1
@@ -239,18 +261,9 @@ oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_nonce=${randmstr}
 _____________OAUTHPARAM
            sed 's/^ *//'                      )
-# --- 4.URLencodeされたAPIパラメーター
-apip_enc=$(printf '%s\n' "${API_param}" |
-           grep -v '^$'                 |
-           urlencode -r                 |
-           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
-           sed 's/%3[Dd]/=/'            )
-# --- 5.URL貼付用のAPIパラメーター（4を利用して作成）
-apip_pos=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               )
-
-# === OAuth1.0署名の作成 =============================================
-# --- 1.署名用のパラメーターセットを作成
+# --- 4.署名用の材料となる文字列の作成
+#       註)APIパラメーターとOAuth1.0パラメーターを、
+#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
 sig_param=$(cat <<______________OAUTHPARAM |
               ${oa_param}
               ${apip_enc}
@@ -260,7 +273,10 @@ ______________OAUTHPARAM
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
             sed 's/&$//'                   )
-# --- 2.署名文字列を作成（各種API設定値と1を利用して作成）
+# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
+#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
+#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
+#          キー文字列として、HMAC-SHA1符号化
 sig_strin=$(cat <<______________KEY_AND_DATA                     |
               ${MY_apisec}
               ${MY_atksec}
@@ -326,6 +342,7 @@ case "$?" in [^0]*) error_exit 1 'Failed to upload a video in step (2/3)';; esac
 ######################################################################
 
 # === Twitter API関連（エンドポイント固有） ==========================
+# 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM               |
               command=FINALIZE
               media_id=$id
@@ -333,7 +350,21 @@ ______________PARAM
             sed 's/^ *//'                           |
             grep -v '^[A-Za-z0-9_]\{1,\}=$'         )
 
+# === パラメーターをAPIに向けて送信するために加工 ====================
+# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
+#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+apip_enc=$(printf '%s\n' "${API_param}" |
+           grep -v '^$'                 |
+           urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
+           sed 's/%3[Dd]/=/'            )
+# --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
+apip_pos=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               )
+
 # === 署名や送信リクエストの材料を作成 ===============================
+
+# === OAuth1.0署名の作成 =============================================
 # --- 1.ランダム文字列
 randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
 # --- 2.現在のUNIX時間
@@ -341,6 +372,7 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
 # --- 3.OAuth1.0パラメーター（1,2を利用して作成）
+#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
 oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_version=1.0
              oauth_signature_method=HMAC-SHA1
@@ -350,18 +382,9 @@ oa_param=$(cat <<_____________OAUTHPARAM      |
              oauth_nonce=${randmstr}
 _____________OAUTHPARAM
            sed 's/^ *//'                      )
-# --- 4.URLencodeされたAPIパラメーター
-apip_enc=$(printf '%s\n' "${API_param}" |
-           grep -v '^$'                 |
-           urlencode -r                 |
-           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
-           sed 's/%3[Dd]/=/'            )
-# --- 5.URL貼付用のAPIパラメーター（4を利用して作成）
-apip_pos=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               )
-
-# === OAuth1.0署名の作成 =============================================
-# --- 1.署名用のパラメーターセットを作成
+# --- 4.署名用の材料となる文字列の作成
+#       註)APIパラメーターとOAuth1.0パラメーターを、
+#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
 sig_param=$(cat <<______________OAUTHPARAM |
               ${oa_param}
               ${apip_enc}
@@ -371,7 +394,10 @@ ______________OAUTHPARAM
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
             sed 's/&$//'                   )
-# --- 2.署名文字列を作成（各種API設定値と1を利用して作成）
+# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
+#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
+#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
+#          キー文字列として、HMAC-SHA1符号化
 sig_strin=$(cat <<______________KEY_AND_DATA                     |
               ${MY_apisec}
               ${MY_atksec}
