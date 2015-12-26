@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/12/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,8 +32,12 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Thu Nov 26 16:36:02 JST 2015
+	Usage : ${0##*/} [options] [loginname]
+	        OPTIONS:
+	        -m <max_ID>  |--maxid=<max_ID>
+	        -n <count>   |--count=<count> 
+	        -s <since_ID>|--sinceid=<since_ID>
+	Sun Dec 27 02:15:40 JST 2015
 __USAGE
   exit 1
 }
@@ -71,24 +75,53 @@ esac
 
 # === 変数初期化 =====================================================
 scname=''
-count=10
+count=''
+max_id=''
+since_id=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
-case "${1:-}" in
-  --count=*) count=$(printf '%s' "${1#--count=}" | tr -d '\n')
-             shift
-             ;;
-  -n)        case $# in 1) error_exit 1 'Invalid -n option';; esac
-             count=$(printf '%s' "$2" | tr -d '\n')
-             shift 2
-             ;;
-  --|-)      :
-             ;;
-  --*|-*)    error_exit 1 'Invalid option'
-             ;;
-esac
-printf '%s' "$count" | grep -q '^[0-9]\{1,\}$' || {
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
+                 shift
+                 ;;
+    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
+                 count=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --maxid=*)   max_id=$(printf '%s' "${1#--maxid=}" | tr -d '\n')
+                 shift
+                 ;;
+    -m)          case $# in 1) error_exit 1 'Invalid -m option';; esac
+                 max_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --sinceid=*) since_id=$(printf '%s' "${1#--sinceid=}" | tr -d '\n')
+                 shift
+                 ;;
+    -s)          case $# in 1) error_exit 1 'Invalid -s option';; esac
+                 since_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --)          shift
+                 break
+                 ;;
+    -)           break
+                 ;;
+    --*|-*)      error_exit 1 'Invalid option'
+                 ;;
+    *)           break
+                 ;;
+  esac
+done
+printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
+}
+printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -m option'
+}
+printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -s option'
 }
 
 # === ユーザーログイン名を取得 =======================================
@@ -118,6 +151,8 @@ API_methd='GET'
 API_param=$(cat <<______________PARAM      |
               count=${count}
               screen_name=@${scname}
+              max_id=${max_id}
+              since_id=${since_id}
 ______________PARAM
             sed 's/^ *//'                  |
             grep -v '^[A-Za-z0-9_]\{1,\}=$')

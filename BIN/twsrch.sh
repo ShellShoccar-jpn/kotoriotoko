@@ -5,7 +5,7 @@
 # twsrch.sh
 # Twitterで指定条件に該当するツイートを検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
+# Written by Rich Mikan(richmikan@richlab.org) at 2015/12/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,9 +32,16 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [-n <count>|--count=<count>] <keyword> [...]
-	        echo <keyword> [...] | ${0##*/} [-n <count>|--count=<count>] -
-	Thu Nov 26 16:34:12 JST 2015
+	Usage : ${0##*/} [options] <keyword> [keyword ...]
+	        OPTIONS:
+	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
+	        -l <lang>                     |--lang=<lang>
+	        -m <max_ID>                   |--maxid=<max_ID>
+	        -n <count>                    |--count=<count> 
+	        -o <locale>                   |--locale=<locale>
+	        -s <since_ID>                 |--sinceid=<since_ID>
+	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
+	Sun Dec 27 02:01:20 JST 2015
 __USAGE
   exit 1
 }
@@ -73,23 +80,97 @@ esac
 # === 変数初期化 =====================================================
 queries=''
 count=''
+geocode=''
+lang=''
+locale=''
+max_id=''
+since_id=''
+until=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
-case "${1:-}" in
-  --count=*) count=$(printf '%s' "${1#--count=}" | tr -d '\n')
-             shift
-             ;;
-  -n)        case $# in 1) error_exit 1 'Invalid -n option';; esac
-             count=$(printf '%s' "$2" | tr -d '\n')
-             shift 2
-             ;;
-  --|-)      :
-             ;;
-  --*|-*)    error_exit 1 'Invalid option'
-             ;;
-esac
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
+                 shift
+                 ;;
+    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
+                 count=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --geocode=*) geocode=$(printf '%s' "${1#--geocode=}" | tr -d '\n')
+                 shift
+                 ;;
+    -g)          case $# in 1) error_exit 1 'Invalid -g option';; esac
+                 geocode=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --lang=*)    lang=$(printf '%s' "${1#--lang=}" | tr -d '\n')
+                 shift
+                 ;;
+    -l)          case $# in 1) error_exit 1 'Invalid -l option';; esac
+                 lang=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --locale=*)  locale=$(printf '%s' "${1#--locale=}" | tr -d '\n')
+                 shift
+                 ;;
+    -o)          case $# in 1) error_exit 1 'Invalid -o option';; esac
+                 locale=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --maxid=*)   max_id=$(printf '%s' "${1#--maxid=}" | tr -d '\n')
+                 shift
+                 ;;
+    -m)          case $# in 1) error_exit 1 'Invalid -m option';; esac
+                 max_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --sinceid=*) since_id=$(printf '%s' "${1#--sinceid=}" | tr -d '\n')
+                 shift
+                 ;;
+    -s)          case $# in 1) error_exit 1 'Invalid -s option';; esac
+                 since_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --until=*)   until=$(printf '%s' "${1#--until=}" | tr -d '\n')
+                 shift
+                 ;;
+    -u)          case $# in 1) error_exit 1 'Invalid -u option';; esac
+                 until=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --)          shift
+                 break
+                 ;;
+    -)           break
+                 ;;
+    --*|-*)      error_exit 1 'Invalid option'
+                 ;;
+    *)           break
+                 ;;
+  esac
+done
 printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
+}
+printf '%s\n' "$geocode"                            |
+grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+,[0-9.]+[km][mi]$' || {
+  error_exit 1 'Invalid -g option'
+}
+printf '%s\n' "$lang" | grep -Eq '^$|^[A-Za-z0-9]+$' || {
+  error_exit 1 'Invalid -l option'
+}
+printf '%s\n' "$locale" | grep -Eq '^$|^[A-Za-z0-9]+$' || {
+  error_exit 1 'Invalid -o option'
+}
+printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -m option'
+}
+printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -s option'
+}
+printf '%s\n' "$until" | grep -Eq '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || {
+  error_exit 1 'Invalid -u option'
 }
 
 # === 検索文字列を取得 ===============================================
@@ -118,6 +199,12 @@ API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM      |
               count=${count}
+              geocode=${geocode}
+              lang=${lang}
+              locale=${locale}
+              max_id=${max_id}
+              since_id=${since_id}
+              until=${until}
               q=${queries}
 ______________PARAM
             sed 's/^ *//'                  |
