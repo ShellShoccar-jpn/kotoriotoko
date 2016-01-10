@@ -2,28 +2,28 @@
 
 ######################################################################
 #
-# comiket_search.sh
+# comike_search.sh
 # コミケ関連のツイートを連続的に収集する
 #
 # [書式]
-# comiket_search.sh <取得間隔(秒)> <プロセス間の間隔(秒)> <番号>
+# comike_search.sh <取得間隔(秒)> <プロセス間の間隔(秒)> <番号>
 #
 # [例]
-#   comiket_search.sh 20 2 3
+#   comike_search.sh 20 2 3
 # とすると、時刻における秒の桁が 3,23,43 の時に
 # Twitter APIに検索クエリーを送る。
 # 従って、
-#   comiket_search.sh 20 2 0 & comiket_search.sh 20 2 1 & \
-#   comiket_search.sh 20 2 2 & comiket_search.sh 20 2 3 & \
-#   comiket_search.sh 20 2 4 & comiket_search.sh 20 2 5 & \
-#   comiket_search.sh 20 2 6 & comiket_search.sh 20 2 7 & \
-#   comiket_search.sh 20 2 8 & comiket_search.sh 20 2 9 &
+#   comike_search.sh 20 2 0 & comike_search.sh 20 2 1 & \
+#   comike_search.sh 20 2 2 & comike_search.sh 20 2 3 & \
+#   comike_search.sh 20 2 4 & comike_search.sh 20 2 5 & \
+#   comike_search.sh 20 2 6 & comike_search.sh 20 2 7 & \
+#   comike_search.sh 20 2 8 & comike_search.sh 20 2 9 &
 # のようにコマンド実行すると、10個の並列起動されたプロセスを使い、
 # 2秒毎にTwitter APIにアクセスする。
 # (各プロセスは、20秒以内に1周すれば取りこぼさずに結果を取得できる)
 # 尚、これらを停止させる時は、
 #   jobs -l | awk '{print $2}' | xargs kill
-# と打ち込めばよい。
+# と打ち込めばよい。（Bourneシェルの場合）
 #
 ######################################################################
 
