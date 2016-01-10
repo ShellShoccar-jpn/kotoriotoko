@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Thu Nov 26 16:41:41 JST 2015
+	Sun Jan 10 23:45:14 JST 2016
 __USAGE
   exit 1
 }
@@ -74,6 +74,33 @@ esac
 mimemake_args='' # mime-makeコマンドに渡す引数
 type=''          # ファイルの形式を記憶する変数
 file=''          # ファイルパスを記憶する変数
+rawoutputfile=''
+timeout=''
+
+# === オプション読取 =================================================
+while :; do
+  case "${1:-}" in
+    --rawout=*)  # for debug
+                 s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 rawoutputfile=$s
+                 shift
+                 ;;
+    --timeout=*) # for debug
+                 s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid --timeout option'
+                 }
+                 timeout=$s
+                 shift
+                 ;;
+    --|-)        break
+                 ;;
+    --*|-*)      error_exit 1 'Invalid option'
+                 ;;
+    *)           break
+                 ;;
+  esac
+done
 
 # === オプション読取 =================================================
 case $# in [^1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
@@ -188,37 +215,62 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-id=$(cat <<-_____OAUTH_HEADER                                      |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-_____OAUTH_HEADER
-     urlencode -r                                                  |
-     sed 's/%1[Ee]/%0A/g'                                          | #<退避
-     sed 's/%3[Dd]/=/'                                             | # 改行
-     sort -k 1,1 -t '='                                            | # 復帰
-     tr '\n' ','                                                   |
-     sed 's/^,*//'                                                 |
-     sed 's/,*$//'                                                 |
-     sed 's/^/Authorization: OAuth /'                              |
-     grep ^                                                        |
-     while read -r oa_hdr; do                                      #
-       if   [ -n "${CMD_WGET:-}" ]; then                           #
-         "$CMD_WGET" --no-check-certificate -q -O -                \
-                     --header="$oa_hdr"                            \
-                     --post-data="$apip_pos"                       \
-                     "$API_endpt"                                  #
-       elif [ -n "${CMD_CURL:-}" ]; then                           #
-         "$CMD_CURL" -ks                                           \
-                     -H "$oa_hdr"                                  \
-                     -d "$apip_pos"                                \
-                     "$API_endpt"                                  #
-       fi                                                          #
-     done                                                          |
-     # --- 2.レスポンスパース                                      #
-     parsrj.sh 2>/dev/null                                         |
-     awk '$1~/^\$\.media_id$/{print $2; exit;}'                    )
-case "$id" in '') error_exit 1 'Failed to upload a video in step (1/3)';; esac
+apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
+                "${oa_param}"                                          \
+                "${sig_strin}"                                         \
+                "${API_param}"                                         |
+         urlencode -r                                                  |
+         sed 's/%1[Ee]/%0A/g'                                          | #<退避
+         sed 's/%3[Dd]/=/'                                             | # 改行
+         sort -k 1,1 -t '='                                            | # 復帰
+         tr '\n' ','                                                   |
+         sed 's/^,*//'                                                 |
+         sed 's/,*$//'                                                 |
+         sed 's/^/Authorization: OAuth /'                              |
+         grep ^                                                        |
+         while read -r oa_hdr; do                                      #
+           if   [ -n "${CMD_WGET:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout=$timeout";;              #
+             esac                                                      #
+             "$CMD_WGET" --no-check-certificate -q -O -                \
+                         --header="$oa_hdr"                            \
+                         --post-data="$apip_pos"                       \
+                         $timeout                                      \
+                         "$API_endpt"                                  #
+           elif [ -n "${CMD_CURL:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout $timeout";;              #
+             esac                                                      #
+             "$CMD_CURL" -ks                                           \
+                         $timeout                                      \
+                         -H "$oa_hdr"                                  \
+                         -d "$apip_pos"                                \
+                         "$API_endpt"                                  #
+           fi                                                          #
+         done                                                          )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to upload a video in step (1/3)';; esac
+
+# === レスポンス解析 =================================================
+# --- 1.レスポンスパース
+id=$(echo "$apires"                                                      |
+     if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi |
+     parsrj.sh 2>/dev/null                                               |
+     awk '$1~/^\$\.media_id$/{print $2; ok=1;}                           #
+          END                {exit (1-ok);   }'                          )
+# --- 2.所定のデータが1行も無かった場合はエラー終了
+case $? in [!0]*)
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  error_exit 1 'API error(-1): UNKNOWN'
+;; esac
 
 
 ######################################################################
@@ -299,42 +351,55 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                  |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-__OAUTH_HEADER
-urlencode -r                                                           |
-sed 's/%1[Ee]/%0A/g'                                                   | #<退避
-sed 's/%3[Dd]/=/'                                                      | # 改行
-sort -k 1,1 -t '='                                                     | # 復帰
-tr '\n' ','                                                            |
-sed 's/^,*//'                                                          |
-sed 's/,*$//'                                                          |
-sed 's/^/Authorization: OAuth /'                                       |
-grep ^                                                                 |
-while read -r oa_hdr; do                                               #
-  s=$(mime-make -m)                                                    #
-  ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\""          #
-  eval mime-make -b "$s" $mimemake_args        |                       #
-  if   [ -n "${CMD_WGET:-}" ]; then                                    #
-    cat > "$Tmp-mimedata"                                              #
-    "$CMD_WGET" --no-check-certificate -q -O /dev/null -S              \
-                --header="$oa_hdr"                                     \
-                --header="$ct_hdr"                                     \
-                --post-file="$Tmp-mimedata"                            \
-                "$API_endpt"                                           #
-  elif [ -n "${CMD_CURL:-}" ]; then                                    #
-    "$CMD_CURL" -s -o /dev/null -w '%{http_code}\n'                    \
-                -H "$oa_hdr"                                           \
-                -H "$ct_hdr"                                           \
-                --data-binary @-                                       \
-                "$API_endpt"                                           #
-  fi                                                                   #
-done                                                                   |
-# --- 2.通信に失敗していた場合はエラーを返して終了
-awk '$1<200 || $1>299 {exit 1}'
-case "$?" in [^0]*) error_exit 1 'Failed to upload a video in step (2/3)';; esac
+apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
+                "${oa_param}"                                          \
+                "${sig_strin}"                                         \
+                "${API_param}"                                         |
+         urlencode -r                                                  |
+         sed 's/%1[Ee]/%0A/g'                                          | #<退避
+         sed 's/%3[Dd]/=/'                                             | # 改行
+         sort -k 1,1 -t '='                                            | # 復帰
+         tr '\n' ','                                                   |
+         sed 's/^,*//'                                                 |
+         sed 's/,*$//'                                                 |
+         sed 's/^/Authorization: OAuth /'                              |
+         grep ^                                                        |
+         while read -r oa_hdr; do                                      #
+           s=$(mime-make -m)                                           #
+           ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\"" #
+           eval mime-make -b "$s" $mimemake_args                   |   #
+           if   [ -n "${CMD_WGET:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout=$timeout";;              #
+             esac                                                      #
+             cat > "$Tmp-mimedata"                                     #
+             "$CMD_WGET" --no-check-certificate -q -O /dev/null -S     \
+                         --header="$oa_hdr"                            \
+                         --header="$ct_hdr"                            \
+                         --post-file="$Tmp-mimedata"                   \
+                         $timeout                                      \
+                         "$API_endpt"                                  #
+           elif [ -n "${CMD_CURL:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout $timeout";;              #
+             esac                                                      #
+             "$CMD_CURL" -ks -o /dev/null -w '%{http_code}\n'          \
+                         $timeout                                      \
+                         -H "$oa_hdr"                                  \
+                         -H "$ct_hdr"                                  \
+                         --data-binary @-                              \
+                         "$API_endpt"                                  #
+           fi                                                          #
+         done                                                          )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to upload a video in step (2/3)';; esac
+
+# === レスポンス解析（ステータスコード） =============================
+[ \( $apires -ge 200 \) -a \( $apires -lt 300 \) ] || {
+  error_exit 2 'Failed to upload a video in step (2/3)'
+}
 
 
 ######################################################################
@@ -420,33 +485,49 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-OAUTH_HEADER                                                    |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-OAUTH_HEADER
-urlencode -r                                                           |
-sed 's/%1[Ee]/%0A/g'                                                   | #<退避
-sed 's/%3[Dd]/=/'                                                      | # 改行
-sort -k 1,1 -t '='                                                     | # 復帰
-tr '\n' ','                                                            |
-sed 's/^,*//'                                                          |
-sed 's/,*$//'                                                          |
-sed 's/^/Authorization: OAuth /'                                       |
-grep ^                                                                 |
-while read -r oa_hdr; do                                               #
-  if   [ -n "${CMD_WGET:-}" ]; then                                    #
-    "$CMD_WGET" --no-check-certificate -q -O -                         \
-                --header="$oa_hdr"                                     \
-                --post-data="$apip_pos"                                \
-                "$API_endpt"                                           #
-  elif [ -n "${CMD_CURL:-}" ]; then                                    #
-    "$CMD_CURL" -s                                                     \
-                -H "$oa_hdr"                                           \
-                -d "$apip_pos"                                         \
-                "$API_endpt"                                           #
-  fi                                                                   #
-done                                                                   |
+apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
+                "${oa_param}"                                          \
+                "${sig_strin}"                                         \
+                "${API_param}"                                         |
+         urlencode -r                                                  |
+         sed 's/%1[Ee]/%0A/g'                                          | #<退避
+         sed 's/%3[Dd]/=/'                                             | # 改行
+         sort -k 1,1 -t '='                                            | # 復帰
+         tr '\n' ','                                                   |
+         sed 's/^,*//'                                                 |
+         sed 's/,*$//'                                                 |
+         sed 's/^/Authorization: OAuth /'                              |
+         grep ^                                                        |
+         while read -r oa_hdr; do                                      #
+           if   [ -n "${CMD_WGET:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout=$timeout";;              #
+             esac                                                      #
+             "$CMD_WGET" --no-check-certificate -q -O -                \
+                         --header="$oa_hdr"                            \
+                         --post-data="$apip_pos"                       \
+                         $timeout                                      \
+                         "$API_endpt"                                  #
+           elif [ -n "${CMD_CURL:-}" ]; then                           #
+             case "$timeout" in                                        #
+               '') :                                   ;;              #
+                *) timeout="--connect-timeout $timeout";;              #
+             esac                                                      #
+             "$CMD_CURL" -ks                                           \
+                         $timeout                                      \
+                         -H "$oa_hdr"                                  \
+                         -d "$apip_pos"                                \
+                         "$API_endpt"                                  #
+           fi                                                          #
+         done                                                          )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to upload a video in step (3/3)';; esac
+
+# === レスポンス解析 =================================================
+# --- 1.レスポンスパース                                               #
+echo "$apires"                                                         |
+if [ -n "$rawoutputfile" ]; then tee -a "$rawoutputfile"; else cat; fi |
 parsrj.sh 2>/dev/null                                                  |
 unescj.sh 2>/dev/null                                                  |
 awk 'BEGIN                        {id= 0; ex=0;                     }  #
@@ -455,9 +536,18 @@ awk 'BEGIN                        {id= 0; ex=0;                     }  #
      END                          {if (id*ex) {                        #
                                      printf("id=%s\nex=%s\n",id,ex);   #
                                    }                                }' |
-# --- 3.通信に失敗していた場合はエラーを返して終了
+# --- 2.所定のデータが1行も無かった場合はエラー扱いにする              #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
-case "$id" in '') error_exit 1 'Failed to upload a video in step (3/3)';; esac
+
+# === 異常時のメッセージ出力 =========================================
+case $? in [!0]*)
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+;; esac
 
 
 ######################################################################

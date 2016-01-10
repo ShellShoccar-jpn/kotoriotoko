@@ -41,7 +41,9 @@ print_usage_and_exit () {
 	        -o <locale>                   |--locale=<locale>
 	        -s <since_ID>                 |--sinceid=<since_ID>
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
-	Sun Jan 10 16:17:56 JST 2016
+	        --rawout=<filepath_for_writing_JSON_data>
+	        --timeout=<waiting_seconds_to_connect>
+	Sun Jan 10 21:52:57 JST 2016
 __USAGE
   exit 1
 }
@@ -87,6 +89,7 @@ max_id=''
 since_id=''
 until=''
 rawoutputfile=''
+timeout=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
 while [ $# -gt 0 ]; do
@@ -140,8 +143,10 @@ while [ $# -gt 0 ]; do
                  until=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
-    --rawout=*)  # for debug
-                 rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+    --rawout=*)  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
+                 ;;
+    --timeout=*) timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  shift
                  ;;
     --)          shift
@@ -176,6 +181,9 @@ printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
 }
 printf '%s\n' "$until" | grep -Eq '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || {
   error_exit 1 'Invalid -u option'
+}
+printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid --timeout option'
 }
 
 # === 検索文字列を取得 ===============================================
@@ -284,29 +292,38 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
-                "${oa_param}"                           \
-                "${sig_strin}"                          \
-                "${API_param}"                          |
-         urlencode                                      |
-         sed 's/%3[Dd]/=/'                              |
-         sort -k 1,1 -t '='                             |
-         tr '\n' ','                                    |
-         sed 's/^,*//'                                  |
-         sed 's/,*$//'                                  |
-         sed 's/^/Authorization: OAuth /'               |
-         grep ^                                         |
-         while read -r oa_hdr; do                       #
-           if   [ -n "${CMD_WGET:-}" ]; then            #
-             "$CMD_WGET" --no-check-certificate -q -O - \
-                         --header="$oa_hdr"             \
-                         "$API_endpt$apip_get"          #
-           elif [ -n "${CMD_CURL:-}" ]; then            #
-             "$CMD_CURL" -ks                            \
-                         -H "$oa_hdr"                   \
-                         "$API_endpt$apip_get"          #
-           fi                                           #
-         done                                           )
+apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
+                "${oa_param}"                             \
+                "${sig_strin}"                            \
+                "${API_param}"                            |
+         urlencode                                        |
+         sed 's/%3[Dd]/=/'                                |
+         sort -k 1,1 -t '='                               |
+         tr '\n' ','                                      |
+         sed 's/^,*//'                                    |
+         sed 's/,*$//'                                    |
+         sed 's/^/Authorization: OAuth /'                 |
+         grep ^                                           |
+         while read -r oa_hdr; do                         #
+           if   [ -n "${CMD_WGET:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout=$timeout";; #
+             esac                                         #
+             "$CMD_WGET" --no-check-certificate -q -O -   \
+                         --header="$oa_hdr"               \
+                         "$API_endpt$apip_get"            #
+           elif [ -n "${CMD_CURL:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout $timeout";; #
+             esac                                         #
+             "$CMD_CURL" -ks                              \
+                         $timeout                         \
+                         -H "$oa_hdr"                     \
+                         "$API_endpt$apip_get"            #
+           fi                                             #
+         done                                             )
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 

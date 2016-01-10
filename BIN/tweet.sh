@@ -32,9 +32,15 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [-f <media_file>] [-m <media_id>] [-r <tweet_id>] <tweet>
-	      : echo <tweet> | ${0##*/} [-f, -m, -r options]
-	Sun Jan 10 17:00:24 JST 2016
+	Usage : ${0##*/} [options] <tweet_message>
+	      : echo <tweet_message> | ${0##*/} [options]
+	        OPTIONS:
+	        -f <media_file>|--file=<media_file>
+	        -m <media_id>  |--mediaid=<media_id>
+	        -r <tweet_id>  |--reply=<tweet_id>
+	        -l <lat>,<long>|--location=<lat>,<long>
+	        -p <place_id>  |--place=<place_id>
+	Sun Jan 10 22:35:58 JST 2016
 __USAGE
   exit 1
 }
@@ -71,10 +77,13 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
+location=''
 message=''
+place=''
 replyto=''
 mediaids=''
 rawoutputfile=''
+timeout=''
 
 # === オプション読取 =================================================
 while :; do
@@ -117,6 +126,12 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift 2
                  ;;
+    --location=*) location=$(printf '%s' "${1#--location=}" | tr -d '\n')
+                 shift
+                 ;;
+    -l)          location=$(printf '%s' "${2:-}" | tr -d '\n')
+                 shift 2
+                 ;;
     --mediaid=*) s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
                  printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
                    error_exit 1 'Invalid --mediaid option'
@@ -135,22 +150,29 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift 2
                  ;;
-    --reply=*)   s=$(printf '%s' "${1#--reply=}" | tr -d '\n')
-                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-                   error_exit 1 'Invalid --reply option'
-                 }
-                 replyto=$s
+    --place=*)   place=$(printf '%s' "${1#--place=}" | tr -d '\n')
                  shift
                  ;;
-    -r)          s=$(printf '%s' "${2:-}" | tr -d '\n')
-                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-                   error_exit 1 'Invalid -r option'
-                 }
-                 replyto=$s
+    -p)          place=$(printf '%s' "${2:-}" | tr -d '\n')
+                 shift 2
+                 ;;
+    --reply=*)   replyto=$(printf '%s' "${1#--reply=}" | tr -d '\n')
+                 shift
+                 ;;
+    -r)          replyto=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
     --rawout=*)  # for debug
-                 rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 rawoutputfile=$s
+                 shift
+                 ;;
+    --timeout=*) # for debug
+                 s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid --timeout option'
+                 }
+                 timeout=$s
                  shift
                  ;;
     --|-)        break
@@ -161,6 +183,17 @@ while :; do
                  ;;
   esac
 done
+printf '%s\n' "$location" | grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+$' || {
+  error_exit 1 'Invalid -l,--location option'
+}
+printf '%s\n' "$place" | grep -q '^[0-9a-f]*$' || {
+  error_exit 1 'Invalid -p,--place option'
+}
+printf '%s\n' "$replyto" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -r,--reply option'
+}
+# --- メディアIDが存在すればそれを先に出力する
+[ -n "$mediaids" ] && echo "mid=$mediaids"
 
 # === メッセージを取得 ===============================================
 case $# in
@@ -190,7 +223,10 @@ readonly API_methd='POST'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM         |
               in_reply_to_status_id=$replyto
+              lat=${location%,*}
+              long=${location#*,}
               media_ids=$mediaids
+              place_id=$place
               status=$message
 ______________PARAM
             sed 's/^ *//'                     |
@@ -265,32 +301,42 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
-                "${oa_param}"                           \
-                "${sig_strin}"                          \
-                "${API_param}"                          |
-         urlencode -r                                   |
-         sed 's/%1[Ee]/%0A/g'                           | #<退避
-         sed 's/%3[Dd]/=/'                              | # 改行
-         sort -k 1,1 -t '='                             | # 復帰
-         tr '\n' ','                                    |
-         sed 's/^,*//'                                  |
-         sed 's/,*$//'                                  |
-         sed 's/^/Authorization: OAuth /'               |
-         grep ^                                         |
-         while read -r oa_hdr; do                       #
-           if   [ -n "${CMD_WGET:-}" ]; then            #
-             "$CMD_WGET" --no-check-certificate -q -O - \
-                         --header="$oa_hdr"             \
-                         --post-data="$apip_pos"        \
-                         "$API_endpt"                   #
-           elif [ -n "${CMD_CURL:-}" ]; then            #
-             "$CMD_CURL" -ks                            \
-                         -H "$oa_hdr"                   \
-                         -d "$apip_pos"                 \
-                         "$API_endpt"                   #
-           fi                                           #
-         done                                           )
+apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
+                "${oa_param}"                             \
+                "${sig_strin}"                            \
+                "${API_param}"                            |
+         urlencode -r                                     |
+         sed 's/%1[Ee]/%0A/g'                             | #<退避
+         sed 's/%3[Dd]/=/'                                | # 改行
+         sort -k 1,1 -t '='                               | # 復帰
+         tr '\n' ','                                      |
+         sed 's/^,*//'                                    |
+         sed 's/,*$//'                                    |
+         sed 's/^/Authorization: OAuth /'                 |
+         grep ^                                           |
+         while read -r oa_hdr; do                         #
+           if   [ -n "${CMD_WGET:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout=$timeout";; #
+             esac                                         #
+             "$CMD_WGET" --no-check-certificate -q -O -   \
+                         --header="$oa_hdr"               \
+                         --post-data="$apip_pos"          \
+                         $timeout                         \
+                         "$API_endpt"                     #
+           elif [ -n "${CMD_CURL:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout $timeout";; #
+             esac                                         #
+             "$CMD_CURL" -ks                              \
+                         $timeout                         \
+                         -H "$oa_hdr"                     \
+                         -d "$apip_pos"                   \
+                         "$API_endpt"                     #
+           fi                                             #
+         done                                             )
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
@@ -304,7 +350,7 @@ awk 'BEGIN                {fid=0; fca=0;                         }   #
      $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
      END                  {if(fid*fca) {print sca,sid}           }'  |
 # 1:曜日 2:月名 3:日 4:HH:MM:SS 5:UTCとの差 6:年 7:ID                #
-# --- 3.日時フォーマット変換                                         #
+# --- 2.日時フォーマット変換                                         #
 awk 'BEGIN                                                        {  #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
        m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #

@@ -37,7 +37,9 @@ print_usage_and_exit () {
 	        -m <max_ID>  |--maxid=<max_ID>
 	        -n <count>   |--count=<count> 
 	        -s <since_ID>|--sinceid=<since_ID>
-	Sun Jan 10 16:56:41 JST 2016
+	        --rawout=<filepath_for_writing_JSON_data>
+	        --timeout=<waiting_seconds_to_connect>
+	Sun Jan 10 21:51:41 JST 2016
 __USAGE
   exit 1
 }
@@ -99,12 +101,10 @@ while [ $# -gt 0 ]; do
                  since_id=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
-    --rawout=*)  # for debug
-                 rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+    --rawout=*)  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
                  shift
                  ;;
-    --timeout=*) # for debug
-                 timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+    --timeout=*) timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  shift
                  ;;
     --)          shift
@@ -126,6 +126,9 @@ printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
 }
 printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -s option'
+}
+printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid --timeout option'
 }
 
 # === ユーザーログイン名を取得 =======================================

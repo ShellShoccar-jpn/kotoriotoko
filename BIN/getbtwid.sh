@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Sun Jan 10 10:28:37 JST 2016
+	Sun Jan 10 22:24:04 JST 2016
 __USAGE
   exit 1
 }
@@ -127,20 +127,20 @@ awk '$1=="$.access_token"{bearer =$2;}                  #
          print "MY_bearer=\047" $2 "\047";              #
          print "";                                      #
          print "Write the variable into COMMON.SHLIB."; #
-         print "And you can use btw* commands.";        #
+         print "And you can use btw*.sh commands.";     #
        } else {                                         #
          exit 1;                                        #
        }                                                #
      }                                                  '
 
 # === 異常時のメッセージ出力 =========================================
-case $? in 1)
-  err=$(echo "$apires"                    |
-        parsrj.sh                         |
-        awk '$1~/\.code$/   {errcode=$2;} #
-             $1~/\.message$/{errmsg =$2;} #
-             END {print errcode, errmsg;}')
-  error_exit 1 "API error(${err%% *}): ${err#* }"
+case $? in [!0]*)
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END {print errcode, errmsg;                          }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
 ;; esac
 
 

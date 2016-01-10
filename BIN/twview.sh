@@ -2,10 +2,10 @@
 
 ######################################################################
 #
-# twfer.sh
-# Twitterの指定ユーザーのフォロワーを見る
+# twview.sh
+# Twitterで指定したツイートIDを表示する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/11
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,8 +32,11 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Sun Jan 10 23:03:03 JST 2016
+	Usage : ${0##*/} [options] <tweet_id>
+	        OPTIONS:
+	        --rawout=<filepath_for_writing_JSON_data>
+	        --timeout=<waiting_seconds_to_connect>
+	Mon Jan 11 03:33:23 JST 2016
 __USAGE
   exit 1
 }
@@ -70,21 +73,13 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-scname=''
-count=''
+tweetid=''
 rawoutputfile=''
 timeout=''
 
 # === オプション読取 =================================================
 while :; do
   case "${1:-}" in
-    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
-                 shift
-                 ;;
-    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
-                 count=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
     --rawout=*)  # for debug
                  s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
                  rawoutputfile=$s
@@ -106,17 +101,13 @@ while :; do
                  ;;
   esac
 done
-printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid -n option'
-}
 
-# === ユーザーログイン名を取得 =======================================
+# === ツイートIDを取得 ===============================================
 case $# in
-  0) scname=$MY_scname                          ;;
-  1) scname=$(printf '%s' "${1#@}" | tr -d '\n');;
-  *) print_usage_and_exit                       ;;
+  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
+  *) print_usage_and_exit                    ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
   print_usage_and_exit
 }
 
@@ -127,12 +118,11 @@ printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-API_endpt='https://api.twitter.com/1.1/followers/list.json'
+API_endpt='https://api.twitter.com/1.1/statuses/show.json'
 API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM      |
-              count=${count}
-              screen_name=@${scname}
+              id=$tweetid
 ______________PARAM
             sed 's/^ *//'                  |
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
@@ -226,7 +216,6 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
              esac                                         #
              "$CMD_WGET" --no-check-certificate -q -O -   \
                          --header="$oa_hdr"               \
-                         $timeout                         \
                          "$API_endpt$apip_get"            #
            elif [ -n "${CMD_CURL:-}" ]; then              #
              case "$timeout" in                           #
@@ -243,28 +232,91 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                     #
-echo "$apires"                                                               |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
-parsrj.sh 2>/dev/null                                                        |
-unescj.sh -n 2>/dev/null                                                     |
-sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                 |
-grep -v '^\$'                                                                |
-awk '                                                                        #
-  BEGIN                    {id=""; nm=""; sn=""; fl="";                   }  #
-  $2=="id"                 {id=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="name"               {nm=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="screen_name"        {sn=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="following"          {fl=substr($0,length($1 $2)+3);print_tw();next;}  #
-  function print_tw( stat) {                                                 #
-    if (id=="") {return;}                                                    #
-    if (nm=="") {return;}                                                    #
-    if (sn=="") {return;}                                                    #
-    if (fl=="") {return;}                                                    #
-    stat = (fl=="true") ? "<=>" : "<==";                                     #
-    printf("%s %-10s %s (@%s)\n",stat,id,nm,sn);                             #
-    id=""; nm=""; sn=""; fl="";                                           }' |
-# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                    #
+# --- 1.レスポンスパース                                                 #
+echo "$apires"                                                           |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi      |
+parsrj.sh 2>/dev/null                                                    |
+unescj.sh -n 2>/dev/null                                                 |
+sed 's/^\$\.//'                                                          |
+awk '                                                                    #
+  BEGIN                   {tm=""; id=""; tx="";                          #
+                           nr=""; nf=""; fr=""; ff=""; nm=""; sn="";     #
+                           ge=""; la=""; lo=""; pl=""; pn="";         }  #
+  $1=="created_at"        {tm=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="id"                {id=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="text"              {tx=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="retweet_count"     {nr=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="favorite_count"    {nf=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="retweeted"         {fr=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="favorited"         {ff=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="user.name"         {nm=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="user.screen_name"  {sn=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="geo"               {ge=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="geo.coordinates[0]"{la=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="geo.coordinates[1]"{lo=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="place"             {pl=substr($0,length($1)+2);print_tw();next;}  #
+  $1=="place.full_name"   {pn=substr($0,length($1)+2);print_tw();next;}  #
+  function print_tw( r,f) {                                              #
+    if (tm=="") {return;}                                                #
+    if (id=="") {return;}                                                #
+    if (tx=="") {return;}                                                #
+    if (nr=="") {return;}                                                #
+    if (nf=="") {return;}                                                #
+    if (fr=="") {return;}                                                #
+    if (ff=="") {return;}                                                #
+    if (nm=="") {return;}                                                #
+    if (sn=="") {return;}                                                #
+    if (((la=="")||(lo==""))&&(ge!="null")) {return;}                    #
+    if ((pn=="")&&(pl!="null"))             {return;}                    #
+    r = (fr=="true") ? "RET" : "ret";                                    #
+    f = (ff=="true") ? "FAV" : "fav";                                    #
+    printf("%s\n"                                ,tm       );            #
+    printf("- %s (@%s)\n"                        ,nm,sn    );            #
+    printf("- %s\n"                              ,tx       );            #
+    printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);            #
+    s = (pl=="null")?"-":pn;                                             #
+    s = (ge=="null")?s:sprintf("%s (%s,%s)",s,la,lo);                    #
+    print "-",s;                                                         #
+    printf("- https://twitter.com/%s/status/%s\n",sn,id    );            #
+    tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";       #
+    ge=""; la=""; lo=""; pl=""; pn="";                                }' |
+# --- 2.日時フォーマット変換                                             #
+awk 'BEGIN {                                                             #
+       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
+       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";       #
+       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }   #
+     /^[A-Z]/{t=$4;                                                      #
+              gsub(/:/,"",t);                                            #
+              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);    #
+              d*=1;                                                      #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);          #
+              next;                                                  }   #
+     "OTHERS"{print;}'                                                   |
+tr ' \t\034' '\006\025 '                                                 |
+awk 'BEGIN   {ORS="";             }                                      #
+     /^[0-9]/{print "\n" $0; next;}                                      #
+             {print "",  $0; next;}                                      #
+     END     {print "\n"   ;      }'                                     |
+tail -n +2                                                               |
+# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所#
+# 7:URL                                                                  #
+TZ=UTC+0 calclock 1                                                      |
+# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート           #
+# 6:リツイート等 7:場所 8:URL                                            #
+awk '{print $2-$3,$4,$5,$6,$7,$8;}'                                      |
+# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL
+calclock -r 1                                                            |
+# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等 #
+# 6:場所 7:URL                                                           #
+self 2/7                                                                 |
+# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL         #
+tr ' \006\025' '\n \t'                                                   |
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }       #
+     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);         #
+              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                 #
+              next;                                              }       #
+     "OTHERS"{print;}                                             '      |
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================

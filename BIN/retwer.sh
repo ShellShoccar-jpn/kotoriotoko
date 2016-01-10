@@ -2,10 +2,10 @@
 
 ######################################################################
 #
-# twfer.sh
-# Twitterの指定ユーザーのフォロワーを見る
+# retwer.sh
+# 指定ツイートをリツイートしたユーザー一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/11
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,8 +32,12 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Sun Jan 10 23:03:03 JST 2016
+	Usage : ${0##*/} [options] <tweet_id>
+	        OPTIONS:
+	        -n <count>|--count=<count> 
+	        --rawout=<filepath_for_writing_JSON_data>
+	        --timeout=<waiting_seconds_to_connect>
+	Mon Jan 11 01:37:54 JST 2016
 __USAGE
   exit 1
 }
@@ -70,7 +74,7 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-scname=''
+tweetid=''
 count=''
 rawoutputfile=''
 timeout=''
@@ -110,13 +114,12 @@ printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
 }
 
-# === ユーザーログイン名を取得 =======================================
+# === ツイートIDを取得 ===============================================
 case $# in
-  0) scname=$MY_scname                          ;;
-  1) scname=$(printf '%s' "${1#@}" | tr -d '\n');;
-  *) print_usage_and_exit                       ;;
+  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
+  *) print_usage_and_exit                    ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
   print_usage_and_exit
 }
 
@@ -127,12 +130,11 @@ printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-API_endpt='https://api.twitter.com/1.1/followers/list.json'
+API_endpt="https://api.twitter.com/1.1/statuses/retweets/$tweetid.json"
 API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM      |
               count=${count}
-              screen_name=@${scname}
 ______________PARAM
             sed 's/^ *//'                  |
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
@@ -248,22 +250,19 @@ echo "$apires"                                                               |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
 parsrj.sh 2>/dev/null                                                        |
 unescj.sh -n 2>/dev/null                                                     |
-sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                 |
-grep -v '^\$'                                                                |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\.user\.\([^ .]*\)/ \1 \2/'                     |
+grep '^ '                                                                    |
 awk '                                                                        #
-  BEGIN                    {id=""; nm=""; sn=""; fl="";                   }  #
-  $2=="id"                 {id=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="name"               {nm=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="screen_name"        {sn=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="following"          {fl=substr($0,length($1 $2)+3);print_tw();next;}  #
+  BEGIN                    {id=""; nm=""; sn="";                          }  #
+  $2=="id"                 {id=substr($0,length($1 $2)+4);print_tw();next;}  #
+  $2=="name"               {nm=substr($0,length($1 $2)+4);print_tw();next;}  #
+  $2=="screen_name"        {sn=substr($0,length($1 $2)+4);print_tw();next;}  #
   function print_tw( stat) {                                                 #
     if (id=="") {return;}                                                    #
     if (nm=="") {return;}                                                    #
     if (sn=="") {return;}                                                    #
-    if (fl=="") {return;}                                                    #
-    stat = (fl=="true") ? "<=>" : "<==";                                     #
-    printf("%s %-10s %s (@%s)\n",stat,id,nm,sn);                             #
-    id=""; nm=""; sn=""; fl="";                                           }' |
+    printf("%-10s %s (@%s)\n",id,nm,sn);                                     #
+    id=""; nm=""; sn="";                                                  }' |
 # --- 2.所定のデータが1行も無かった場合はエラー扱いにする                    #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 

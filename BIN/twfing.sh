@@ -5,7 +5,7 @@
 # twfing.sh
 # Twitterの指定ユーザーのフォローユーザーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Thu Nov 26 16:21:40 JST 2015
+	Sun Jan 10 23:10:44 JST 2016
 __USAGE
   exit 1
 }
@@ -72,21 +72,40 @@ esac
 # === 変数初期化 =====================================================
 scname=''
 count=''
+rawoutputfile=''
+timeout=''
 
-# === 取得ツイート数に指定がある場合はその数を取得 ===================
-case "${1:-}" in
-  --count=*) count=$(printf '%s' "${1#--count=}" | tr -d '\n')
-             shift
-             ;;
-  -n)        case $# in 1) error_exit 1 'Invalid -n option';; esac
-             count=$(printf '%s' "$2" | tr -d '\n')
-             shift 2
-             ;;
-  --|-)      :
-             ;;
-  --*|-*)    error_exit 1 'Invalid option'
-             ;;
-esac
+# === オプション読取 =================================================
+while :; do
+  case "${1:-}" in
+    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
+                 shift
+                 ;;
+    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
+                 count=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --rawout=*)  # for debug
+                 s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 rawoutputfile=$s
+                 shift
+                 ;;
+    --timeout=*) # for debug
+                 s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid --timeout option'
+                 }
+                 timeout=$s
+                 shift
+                 ;;
+    --|-)        :
+                 ;;
+    --*|-*)      error_exit 1 'Invalid option'
+                 ;;
+    *)           break
+                 ;;
+  esac
+done
 printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
 }
@@ -187,31 +206,46 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                        |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-__OAUTH_HEADER
-urlencode                                                                    |
-sed 's/%3[Dd]/=/'                                                            |
-sort -k 1,1 -t '='                                                           |
-tr '\n' ','                                                                  |
-sed 's/^,*//'                                                                |
-sed 's/,*$//'                                                                |
-sed 's/^/Authorization: OAuth /'                                             |
-grep ^                                                                       |
-while read -r oa_hdr; do                                                     #
-  if   [ -n "${CMD_WGET:-}" ]; then                                          #
-    "$CMD_WGET" --no-check-certificate -q -O -                               \
-                --header="$oa_hdr"                                           \
-                "$API_endpt$apip_get"                                        #
-  elif [ -n "${CMD_CURL:-}" ]; then                                          #
-    "$CMD_CURL" -ks                                                          \
-                -H "$oa_hdr"                                                 \
-                "$API_endpt$apip_get"                                        #
-  fi                                                                         #
-done                                                                         |
-# --- 2.レスポンスパース                                                     #
+apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
+                "${oa_param}"                             \
+                "${sig_strin}"                            \
+                "${API_param}"                            |
+         urlencode                                        |
+         sed 's/%3[Dd]/=/'                                |
+         sort -k 1,1 -t '='                               |
+         tr '\n' ','                                      |
+         sed 's/^,*//'                                    |
+         sed 's/,*$//'                                    |
+         sed 's/^/Authorization: OAuth /'                 |
+         grep ^                                           |
+         while read -r oa_hdr; do                         #
+           if   [ -n "${CMD_WGET:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout=$timeout";; #
+             esac                                         #
+             "$CMD_WGET" --no-check-certificate -q -O -   \
+                         --header="$oa_hdr"               \
+                         $timeout                         \
+                         "$API_endpt$apip_get"            #
+           elif [ -n "${CMD_CURL:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout $timeout";; #
+             esac                                         #
+             "$CMD_CURL" -ks                              \
+                         $timeout                         \
+                         -H "$oa_hdr"                     \
+                         "$API_endpt$apip_get"            #
+           fi                                             #
+         done                                             )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to access API';; esac
+
+# === レスポンス解析 =================================================
+# --- 1.レスポンスパース                                                     #
+echo "$apires"                                                               |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
 parsrj.sh 2>/dev/null                                                        |
 unescj.sh -n 2>/dev/null                                                     |
 sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                 |
@@ -227,11 +261,18 @@ awk '                                                                        #
     if (sn=="") {return;}                                                    #
     printf("-=> %-10s %s (@%s)\n",id,nm,sn);                                 #
     id=""; nm=""; sn="";                                                  }' |
-# --- 3.通信に失敗していた場合はエラーを返して終了                           #
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                    #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
+
+# === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  error_exit 1 'Failed to view the following users';;
-esac
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+;; esac
 
 
 ######################################################################
