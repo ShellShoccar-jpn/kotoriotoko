@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# twsrch.sh
-# Twitterで指定条件に該当するツイートを検索する
+# btwtl.sh
+# Twitterの指定ユーザーのタイムラインを見る（ベアラトークンモード）
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
@@ -32,16 +32,12 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] <keyword> [keyword ...]
+	Usage : ${0##*/} [options] [loginname]
 	        OPTIONS:
-	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
-	        -l <lang>                     |--lang=<lang>
-	        -m <max_ID>                   |--maxid=<max_ID>
-	        -n <count>                    |--count=<count> 
-	        -o <locale>                   |--locale=<locale>
-	        -s <since_ID>                 |--sinceid=<since_ID>
-	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
-	Sun Jan 10 16:17:56 JST 2016
+	        -m <max_ID>  |--maxid=<max_ID>
+	        -n <count>   |--count=<count> 
+	        -s <since_ID>|--sinceid=<since_ID>
+	Sun Jan 10 16:56:41 JST 2016
 __USAGE
   exit 1
 }
@@ -52,13 +48,7 @@ error_exit() {
 }
 
 # === 必要なプログラムの存在を確認する ===============================
-# --- 1.符号化コマンド（OpenSSL）
-if   type openssl >/dev/null 2>&1; then
-  CMD_OSSL='openssl'
-else
-  error_exit 1 'OpenSSL command is not found.'
-fi
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl）
+# --- 1.HTTPアクセスコマンド（wgetまたはcurl）
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -78,15 +68,12 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-queries=''
+scname=''
 count=''
-geocode=''
-lang=''
-locale=''
 max_id=''
 since_id=''
-until=''
 rawoutputfile=''
+timeout=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
 while [ $# -gt 0 ]; do
@@ -96,27 +83,6 @@ while [ $# -gt 0 ]; do
                  ;;
     -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
                  count=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --geocode=*) geocode=$(printf '%s' "${1#--geocode=}" | tr -d '\n')
-                 shift
-                 ;;
-    -g)          case $# in 1) error_exit 1 'Invalid -g option';; esac
-                 geocode=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --lang=*)    lang=$(printf '%s' "${1#--lang=}" | tr -d '\n')
-                 shift
-                 ;;
-    -l)          case $# in 1) error_exit 1 'Invalid -l option';; esac
-                 lang=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --locale=*)  locale=$(printf '%s' "${1#--locale=}" | tr -d '\n')
-                 shift
-                 ;;
-    -o)          case $# in 1) error_exit 1 'Invalid -o option';; esac
-                 locale=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
     --maxid=*)   max_id=$(printf '%s' "${1#--maxid=}" | tr -d '\n')
@@ -133,15 +99,12 @@ while [ $# -gt 0 ]; do
                  since_id=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
-    --until=*)   until=$(printf '%s' "${1#--until=}" | tr -d '\n')
-                 shift
-                 ;;
-    -u)          case $# in 1) error_exit 1 'Invalid -u option';; esac
-                 until=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
     --rawout=*)  # for debug
                  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
+                 ;;
+    --timeout=*) # for debug
+                 timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  shift
                  ;;
     --)          shift
@@ -158,39 +121,27 @@ done
 printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
 }
-printf '%s\n' "$geocode"                            |
-grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+,[0-9.]+[km][mi]$' || {
-  error_exit 1 'Invalid -g option'
-}
-printf '%s\n' "$lang" | grep -Eq '^$|^[A-Za-z0-9]+$' || {
-  error_exit 1 'Invalid -l option'
-}
-printf '%s\n' "$locale" | grep -Eq '^$|^[A-Za-z0-9]+$' || {
-  error_exit 1 'Invalid -o option'
-}
 printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -m option'
 }
 printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -s option'
 }
-printf '%s\n' "$until" | grep -Eq '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || {
-  error_exit 1 'Invalid -u option'
-}
 
-# === 検索文字列を取得 ===============================================
+# === ユーザーログイン名を取得 =======================================
 case $# in
-  0) print_usage_and_exit;;
-  1) case "${1:-}" in
-       '--') print_usage_and_exit;;
-        '-') queries=$(cat -)    ;;
-          *) queries=$1          ;;
+  0) case "${MY_scname:-}" in '')
+       error_exit 1 'No screen name is set (you must set it into $MY_scname)'
+       ;;
      esac
-     ;;
-  *) case "$1" in '--') shift;; esac
-     queries="$*"
-     ;;
+     scname=$MY_scname                          ;;
+  1) scname=$(printf '%s' "${1#@}" | tr -d '\n')
+     [ -z "$scname" ] && scname=$MY_scname      ;;
+  *) print_usage_and_exit                       ;;
 esac
+printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$|' || {
+  print_usage_and_exit
+}
 
 
 ######################################################################
@@ -199,18 +150,14 @@ esac
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-API_endpt='https://api.twitter.com/1.1/search/tweets.json'
+API_endpt='https://api.twitter.com/1.1/statuses/user_timeline.json'
 API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM      |
               count=${count}
-              geocode=${geocode}
-              lang=${lang}
-              locale=${locale}
+              screen_name=@${scname}
               max_id=${max_id}
               since_id=${since_id}
-              until=${until}
-              q=${queries}
 ______________PARAM
             sed 's/^ *//'                  |
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
@@ -229,84 +176,35 @@ apip_get=$(printf '%s' "${apip_enc}" |
            sed 's/^./?&/'            )
 
 # === OAuth1.0署名の作成 =============================================
-# --- 1.ランダム文字列
-randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
-# --- 2.現在のUNIX時間
-nowutime=$(date '+%Y%m%d%H%M%S' |
-           calclock 1           |
-           self 2               )
-# --- 3.OAuth1.0パラメーター（1,2を利用して作成）
-#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
-oa_param=$(cat <<_____________OAUTHPARAM      |
-             oauth_version=1.0
-             oauth_signature_method=HMAC-SHA1
-             oauth_consumer_key=${MY_apikey}
-             oauth_token=${MY_atoken}
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-_____________OAUTHPARAM
-           sed 's/^ *//'                      )
-# --- 4.署名用の材料となる文字列の作成
-#       註)APIパラメーターとOAuth1.0パラメーターを、
-#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-              ${apip_enc}
-______________OAUTHPARAM
-            grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
-            sort -k 1,1 -t '='             |
-            tr '\n' '&'                    |
-            sed 's/&$//'                   )
-# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
-#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
-#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
-#          キー文字列として、HMAC-SHA1符号化
-sig_strin=$(cat <<______________KEY_AND_DATA                     |
-              ${MY_apisec}
-              ${MY_atksec}
-              ${API_methd}
-              ${API_endpt}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                        |
-            urlencode -r                                         |
-            tr '\n' ' '                                          |
-            sed 's/ *$//'                                        |
-            grep ^                                               |
-            # 1:APIkey 2:APIsec 3:リクエストメソッド             #
-            # 4:APIエンドポイント 5:APIパラメーター              #
-            while read key sec mth ept par; do                   #
-              printf '%s&%s&%s' $mth $ept $par                 | #
-              "$CMD_OSSL" dgst -sha1 -hmac "$key&$sec" -binary | #
-              "$CMD_OSSL" enc -e -base64                         #
-            done                                                 )
+case "${MY_bearer:-}" in '')
+  error_exit 1 'No bearer token is set (you must set it into $MY_bearer)'
+  ;;
+esac
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
-                "${oa_param}"                           \
-                "${sig_strin}"                          \
-                "${API_param}"                          |
-         urlencode                                      |
-         sed 's/%3[Dd]/=/'                              |
-         sort -k 1,1 -t '='                             |
-         tr '\n' ','                                    |
-         sed 's/^,*//'                                  |
-         sed 's/,*$//'                                  |
-         sed 's/^/Authorization: OAuth /'               |
-         grep ^                                         |
-         while read -r oa_hdr; do                       #
-           if   [ -n "${CMD_WGET:-}" ]; then            #
-             "$CMD_WGET" --no-check-certificate -q -O - \
-                         --header="$oa_hdr"             \
-                         "$API_endpt$apip_get"          #
-           elif [ -n "${CMD_CURL:-}" ]; then            #
-             "$CMD_CURL" -ks                            \
-                         -H "$oa_hdr"                   \
-                         "$API_endpt$apip_get"          #
-           fi                                           #
-         done                                           )
+apires=$(echo "Authorization: Bearer $MY_bearer"          |
+         while read -r oa_hdr; do                         #
+           if   [ -n "${CMD_WGET:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout=$timeout";; #
+             esac                                         #
+             "$CMD_WGET" --no-check-certificate -q -O -   \
+                         --header="$oa_hdr"               \
+                         $timeout                         \
+                         "$API_endpt$apip_get"            #
+           elif [ -n "${CMD_CURL:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout $timeout";; #
+             esac                                         #
+             "$CMD_CURL" -ks                              \
+                         $timeout                         \
+                         -H "$oa_hdr"                     \
+                         "$API_endpt$apip_get"            #
+           fi                                             #
+         done                                             )
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
@@ -316,8 +214,7 @@ echo "$apires"                                                            |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi       |
 parsrj.sh 2>/dev/null                                                     |
 unescj.sh -n 2>/dev/null                                                  |
-sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                           |
-grep -v '^\$'                                                             |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                     |
 awk '                                                                     #
   BEGIN                 {tm=""; id=""; tx="";                             #
                          nr=""; nf=""; fr=""; ff=""; nm=""; sn="";     }  #
@@ -348,7 +245,7 @@ awk '                                                                     #
     printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);             #
     printf("- https://twitter.com/%s/status/%s\n",sn,id    );             #
     tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";     }' |
-# --- 2.日時フォーマット変換                                              #
+# --- 3.日時フォーマット変換                                              #
 awk 'BEGIN {                                                              #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";        #
        m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";        #

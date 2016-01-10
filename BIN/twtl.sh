@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/12/27
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -37,7 +37,7 @@ print_usage_and_exit () {
 	        -m <max_ID>  |--maxid=<max_ID>
 	        -n <count>   |--count=<count> 
 	        -s <since_ID>|--sinceid=<since_ID>
-	Sun Dec 27 02:15:40 JST 2015
+	Sun Jan 10 16:38:11 JST 2016
 __USAGE
   exit 1
 }
@@ -78,6 +78,7 @@ scname=''
 count=''
 max_id=''
 since_id=''
+rawoutputfile=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
 while [ $# -gt 0 ]; do
@@ -102,6 +103,10 @@ while [ $# -gt 0 ]; do
     -s)          case $# in 1) error_exit 1 'Invalid -s option';; esac
                  since_id=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
+                 ;;
+    --rawout=*)  # for debug
+                 rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
                  ;;
     --)          shift
                  break
@@ -226,31 +231,36 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                     |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-__OAUTH_HEADER
-urlencode                                                                 |
-sed 's/%3[Dd]/=/'                                                         |
-sort -k 1,1 -t '='                                                        |
-tr '\n' ','                                                               |
-sed 's/^,*//'                                                             |
-sed 's/,*$//'                                                             |
-sed 's/^/Authorization: OAuth /'                                          |
-grep ^                                                                    |
-while read -r oa_hdr; do                                                  #
-  if   [ -n "${CMD_WGET:-}" ]; then                                       #
-    "$CMD_WGET" --no-check-certificate -q -O -                            \
-                --header="$oa_hdr"                                        \
-                "$API_endpt$apip_get"                                     #
-  elif [ -n "${CMD_CURL:-}" ]; then                                       #
-    "$CMD_CURL" -ks                                                       \
-                -H "$oa_hdr"                                              \
-                "$API_endpt$apip_get"                                     #
-  fi                                                                      #
-done                                                                      |
-# --- 2.レスポンスパース                                                  #
+apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
+                "${oa_param}"                           \
+                "${sig_strin}"                          \
+                "${API_param}"                          |
+         urlencode                                      |
+         sed 's/%3[Dd]/=/'                              |
+         sort -k 1,1 -t '='                             |
+         tr '\n' ','                                    |
+         sed 's/^,*//'                                  |
+         sed 's/,*$//'                                  |
+         sed 's/^/Authorization: OAuth /'               |
+         grep ^                                         |
+         while read -r oa_hdr; do                       #
+           if   [ -n "${CMD_WGET:-}" ]; then            #
+             "$CMD_WGET" --no-check-certificate -q -O - \
+                         --header="$oa_hdr"             \
+                         "$API_endpt$apip_get"          #
+           elif [ -n "${CMD_CURL:-}" ]; then            #
+             "$CMD_CURL" -ks                            \
+                         -H "$oa_hdr"                   \
+                         "$API_endpt$apip_get"          #
+           fi                                           #
+         done                                           )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to access API';; esac
+
+# === レスポンス解析 =================================================
+# --- 1.レスポンスパース                                                  #
+echo "$apires"                                                            |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi       |
 parsrj.sh 2>/dev/null                                                     |
 unescj.sh -n 2>/dev/null                                                  |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                     |
@@ -319,11 +329,18 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }        #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                  #
               next;                                              }        #
      "OTHERS"{print;}                                             '       |
-# --- 4.通信に失敗していた場合はエラーを返して終了                        #
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                 #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
+
+# === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  error_exit 1 'Failed to view the timeline';;
-esac
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+;; esac
 
 
 ######################################################################

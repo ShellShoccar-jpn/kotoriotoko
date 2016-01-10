@@ -2,7 +2,7 @@
 #
 # parsrj.sh
 #    JSONテキストから
-#    JSONPathインデックス付き値(JSONPath-indexed value)テキスへの正規化
+#    JSONPathインデックス付き値(JSONPath-indexed value)テキストへの正規化
 #    (例)
 #     {"hoge":111,
 #      "foo" :["2\n2",

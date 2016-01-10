@@ -1,0 +1,435 @@
+#! /bin/sh
+
+######################################################################
+#
+# BASE64 - RFC 3548 Codec Command (compatible with "base64" command)
+#          Also Works On Just A POSIX Environment
+#
+# USAGE: base64 [--by-myself] [-w <COLS>] <file>
+#        base64 [--by-myself] -d [-i] <file>
+#
+#        "--by-myself" .. (write as the 1st argument when use)
+#                         Not use the "built-in" base64 command and
+#                         always do base64 by myself but it is inferior
+#                         to the built-in in performance
+#        "-d" ........... Run as a Base64 decoder.
+#        "-w <COLS>" .... When encoding, wrap encoded lines after COLS
+#                         character (default 76). 0 means preventing
+#                         from wrapping.
+#        "-i" ........... When decoding, ignore non-alphabet characters.
+#
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/12/01
+#
+# This is a public-domain software. It measns that all of the people
+# can use this with no restrictions at all. By the way, I am fed up
+# the side effects which are broght about by the major licenses.
+#
+######################################################################
+
+# print the usage and exit
+print_usage_and_exit () {
+  cat <<-__USAGE 1>&2
+	Usage   : ${0##*/} [--by-myself] [-w <COLS>] <file>
+	          ${0##*/} [--by-myself] -d [-i] <file>
+	Version : Tue Dec  1 15:35:00 JST 2015
+	        : (POSIX.1 Bourne Shell/POSIX.1 commands)
+	        :   * Although the bult-in base64, uuencode and uudecode command or
+	        :     GNU AWK produces better performance than the POSIX commands set
+__USAGE
+  exit 1
+}
+
+# ===== PREPARATION ==================================================
+
+# --- which command also works on Just a POSIX environment -----------
+which which >/dev/null 2>&1 || {
+  which () {
+    (
+      PATH='/usr/bin:/bin'
+      ans=$(LANG=C LC_ALL=C type "$1" 2>/dev/null) || return $?
+      case "$1"   in */*) printf '%s\n' "$1"        ; return;; esac
+      case "$ans" in */*) printf '%s\n' "/${ans#*/}"; return;; esac
+      printf '%s\n' "$1"
+    )
+  }
+}
+
+# --- misc setting #1 ------------------------------------------------
+PATH='/usr/bin:/bin:/usr/local/bin'
+set -u
+umask 0022
+
+# --- want to use "bult-in" base64, or not? --------------------------
+by_myself=0
+case "${1:-}" in '--by-myself') shift; by_myself=1;; esac
+
+# --- use "bult-in" base64 if available and wanted -------------------
+if [ $by_myself -eq 0 ] && type base64 >/dev/null 2>&1; then
+  exec base64 "$@"
+  exit 1
+fi
+
+# --- check whether this host has a "binarable" AWK command or not ---
+binarable_awk=1
+while :; do
+  CMD_AWK=$(which gawk 2>/dev/null)
+  [ $? -eq 0 ] && break
+  CMD_AWK=$(which awk 2>/dev/null)
+  [ $($CMD_AWK 'BEGIN{print length(sprintf("\000"))}') -eq 1 ] && break
+  binarable_awk=0; break
+done
+
+# --- misc setting #2 ------------------------------------------------
+PATH='/usr/bin:/bin'
+IFS=$(printf ' \t\n_'); IFS=${IFS%_}
+export IFS LC_ALL=C LANG=C PATH
+
+
+# ===== OPTION PARSING ===============================================
+
+file=''
+mode='e'
+width=76
+opti=0
+optmode=''
+while :; do
+  case $# in 0) break;; esac
+  case "$optmode" in
+    '') case "$1" in
+          -)        case $# in 1) break;; esac
+                    ;;
+          -[diw]*)  s=$(printf '%s\n' "${1#-}"                             |
+                        awk '{d = "_"; i = "_"; w = "_"; err=0;            #
+                              s = $0;                                      #
+                              sub(/w[0-9]+$/, "w", s);                     #
+                              l = length(s);                               #
+                              for (n=1;n<=l;n++) {                         #
+                                c = substr(s, n, 1);                       #
+                                if      ( c=="d"         ) { d   = "d"; }  #
+                                else if ( c=="i"         ) { i   = "i"; }  #
+                                else if ((c=="w")&&(n==l)) { w   = "w"; }  #
+                                else                       { err =  1 ; }  #
+                              }                                            #
+                              printf("%s%s%s%s",d,i,w,err);              }')
+                    case "$s" in *1*) print_usage_and_exit;; esac
+                    case "$s" in *d*) mode='d'            ;; esac
+                    case "$s" in *i*) opti=1              ;; esac
+                    case "$s" in
+                      *w*) echo ${1#-} | grep -Eq 'w$' &&       {
+                             optmode='w'
+                             shift
+                             continue
+                           }
+                           echo ${1#-} | grep -Eq 'w[0-9]+$' && {
+                             optmode='w'
+                             s=${1##*w}
+                           }
+                           ;;
+                      *)   shift
+                           continue
+                           ;;
+                    esac
+                    ;;
+          --decode) mode='d'
+                    shift
+                    continue
+                    ;;
+          --ignore-garbage)
+                    opti=1
+                    shift
+                    continue
+                    ;;
+          --wrap=*) optmode='w'
+                    s=${1#--wrap=}
+                    ;;
+          -*)       print_usage_and_exit
+                    ;;
+          *)        break
+                    ;;
+        esac
+        ;;
+    *)  s=$1
+        ;;
+  esac
+  case "$optmode" in
+    w) printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+         printf '%s\n' "${0##*/}: Invalid value of -w,--wrap option" 1>&2
+         exit 1
+       }
+       width=$s
+       optmode=''
+       shift
+       continue
+       ;;
+    *) echo 'ERROR' 1>&2; exit 1;
+  esac
+  break
+done
+case $# in
+  0) :                   ;;
+  1) file=$1             ;;
+  *) print_usage_and_exit;;
+esac
+case "$file" in
+  /*) :             ;;
+   -) :             ;;
+  '') file='-'      ;;
+   *) file="./$file";;
+esac
+
+
+# ===== ENCODING / DECODING ==========================================
+
+# --- use uu*code command if available and wanted --------------------
+if [ $by_myself -eq 0 ] && uuencode -m dummy </dev/null >/dev/null 2>&1; then
+  case "$mode" in
+    d) [ -w /dev/stdout ] && {
+         (echo 'begin-base64 644 dummy'; cat "$file"; echo '====') |
+         uudecode -o /dev/stdout
+         exit $?
+       }
+       ;;
+    e) cat "$file"                                  |
+       uuencode -m dummy                            |
+       sed '1d;$d'                                  |
+       case $width in                               #
+         76) cat                                 ;; #
+          0) tr -d '\n'                 ; echo '';; #
+          *) tr -d '\n' | fold -w $width; echo '';; #
+       esac
+       exit $?
+       ;;
+  esac
+fi
+
+# --- coding by myself -----------------------------------------------
+case $mode$binarable_awk in
+  e*) cat "$file"                                                              |
+      od -A n -t x1 -v                                                         |
+      tr -Cd '0123456789abcdefABCDEF\n'                                        |
+      awk 'BEGIN{OFS=""; ORS="";                                               #
+                 x2o["0"]="0000"; x2o["1"]="0001"; x2o["2"]="0010";            #
+                 x2o["3"]="0011"; x2o["4"]="0100"; x2o["5"]="0101";            #
+                 x2o["6"]="0110"; x2o["7"]="0111"; x2o["8"]="1000";            #
+                 x2o["9"]="1001"; x2o["a"]="1010"; x2o["b"]="1011";            #
+                 x2o["c"]="1100"; x2o["d"]="1101"; x2o["e"]="1110";            #
+                 x2o["f"]="1111";                                              #
+                 x2o["A"]="1010"; x2o["B"]="1011"; x2o["C"]="1100";            #
+                 x2o["D"]="1101"; x2o["E"]="1110"; x2o["F"]="1111";         }  #
+           {     l=length($0);                                                 #
+                 for(i=1;i<=l;i++){print x2o[substr($0,i,1)];}                 #
+                 printf("\n");                                              }' |
+      awk 'BEGIN{s="";                                                      }  #
+           {     buf=buf $0;                                                   #
+                 l=length(buf);                                                #
+                 if(l<6){next;}                                                #
+                 u=int(l/6)*6;                                                 #
+                 for(p=1;p<u;p+=6){print substr(buf,p,6);}                     #
+                 buf=substr(buf,p);                                         }  #
+           END  {if(length(buf)>0){print substr(buf "00000",1,6);}          }' |
+      awk 'BEGIN{ORS=""; w='$width'                                            #
+                 o2b6["000000"]="A"; o2b6["000001"]="B"; o2b6["000010"]="C";   #
+                 o2b6["000011"]="D"; o2b6["000100"]="E"; o2b6["000101"]="F";   #
+                 o2b6["000110"]="G"; o2b6["000111"]="H"; o2b6["001000"]="I";   #
+                 o2b6["001001"]="J"; o2b6["001010"]="K"; o2b6["001011"]="L";   #
+                 o2b6["001100"]="M"; o2b6["001101"]="N"; o2b6["001110"]="O";   #
+                 o2b6["001111"]="P"; o2b6["010000"]="Q"; o2b6["010001"]="R";   #
+                 o2b6["010010"]="S"; o2b6["010011"]="T"; o2b6["010100"]="U";   #
+                 o2b6["010101"]="V"; o2b6["010110"]="W"; o2b6["010111"]="X";   #
+                 o2b6["011000"]="Y"; o2b6["011001"]="Z"; o2b6["011010"]="a";   #
+                 o2b6["011011"]="b"; o2b6["011100"]="c"; o2b6["011101"]="d";   #
+                 o2b6["011110"]="e"; o2b6["011111"]="f"; o2b6["100000"]="g";   #
+                 o2b6["100001"]="h"; o2b6["100010"]="i"; o2b6["100011"]="j";   #
+                 o2b6["100100"]="k"; o2b6["100101"]="l"; o2b6["100110"]="m";   #
+                 o2b6["100111"]="n"; o2b6["101000"]="o"; o2b6["101001"]="p";   #
+                 o2b6["101010"]="q"; o2b6["101011"]="r"; o2b6["101100"]="s";   #
+                 o2b6["101101"]="t"; o2b6["101110"]="u"; o2b6["101111"]="v";   #
+                 o2b6["110000"]="w"; o2b6["110001"]="x"; o2b6["110010"]="y";   #
+                 o2b6["110011"]="z"; o2b6["110100"]="0"; o2b6["110101"]="1";   #
+                 o2b6["110110"]="2"; o2b6["110111"]="3"; o2b6["111000"]="4";   #
+                 o2b6["111001"]="5"; o2b6["111010"]="6"; o2b6["111011"]="7";   #
+                 o2b6["111100"]="8"; o2b6["111101"]="9"; o2b6["111110"]="+";   #
+                 o2b6["111111"]="/";                                           #
+                 if (getline) {print o2b6[$0];n=1;}                         }  #
+           n==w {printf("\n")  ; n=0;                                       }  #
+           {     print o2b6[$0]; n++;                                       }  #
+           END  {if(NR>0){printf("%s\n",substr("===",1,(4-(NR%4))%4));}     }'
+      ;;
+  d0) max1line=$(getconf ARG_MAX 2>/dev/null)
+      case "$max1line" in
+        '')     max1line=4096           ;;
+        [0-9]*) max1line=$((max1line/2));;
+      esac
+      case "$file" in                                                         #
+        -) fold -b -w 508        ;;                                           #
+        *) fold -b -w 508 "$file";;                                           #
+      esac                                                                    |
+      case $opti in                                                           #
+        1) sed 's![^A-Za-z0-9+/=]!!g';;                                       #
+        *) cat                       ;;                                       #
+      esac                                                                    |
+      awk '                                                                   #
+        BEGIN{                                                                #
+          # 0) initialize                                                     #
+          OFS = ""; ORS = "";                                                 #
+          maxarglen = '$max1line' - length("printf ");                        #
+          o2b["0"]="000"; o2b["1"]="001"; o2b["2"]="010"; o2b["3"]="011";     #
+          o2b["4"]="100"; o2b["5"]="101"; o2b["6"]="110"; o2b["7"]="111";     #
+          # 1) make the table of binary-digits-to-printf-format-string        #
+          for (i=1; i<256; i++) {                                             #
+            s = sprintf("%03o\n",i);                                          #
+            t = o2b[substr(s,1,1)];                                           #
+            u = o2b[substr(s,2,1)];                                           #
+            v = o2b[substr(s,3,1)];                                           #
+            s = substr(t u v,2);                                              #
+            fmt[s]  = sprintf("%c",i);                                        #
+            fmtl[s] = 1              ;                                        #
+          }                                                                   #
+          fmt["00100101"]="%%"      ; fmtl["00100101"]=2; # "%"               #
+          fmt["01011100"]="\\\\\\\\"; fmtl["01011100"]=4; # (back slash)      #
+          fmt["00000000"]="\\\\000" ; fmtl["00000000"]=5; # (null)            #
+          fmt["00001010"]="\\\\n"   ; fmtl["00001010"]=3; # (Line Feed)       #
+          fmt["00001101"]="\\\\r"   ; fmtl["00001101"]=3; # (Carriage Return) #
+          fmt["00001001"]="\\\\t"   ; fmtl["00001001"]=3; # (tab)             #
+          fmt["00001011"]="\\\\v"   ; fmtl["00001011"]=3; # (Vertical Tab)    #
+          fmt["00001100"]="\\\\f"   ; fmtl["00001100"]=3; # (Form Feed)       #
+          fmt["00100000"]="\\\\040" ; fmtl["00100000"]=5; # (space)           #
+          fmt["00100010"]="\\\""    ; fmtl["00100010"]=2; # (double quot)     #
+          fmt["00100111"]="\\'"'"'" ; fmtl["00100111"]=2; # (single quot)     #
+          fmt["00101101"]="\\\\055" ; fmtl["00101101"]=5; # "-"               #
+          for (i=48; i<58; i++) {                         # "0"~"9"           #
+            fmt[sprintf("%02x",i)]=sprintf("\\\\%03o",i);                     #
+            fmtl[sprintf("%02x",i)]=5;                                        #
+          }                                                                   #
+          # 2) make the table of Base64-character-to-binary-digits            #
+          for(i=0;i<26;i++){                                                  #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i+65)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          for (i=26;i<52;i++){                                                #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i+71)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          for (i=52;i<62;i++){                                                #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i- 4)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          b62b["+"] = "111110"; b62b["/"] = "111111";                         #
+          b62b["="] = ""      ; b62b[""]  = ""      ;                         #
+          b62b[sprintf("%c",13)] = "";                                        #
+          # 3) decode and make strings for printf-format-string               #
+          arglen=0;                                                           #
+          buf = "";                                                           #
+          while (getline line) {                                              #
+            buf = buf line;                                                   #
+            l1 = length(buf);                                                 #
+            if (l1<4) {continue;}                                             #
+            for (i=1;i<=l1;i+=4) {                                            #
+              b = substr(buf,i,4);                                            #
+              s =   b62b[substr(b,1,1)] b62b[substr(b,2,1)];                  #
+              s = s b62b[substr(b,3,1)] b62b[substr(b,4,1)];                  #
+              l2 = length(s);                                                 #
+              if (l2 == 24) {                                                 #
+                if (arglen>(maxarglen-12)) {print "\n"; arglen=0;}            #
+                t = substr(s,1,8); u = substr(s,9,8); v = substr(s,17,8);     #
+                print      fmt[t] ,fmt[u] ,fmt[v];                            #
+                arglen += fmtl[t]+fmtl[u]+fmtl[v];                            #
+              } else if (l2 == 18) {                                          #
+                if (arglen>(maxarglen- 8)) {print "\n"; arglen=0;}            #
+                t=substr(s,1,8); u=substr(s,9,8);                             #
+                print      fmt[t] ,fmt[u];                                    #
+                arglen += fmtl[t]+fmtl[u];                                    #
+              } else if (l2 == 12) {                                          #
+                if (arglen>(maxarglen- 4)) {print "\n"; arglen=0;}            #
+                t=substr(s,1,8);                                              #
+                print      fmt[t];                                            #
+                arglen += fmtl[t];                                            #
+              }                                                               #
+            }                                                                 #
+            buf = substr(buf, int(length(buf)/4)*4+1);                        #
+          }                                                                   #
+          if (NR>0) {print "\n";}                                             #
+        }'                                                                    |
+      xargs -n 1 printf 2>/dev/null
+      ;;
+      # MEMO: transition of some special letters                           #
+      #       from the above AWK to "xargs printf"                         #
+      #                                                                    #
+      # 1) description in AWK                                              #
+      # 2) interpreted and outputed to stdout by AWK                       #
+      #    (and it is for auto-description on arguement of "xargs printf") #
+      # 3) interpreted and sent by shell to "printf" as an arguement       #
+      # 4) interpreted and outputed to stdout by "printf"                  #
+      #                                                                    #
+      # [chr]     1) -------> 2) -------> 3) -------> 4)                   #
+      # %      :  "%%"        %%          %%          %                    #
+      # \      :  "\\\\\\\\"  \\\\        \\          \                    #
+      # <NULL> :  "\\\\000"   \\000       \000        <NULL>               #
+      # <LF>   :  "\\\\n"     \\n         \n          <LF>                 #
+      # "      :  "\\\""      \"          "           "                    #"
+      # '      :  "\\'"'"'"   \'          '           '                    #'
+  d1) case "$file" in                                                         #
+        -) fold -b -w 508        ;;                                           #
+        *) fold -b -w 508 "$file";;                                           #
+      esac                                                                    |
+      case $opti in                                                           #
+        1) sed 's![^A-Za-z0-9+/=]!!g';;                                       #
+        *) cat                       ;;                                       #
+      esac                                                                    |
+      "$CMD_AWK" '                                                            #
+        BEGIN{                                                                #
+          # 0) initialize                                                     #
+          OFS = ""; ORS = "";                                                 #
+          o2b["0"]="000"; o2b["1"]="001"; o2b["2"]="010"; o2b["3"]="011";     #
+          o2b["4"]="100"; o2b["5"]="101"; o2b["6"]="110"; o2b["7"]="111";     #
+          # 1) make the table of binary-digits-to-character                   #
+          for (i=0; i<256; i++) {                                             #
+            s = sprintf("%03o\n",i);                                          #
+            t = o2b[substr(s,1,1)];                                           #
+            u = o2b[substr(s,2,1)];                                           #
+            v = o2b[substr(s,3,1)];                                           #
+            s = substr(t u v,2);                                              #
+            b2c[s]  = sprintf("%c",i);                                        #
+          }                                                                   #
+          # 2) make the table of Base64-character-to-binary-digits            #
+          for(i=0;i<26;i++){                                                  #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i+65)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          for (i=26;i<52;i++){                                                #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i+71)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          for (i=52;i<62;i++){                                                #
+            s = sprintf("%02o\n",i);                                          #
+            b62b[sprintf("%c",i- 4)] = o2b[substr(s,1,1)] o2b[substr(s,2,1)]; #
+          }                                                                   #
+          b62b["+"] = "111110"; b62b["/"] = "111111";                         #
+          b62b["="] = ""      ; b62b[""]  = ""      ;                         #
+          b62b[sprintf("%c",13)] = "";                                        #
+          # 3) decode                                                         #
+          arglen=0;                                                           #
+          buf = "";                                                           #
+          while (getline line) {                                              #
+            buf = buf line;                                                   #
+            l1 = length(buf);                                                 #
+            if (l1<4) {continue;}                                             #
+            for (i=1;i<=l1;i+=4) {                                            #
+              b = substr(buf,i,4);                                            #
+              s =   b62b[substr(b,1,1)] b62b[substr(b,2,1)];                  #
+              s = s b62b[substr(b,3,1)] b62b[substr(b,4,1)];                  #
+              l2 = length(s);                                                 #
+              if (l2 == 24) {                                                 #
+                print b2c[substr(s, 1,8)],b2c[substr(s,9,8)]                  #
+                print b2c[substr(s,17,8)];                                    #
+              } else if (l2 == 18) {                                          #
+                print b2c[substr(s,1,8)], b2c[substr(s,9,8)];                 #
+              } else if (l2 == 12) {                                          #
+                print b2c[substr(s,1,8)];                                     #
+              }                                                               #
+            }                                                                 #
+            buf = substr(buf, int(length(buf)/4)*4+1);                        #
+          }                                                                   #
+        }'
+      ;;
+esac

@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# twsrch.sh
-# Twitterで指定条件に該当するツイートを検索する
+# btwsrch.sh
+# Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        -o <locale>                   |--locale=<locale>
 	        -s <since_ID>                 |--sinceid=<since_ID>
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
-	Sun Jan 10 16:17:56 JST 2016
+	Sun Jan 10 16:29:46 JST 2016
 __USAGE
   exit 1
 }
@@ -52,13 +52,7 @@ error_exit() {
 }
 
 # === 必要なプログラムの存在を確認する ===============================
-# --- 1.符号化コマンド（OpenSSL）
-if   type openssl >/dev/null 2>&1; then
-  CMD_OSSL='openssl'
-else
-  error_exit 1 'OpenSSL command is not found.'
-fi
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl）
+# --- 1.HTTPアクセスコマンド（wgetまたはcurl）
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -87,6 +81,7 @@ max_id=''
 since_id=''
 until=''
 rawoutputfile=''
+timeout=''
 
 # === 取得ツイート数に指定がある場合はその数を取得 ===================
 while [ $# -gt 0 ]; do
@@ -142,6 +137,10 @@ while [ $# -gt 0 ]; do
                  ;;
     --rawout=*)  # for debug
                  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
+                 ;;
+    --timeout=*) # for debug
+                 timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  shift
                  ;;
     --)          shift
@@ -229,88 +228,39 @@ apip_get=$(printf '%s' "${apip_enc}" |
            sed 's/^./?&/'            )
 
 # === OAuth1.0署名の作成 =============================================
-# --- 1.ランダム文字列
-randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
-# --- 2.現在のUNIX時間
-nowutime=$(date '+%Y%m%d%H%M%S' |
-           calclock 1           |
-           self 2               )
-# --- 3.OAuth1.0パラメーター（1,2を利用して作成）
-#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
-oa_param=$(cat <<_____________OAUTHPARAM      |
-             oauth_version=1.0
-             oauth_signature_method=HMAC-SHA1
-             oauth_consumer_key=${MY_apikey}
-             oauth_token=${MY_atoken}
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-_____________OAUTHPARAM
-           sed 's/^ *//'                      )
-# --- 4.署名用の材料となる文字列の作成
-#       註)APIパラメーターとOAuth1.0パラメーターを、
-#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-              ${apip_enc}
-______________OAUTHPARAM
-            grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
-            sort -k 1,1 -t '='             |
-            tr '\n' '&'                    |
-            sed 's/&$//'                   )
-# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
-#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
-#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
-#          キー文字列として、HMAC-SHA1符号化
-sig_strin=$(cat <<______________KEY_AND_DATA                     |
-              ${MY_apisec}
-              ${MY_atksec}
-              ${API_methd}
-              ${API_endpt}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                        |
-            urlencode -r                                         |
-            tr '\n' ' '                                          |
-            sed 's/ *$//'                                        |
-            grep ^                                               |
-            # 1:APIkey 2:APIsec 3:リクエストメソッド             #
-            # 4:APIエンドポイント 5:APIパラメーター              #
-            while read key sec mth ept par; do                   #
-              printf '%s&%s&%s' $mth $ept $par                 | #
-              "$CMD_OSSL" dgst -sha1 -hmac "$key&$sec" -binary | #
-              "$CMD_OSSL" enc -e -base64                         #
-            done                                                 )
+case "${MY_bearer:-}" in '')
+  error_exit 1 'No bearer token is set (you must set it into $MY_bearer)'
+  ;;
+esac
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
-                "${oa_param}"                           \
-                "${sig_strin}"                          \
-                "${API_param}"                          |
-         urlencode                                      |
-         sed 's/%3[Dd]/=/'                              |
-         sort -k 1,1 -t '='                             |
-         tr '\n' ','                                    |
-         sed 's/^,*//'                                  |
-         sed 's/,*$//'                                  |
-         sed 's/^/Authorization: OAuth /'               |
-         grep ^                                         |
-         while read -r oa_hdr; do                       #
-           if   [ -n "${CMD_WGET:-}" ]; then            #
-             "$CMD_WGET" --no-check-certificate -q -O - \
-                         --header="$oa_hdr"             \
-                         "$API_endpt$apip_get"          #
-           elif [ -n "${CMD_CURL:-}" ]; then            #
-             "$CMD_CURL" -ks                            \
-                         -H "$oa_hdr"                   \
-                         "$API_endpt$apip_get"          #
-           fi                                           #
-         done                                           )
+apires=$(echo "Authorization: Bearer $MY_bearer"          |
+         while read -r oa_hdr; do                         #
+           if   [ -n "${CMD_WGET:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout=$timeout";; #
+             esac                                         #
+             "$CMD_WGET" --no-check-certificate -q -O -   \
+                         --header="$oa_hdr"               \
+                         $timeout                         \
+                         "$API_endpt$apip_get"            #
+           elif [ -n "${CMD_CURL:-}" ]; then              #
+             case "$timeout" in                           #
+               '') :                                   ;; #
+                *) timeout="--connect-timeout $timeout";; #
+             esac                                         #
+             "$CMD_CURL" -ks                              \
+                         $timeout                         \
+                         -H "$oa_hdr"                     \
+                         "$API_endpt$apip_get"            #
+           fi                                             #
+         done                                             )
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
-# === レスポンス解析 =================================================
+# === レスポンス出力 =================================================
 # --- 1.レスポンスパース                                                  #
 echo "$apires"                                                            |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi       |
@@ -348,7 +298,7 @@ awk '                                                                     #
     printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);             #
     printf("- https://twitter.com/%s/status/%s\n",sn,id    );             #
     tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";     }' |
-# --- 2.日時フォーマット変換                                              #
+# --- 3.日時フォーマット変換                                              #
 awk 'BEGIN {                                                              #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";        #
        m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";        #
@@ -383,7 +333,7 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }        #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                  #
               next;                                              }        #
      "OTHERS"{print;}                                             '       |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                 #
+# --- 3.通信に失敗していた場合はエラー扱いにする                          #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
@@ -392,7 +342,7 @@ case $? in [!0]*)
         parsrj.sh                                                   |
         awk '$1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
-             END            {print errcode, errmsg;               }')
+             END {print errcode, errmsg;                          }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
 ;; esac
 

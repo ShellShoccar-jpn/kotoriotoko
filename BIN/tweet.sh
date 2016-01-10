@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterに投稿するシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2015/11/26
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-f <media_file>] [-m <media_id>] [-r <tweet_id>] <tweet>
 	      : echo <tweet> | ${0##*/} [-f, -m, -r options]
-	Thu Nov 26 15:52:31 JST 2015
+	Sun Jan 10 17:00:24 JST 2016
 __USAGE
   exit 1
 }
@@ -74,6 +74,7 @@ esac
 message=''
 replyto=''
 mediaids=''
+rawoutputfile=''
 
 # === オプション読取 =================================================
 while :; do
@@ -148,6 +149,10 @@ while :; do
                  replyto=$s
                  shift 2
                  ;;
+    --rawout=*)  # for debug
+                 rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
+                 ;;
     --|-)        break
                  ;;
     --*|-*)      error_exit 1 'Invalid option'
@@ -156,7 +161,6 @@ while :; do
                  ;;
   esac
 done
-
 
 # === メッセージを取得 ===============================================
 case $# in
@@ -261,34 +265,39 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-cat <<-__OAUTH_HEADER                                                |
-	${oa_param}
-	oauth_signature=${sig_strin}
-	${API_param}
-__OAUTH_HEADER
-urlencode -r                                                         |
-sed 's/%1[Ee]/%0A/g'                                                 | #<退避
-sed 's/%3[Dd]/=/'                                                    | # 改行
-sort -k 1,1 -t '='                                                   | # 復帰
-tr '\n' ','                                                          |
-sed 's/^,*//'                                                        |
-sed 's/,*$//'                                                        |
-sed 's/^/Authorization: OAuth /'                                     |
-grep ^                                                               |
-while read -r oa_hdr; do                                             #
-  if   [ -n "${CMD_WGET:-}" ]; then                                  #
-    "$CMD_WGET" --no-check-certificate -q -O -                       \
-                --header="$oa_hdr"                                   \
-                --post-data="$apip_pos"                              \
-                "$API_endpt"                                         #
-  elif [ -n "${CMD_CURL:-}" ]; then                                  #
-    "$CMD_CURL" -ks                                                  \
-                -H "$oa_hdr"                                         \
-                -d "$apip_pos"                                       \
-                "$API_endpt"                                         #
-  fi                                                                 #
-done                                                                 |
-# --- 2.レスポンスパース                                             #
+apires=$(printf '%s\noauth_signature=%s\n%s\n'          \
+                "${oa_param}"                           \
+                "${sig_strin}"                          \
+                "${API_param}"                          |
+         urlencode -r                                   |
+         sed 's/%1[Ee]/%0A/g'                           | #<退避
+         sed 's/%3[Dd]/=/'                              | # 改行
+         sort -k 1,1 -t '='                             | # 復帰
+         tr '\n' ','                                    |
+         sed 's/^,*//'                                  |
+         sed 's/,*$//'                                  |
+         sed 's/^/Authorization: OAuth /'               |
+         grep ^                                         |
+         while read -r oa_hdr; do                       #
+           if   [ -n "${CMD_WGET:-}" ]; then            #
+             "$CMD_WGET" --no-check-certificate -q -O - \
+                         --header="$oa_hdr"             \
+                         --post-data="$apip_pos"        \
+                         "$API_endpt"                   #
+           elif [ -n "${CMD_CURL:-}" ]; then            #
+             "$CMD_CURL" -ks                            \
+                         -H "$oa_hdr"                   \
+                         -d "$apip_pos"                 \
+                         "$API_endpt"                   #
+           fi                                           #
+         done                                           )
+# --- 2.結果判定
+case $? in [!0]*) error_exit 1 'Failed to access API';; esac
+
+# === レスポンス解析 =================================================
+# --- 1.レスポンスパース                                             #
+echo "$apires"                                                       |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi  |
 parsrj.sh 2>/dev/null                                                |
 awk 'BEGIN                {fid=0; fca=0;                         }   #
      $1~/^\$\.created_at$/{fca=1; sca=substr($0,index($0," ")+1);}   #
@@ -318,11 +327,18 @@ self 2 3                                                             |
 awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
            {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
             printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
-# --- 4.通信に失敗していた場合はエラーを返して終了
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする            #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
+
+# === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  error_exit 1 'Failed to tweet';;
-esac
+  err=$(echo "$apires"                                              |
+        parsrj.sh                                                   |
+        awk '$1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+;; esac
 
 
 ######################################################################
