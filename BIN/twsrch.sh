@@ -5,7 +5,7 @@
 # twsrch.sh
 # Twitterで指定条件に該当するツイートを検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/13
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,7 +32,7 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] <keyword> [keyword ...]
+	Usage : ${0##*/} [options] [keyword ...]
 	        OPTIONS:
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sun Jan 10 21:52:57 JST 2016
+	Wed Jan 13 22:47:59 JST 2016
 __USAGE
   exit 1
 }
@@ -91,7 +91,7 @@ until=''
 rawoutputfile=''
 timeout=''
 
-# === 取得ツイート数に指定がある場合はその数を取得 ===================
+# === オプション取得 =================================================
 while [ $# -gt 0 ]; do
   case "${1:-}" in
     --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
@@ -188,7 +188,8 @@ printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
 
 # === 検索文字列を取得 ===============================================
 case $# in
-  0) print_usage_and_exit;;
+  0) :
+     ;;
   1) case "${1:-}" in
        '--') print_usage_and_exit;;
         '-') queries=$(cat -)    ;;
@@ -199,6 +200,9 @@ case $# in
      queries="$*"
      ;;
 esac
+[ -n "$geocode$lang$locale$max_id$since_id$until$queries" ] || {
+  print_usage_and_exit
+}
 
 
 ######################################################################

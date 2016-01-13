@@ -10,7 +10,7 @@
 #
 # Usage: unsecj.sh [-n] [JSON_value_textfile]
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Nov 25, 2015
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Jan 13, 2016
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -27,9 +27,13 @@ TAB=$(printf '\011')            # タブ
 LF=$(printf '\\\n_');LF=${LF%_} # 改行(sedコマンド取扱用)
 FF=$(printf '\014')             # 改ページ
 CR=$(printf '\015')             # キャリッジリターン
+ifdef__nopt='#'
+ifndef_nopt=''
 
 case "$#" in
-  [!0]*) case "$1" in '-n') LF_NONDECODE=1; shift;; esac
+  [!0]*) case "$1" in '-n')
+           ifdef__nopt=''; ifndef_nopt='#'; shift;;
+         esac
          ;;
 esac
 case "$#" in
@@ -49,11 +53,11 @@ esac
 # === データの流し込み ============================================= #
 cat "$file"                                                          |
 #                                                                    #
-# === もとからあった改行に印"\n"をつける =========================== #
-if [ -z "${LF_NONDECODE:-}" ]; then                                  #
-  sed '$!s/$/\\n/'                                                   #
-else                                                                 #
-  sed '$!s/$/\\N/' # -nオプション付の場合は"\n"を保持する為"\N"とする#
+# === もとからあった改行に印"\n"をつけ、手前に改行も挿入 =========== #
+if [ -n "${ifdef__nopt:-}" ]; then                                   #
+  sed '$!s/$/'"$LF"'\\n/'                                            #
+else                                                   #"\N"とする   #
+  sed '$!s/$/'"$LF"'\\N/' # -nオプション付の場合は"\n"を保持する為   #
 fi                                                                   |
 #                                                                    #
 # === Unicodeエスケープ文字列(\uXXXX)の手前に改行を挿入 ============ #
@@ -76,6 +80,8 @@ BEGIN {                                                              #
     whex2int[sprintf("%02X",i)]=i; # 256個を作って2桁ずつ2度使うより #
   }                                # こちらを1度使う方が若干速かった #
 }                                                                    #
+'"$ifndef_nopt"'/^\\n/ {print "\n", substr($0,3); next; }            #
+'"$ifdef__nopt"'/^\\N/ {print "\n", substr($0,3); next; }            #
 /^\\u000[Aa]/ {                                                      #
   print "\\n", substr($0,7);                                         #
   next;                                                              #
@@ -118,11 +124,6 @@ sed 's/\\"/"/g'                                                      |
 sed 's/\\\//\//g'                                                    |
 sed 's/\\b/'"$BS"'/g'                                                |
 sed 's/\\f/'"$FF"'/g'                                                |
-if [ -z "${LF_NONDECODE:-}" ]; then                                  #
-  sed 's/\\n/'"$LF"'/g'                                              #
-else                                                                 #
-  sed 's/\\N/'"$LF"'/g'                                              #
-fi                                                                   |
 sed 's/\\r/'"$CR"'/g'                                                |
 sed 's/\\t/'"$TAB"'/g'                                               |
 #                                                                    #
