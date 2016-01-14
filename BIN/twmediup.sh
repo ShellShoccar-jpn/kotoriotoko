@@ -5,7 +5,7 @@
 # twmediup.sh
 # Twitterに画像等をアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Sun Jan 10 23:28:08 JST 2016
+	Thu Jan 14 18:15:56 JST 2016
 __USAGE
   exit 1
 }
@@ -204,48 +204,48 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
-                "${oa_param}"                                          \
-                "${sig_strin}"                                         \
-                "${API_param}"                                         |
-         urlencode -r                                                  |
-         sed 's/%1[Ee]/%0A/g'                                          | #<退避
-         sed 's/%3[Dd]/=/'                                             | # 改行
-         sort -k 1,1 -t '='                                            | # 復帰
-         tr '\n' ','                                                   |
-         sed 's/^,*//'                                                 |
-         sed 's/,*$//'                                                 |
-         sed 's/^/Authorization: OAuth /'                              |
-         grep ^                                                        |
-         while read -r oa_hdr; do                                      #
-           s=$(mime-make -m)                                           #
-           ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\"" #
-           eval mime-make -b "$s" $mimemake_args          |            #
-           if   [ -n "${CMD_WGET:-}" ]; then                           #
-             case "$timeout" in                                        #
-               '') :                                   ;;              #
-                *) timeout="--connect-timeout=$timeout";;              #
-             esac                                                      #
-             cat > "$Tmp-mimedata"                                     #
-             "$CMD_WGET" --no-check-certificate -q -O -                \
-                         --header="$oa_hdr"                            \
-                         --header="$ct_hdr"                            \
-                         --post-file="$Tmp-mimedata"                   \
-                         $timeout                                      \
-                         "$API_endpt"                                  #
-           elif [ -n "${CMD_CURL:-}" ]; then                           #
-             case "$timeout" in                                        #
-               '') :                                   ;;              #
-                *) timeout="--connect-timeout $timeout";;              #
-             esac                                                      #
-             "$CMD_CURL" -ks                                           \
-                         $timeout                                      \
-                         -H "$oa_hdr"                                  \
-                         -H "$ct_hdr"                                  \
-                         --data-binary @-                              \
-                         "$API_endpt"                                  #
-           fi                                                          #
-         done                                                          )
+apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
+               "${oa_param}"                                          \
+               "${sig_strin}"                                         \
+               "${API_param}"                                         |
+        urlencode -r                                                  |
+        sed 's/%1[Ee]/%0A/g'                                          | #<退避
+        sed 's/%3[Dd]/=/'                                             | # 改行
+        sort -k 1,1 -t '='                                            | # 復帰
+        tr '\n' ','                                                   |
+        sed 's/^,*//'                                                 |
+        sed 's/,*$//'                                                 |
+        sed 's/^/Authorization: OAuth /'                              |
+        grep ^                                                        |
+        while read -r oa_hdr; do                                      #
+          s=$(mime-make -m)                                           #
+          ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\"" #
+          eval mime-make -b "$s" $mimemake_args          |            #
+          if   [ -n "${CMD_WGET:-}" ]; then                           #
+            case "$timeout" in                                        #
+              '') :                                   ;;              #
+               *) timeout="--connect-timeout=$timeout";;              #
+            esac                                                      #
+            cat > "$Tmp-mimedata"                                     #
+            "$CMD_WGET" --no-check-certificate -q -O -                \
+                        --header="$oa_hdr"                            \
+                        --header="$ct_hdr"                            \
+                        --post-file="$Tmp-mimedata"                   \
+                        $timeout                                      \
+                        "$API_endpt"                                  #
+          elif [ -n "${CMD_CURL:-}" ]; then                           #
+            case "$timeout" in                                        #
+              '') :                                   ;;              #
+               *) timeout="--connect-timeout $timeout";;              #
+            esac                                                      #
+            "$CMD_CURL" -ks                                           \
+                        $timeout                                      \
+                        -H "$oa_hdr"                                  \
+                        -H "$ct_hdr"                                  \
+                        --data-binary @-                              \
+                        "$API_endpt"                                  #
+          fi                                                          #
+        done                                                          `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 

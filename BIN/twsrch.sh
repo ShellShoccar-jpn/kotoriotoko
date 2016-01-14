@@ -5,7 +5,7 @@
 # twsrch.sh
 # Twitterで指定条件に該当するツイートを検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/13
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Wed Jan 13 22:47:59 JST 2016
+	Thu Jan 14 18:16:27 JST 2016
 __USAGE
   exit 1
 }
@@ -296,38 +296,38 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=$(printf '%s\noauth_signature=%s\n%s\n'            \
-                "${oa_param}"                             \
-                "${sig_strin}"                            \
-                "${API_param}"                            |
-         urlencode                                        |
-         sed 's/%3[Dd]/=/'                                |
-         sort -k 1,1 -t '='                               |
-         tr '\n' ','                                      |
-         sed 's/^,*//'                                    |
-         sed 's/,*$//'                                    |
-         sed 's/^/Authorization: OAuth /'                 |
-         grep ^                                           |
-         while read -r oa_hdr; do                         #
-           if   [ -n "${CMD_WGET:-}" ]; then              #
-             case "$timeout" in                           #
-               '') :                                   ;; #
-                *) timeout="--connect-timeout=$timeout";; #
-             esac                                         #
-             "$CMD_WGET" --no-check-certificate -q -O -   \
-                         --header="$oa_hdr"               \
-                         "$API_endpt$apip_get"            #
-           elif [ -n "${CMD_CURL:-}" ]; then              #
-             case "$timeout" in                           #
-               '') :                                   ;; #
-                *) timeout="--connect-timeout $timeout";; #
-             esac                                         #
-             "$CMD_CURL" -ks                              \
-                         $timeout                         \
-                         -H "$oa_hdr"                     \
-                         "$API_endpt$apip_get"            #
-           fi                                             #
-         done                                             )
+apires=`printf '%s\noauth_signature=%s\n%s\n'            \
+               "${oa_param}"                             \
+               "${sig_strin}"                            \
+               "${API_param}"                            |
+        urlencode                                        |
+        sed 's/%3[Dd]/=/'                                |
+        sort -k 1,1 -t '='                               |
+        tr '\n' ','                                      |
+        sed 's/^,*//'                                    |
+        sed 's/,*$//'                                    |
+        sed 's/^/Authorization: OAuth /'                 |
+        grep ^                                           |
+        while read -r oa_hdr; do                         #
+          if   [ -n "${CMD_WGET:-}" ]; then              #
+            case "$timeout" in                           #
+              '') :                                   ;; #
+               *) timeout="--connect-timeout=$timeout";; #
+            esac                                         #
+            "$CMD_WGET" --no-check-certificate -q -O -   \
+                        --header="$oa_hdr"               \
+                        "$API_endpt$apip_get"            #
+          elif [ -n "${CMD_CURL:-}" ]; then              #
+            case "$timeout" in                           #
+              '') :                                   ;; #
+               *) timeout="--connect-timeout $timeout";; #
+            esac                                         #
+            "$CMD_CURL" -ks                              \
+                        $timeout                         \
+                        -H "$oa_hdr"                     \
+                        "$API_endpt$apip_get"            #
+          fi                                             #
+        done                                             `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
