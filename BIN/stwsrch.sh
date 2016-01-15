@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/15
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Thu Jan 14 00:25:52 JST 2016
+	Fri Jan 15 10:51:46 JST 2016
 __USAGE
   exit 1
 }
@@ -151,9 +151,7 @@ case $# in
      esac
      ;;
   *) case "$1" in '--') shift;; esac
-     queries='';
-     for s in "$@"; do queries="$queries,$s"; done
-     queries=${queries#,}
+     queries="$*"
      ;;
 esac
 [ -n "$follow$locations$queries" ] || print_usage_and_exit
@@ -262,18 +260,24 @@ while read -r oa_hdr; do                                                       #
       '') :                                   ;;                               #
        *) timeout="--connect-timeout=$timeout";;                               #
     esac                                                                       #
+    if type gunzip >/dev/null 2>&1; then                                       #
+      comp='--header=Accept-Encoding: gzip'                                    #
+    else                                                                       #
+      comp=''                                                                  #
+    fi                                                                         #
     "$CMD_WGET" --no-check-certificate -q -O -                                 \
                 --header="$oa_hdr"                                             \
                 --post-data="$apip_pos"                                        \
-                $timeout                                                       \
-                "$API_endpt"                                                   #
+                $timeout "$comp"                                               \
+                "$API_endpt"                   |                               #
+    case "$comp" in '') cat;; *) gunzip;; esac                                 #
   elif [ -n "${CMD_CURL:-}" ]; then                                            #
     case "$timeout" in                                                         #
       '') :                                   ;;                               #
        *) timeout="--connect-timeout $timeout";;                               #
     esac                                                                       #
     "$CMD_CURL" -ks                                                            \
-                $timeout                                                       \
+                $timeout --compressed                                          \
                 -H "$oa_hdr"                                                   \
                 -d "$apip_pos"                                                 \
                 "$API_endpt"                                                   #

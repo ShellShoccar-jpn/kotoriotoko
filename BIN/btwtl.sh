@@ -5,7 +5,7 @@
 # btwtl.sh
 # Twitterの指定ユーザーのタイムラインを見る（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/15
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -39,7 +39,7 @@ print_usage_and_exit () {
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Thu Jan 14 18:08:10 JST 2016
+	Fri Jan 15 10:46:57 JST 2016
 __USAGE
   exit 1
 }
@@ -193,17 +193,23 @@ apires=`echo "Authorization: Bearer $MY_bearer"          |
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
+            if type gunzip >/dev/null 2>&1; then         #
+              comp='--header=Accept-Encoding: gzip'      #
+            else                                         #
+              comp=''                                    #
+            fi                                           #
             "$CMD_WGET" --no-check-certificate -q -O -   \
                         --header="$oa_hdr"               \
-                        $timeout                         \
-                        "$API_endpt$apip_get"            #
+                        $timeout "$comp"                 \
+                        "$API_endpt$apip_get"          | #
+            case "$comp" in '') cat;; *) gunzip;; esac   #
           elif [ -n "${CMD_CURL:-}" ]; then              #
             case "$timeout" in                           #
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
             "$CMD_CURL" -ks                              \
-                        $timeout                         \
+                        $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
           fi                                             #

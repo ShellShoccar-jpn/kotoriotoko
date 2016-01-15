@@ -5,7 +5,7 @@
 # twfing.sh
 # Twitterの指定ユーザーのフォローユーザーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/15
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Thu Jan 14 18:14:50 JST 2016
+	Fri Jan 15 11:33:37 JST 2016
 __USAGE
   exit 1
 }
@@ -224,17 +224,23 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
+            if type gunzip >/dev/null 2>&1; then         #
+              comp='--header=Accept-Encoding: gzip'      #
+            else                                         #
+              comp=''                                    #
+            fi                                           #
             "$CMD_WGET" --no-check-certificate -q -O -   \
                         --header="$oa_hdr"               \
-                        $timeout                         \
-                        "$API_endpt$apip_get"            #
+                        $timeout "$comp"                 \
+                        "$API_endpt$apip_get"          | #
+            case "$comp" in '') cat;; *) gunzip;; esac   #
           elif [ -n "${CMD_CURL:-}" ]; then              #
             case "$timeout" in                           #
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
             "$CMD_CURL" -ks                              \
-                        $timeout                         \
+                        $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
           fi                                             #
