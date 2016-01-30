@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/14
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,7 +34,7 @@ Tmp="/tmp/${0##*/}_$$"
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Thu Jan 14 18:19:07 JST 2016
+	Sat Jan 30 19:19:57 JST 2016
 __USAGE
   exit 1
 }
@@ -252,7 +252,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
           fi                                                          #
         done                                                          `
 # --- 2.結果判定
-case $? in [!0]*) error_exit 1 'Failed to upload a video in step (1/3)';; esac
+case $? in [!0]*) error_exit 1 'Failed to upload a video at step (1/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース
@@ -264,12 +264,14 @@ id=$(echo "$apires"                                                      |
 # --- 2.所定のデータが1行も無かった場合はエラー終了
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
-        parsrj.sh                                                   |
-        awk '$1~/\.code$/   {errcode=$2;                          } #
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-  error_exit 1 'API error(-1): UNKNOWN'
+  error_exit 1 "API returned an unknown message at step (1/3): $apires"
 ;; esac
 
 
@@ -394,11 +396,11 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
           fi                                                          #
         done                                                          `
 # --- 2.結果判定
-case $? in [!0]*) error_exit 1 'Failed to upload a video in step (2/3)';; esac
+case $? in [!0]*) error_exit 1 'Failed to upload a video at step (2/3)';; esac
 
 # === レスポンス解析（ステータスコード） =============================
 [ \( $apires -ge 200 \) -a \( $apires -lt 300 \) ] || {
-  error_exit 2 'Failed to upload a video in step (2/3)'
+  error_exit 2 'Failed to upload a video at step (2/3)'
 }
 
 
@@ -522,7 +524,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
           fi                                                          #
         done                                                          `
 # --- 2.結果判定
-case $? in [!0]*) error_exit 1 'Failed to upload a video in step (3/3)';; esac
+case $? in [!0]*) error_exit 1 'Failed to upload a video at step (3/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース                                               #
@@ -542,11 +544,16 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
-        parsrj.sh                                                   |
-        awk '$1~/\.code$/   {errcode=$2;                          } #
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
-  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  [ -z "${err#* }" ] || {
+    error_exit 1 "API error(${err%% *}) at step (3/3): ${err#* }"
+  }
+  error_exit 1 "API returned an unknown message at step (3/3): $apires"
 ;; esac
 
 

@@ -5,7 +5,7 @@
 # twsrch.sh
 # Twitterで指定条件に該当するツイートを検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/15
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Fri Jan 15 11:35:12 JST 2016
+	Sat Jan 30 19:40:45 JST 2016
 __USAGE
   exit 1
 }
@@ -417,9 +417,11 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
-        parsrj.sh                                                   |
-        awk '$1~/\.code$/   {errcode=$2;                          } #
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
 ;; esac

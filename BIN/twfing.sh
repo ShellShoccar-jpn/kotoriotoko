@@ -5,7 +5,7 @@
 # twfing.sh
 # Twitterの指定ユーザーのフォローユーザーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/15
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Fri Jan 15 11:33:37 JST 2016
+	Sat Jan 30 19:39:54 JST 2016
 __USAGE
   exit 1
 }
@@ -273,9 +273,11 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
-        parsrj.sh                                                   |
-        awk '$1~/\.code$/   {errcode=$2;                          } #
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
 ;; esac

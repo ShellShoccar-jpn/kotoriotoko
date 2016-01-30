@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/16
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Jan 16 18:59:11 JST 2016
+	Sat Jan 30 19:28:01 JST 2016
 __USAGE
   exit 1
 }
@@ -388,6 +388,15 @@ if [ -s "$apires_file" ]; then
   err=$(head -n 1 "$apires_file"                                 |
         grep '^ *[A-Za-z0-9]'                                    )
   [ -n "${err#* }" ] && { error_exit 1 "API error: $err"; }
+  err=$(head -n 1 "$apires_file"                                    |
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -n "${err#* }" ] && { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  error_exit 1 "API returned an unknown message: $(head -n 1 "$apires_file")"
 else
   error_exit 1 'Failed to access API'
 fi

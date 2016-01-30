@@ -9,7 +9,7 @@
 # [備考]
 # CONFIG.SHLIBに、MY_apikeyとMY_apisecを設定していなければならない。
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/10
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Sun Jan 10 22:24:04 JST 2016
+	Sat Jan 30 19:26:55 JST 2016
 __USAGE
   exit 1
 }
@@ -136,11 +136,14 @@ awk '$1=="$.access_token"{bearer =$2;}                  #
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
-        parsrj.sh                                                   |
-        awk '$1~/\.code$/   {errcode=$2;                          } #
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
-             END {print errcode, errmsg;                          }')
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  error_exit 1 "API returned an unknown message: $apires"
 ;; esac
 
 
