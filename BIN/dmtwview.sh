@@ -5,7 +5,7 @@
 # dmtwview.sh
 # Twitterで指定したダイレクトメッセージを表示する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	        OPTIONS:
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Feb 13 23:57:42 JST 2016
+	Sun Feb 14 03:17:19 JST 2016
 __USAGE
   exit 1
 }
@@ -239,65 +239,70 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                 #
-echo "$apires"                                                           |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi      |
-parsrj.sh 2>/dev/null                                                    |
-unescj.sh -n 2>/dev/null                                                 |
-sed 's/^\$\.//'                                                          |
-awk '                                                                    #
-  BEGIN                   {tm=""; id=""; tx="";                          #
-                                                       nm=""; sn="";  }  #
-  $1=="created_at"        {tm=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="id"                {id=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="text"              {tx=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="sender.name"       {nm=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="sender.screen_name"{sn=substr($0,length($1)+2);print_tw();next;}  #
-  function print_tw() {                                                  #
-    if (tm=="") {return;}                                                #
-    if (id=="") {return;}                                                #
-    if (tx=="") {return;}                                                #
-    if (nm=="") {return;}                                                #
-    if (sn=="") {return;}                                                #
-    printf("%s\n"                                ,tm       );            #
-    printf("- %s (@%s)\n"                        ,nm,sn    );            #
-    printf("- %s\n"                              ,tx       );            #
-    printf("- id=%s\n"                           ,id       );            #
-    tm=""; id=""; tx="";                             nm=""; sn="";    }' |
-# --- 2.日時フォーマット変換                                             #
-awk 'BEGIN {                                                             #
-       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
-       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";       #
-       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }   #
-     /^[A-Z]/{t=$4;                                                      #
-              gsub(/:/,"",t);                                            #
-              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);    #
-              d*=1;                                                      #
-              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);          #
-              next;                                                  }   #
-     "OTHERS"{print;}'                                                   |
-tr ' \t\034' '\006\025 '                                                 |
-awk 'BEGIN   {ORS="";             }                                      #
-     /^[0-9]/{print "\n" $0; next;}                                      #
-             {print "",  $0; next;}                                      #
-     END     {print "\n"   ;      }'                                     |
-tail -n +2                                                               |
-# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:ID                 #
-TZ=UTC+0 calclock 1                                                      |
-# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:ID      #
-awk '{print $2-$3,$4,$5,$6;}'                                            |
-# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:ID                      #
-calclock -r 1                                                            |
-# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:ID           #
-self 2/5                                                                 |
-# 1:現地時間 2:ユーザー名 3:ツイート 4:ID                                #
-tr ' \006\025' '\n \t'                                                   |
-awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }       #
-     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);         #
-              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                 #
-              next;                                              }       #
-     "OTHERS"{print;}                                             '      |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                #
+# --- 1.レスポンスパース                                                   #
+echo "$apires"                                                             |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi        |
+parsrj.sh 2>/dev/null                                                      |
+unescj.sh -n 2>/dev/null                                                   |
+sed 's/^\$\.//'                                                            |
+awk '                                                                      #
+  BEGIN                      {tm=""; id=""; tx="";                         #
+                                            ns=""; ss=""; nr=""; sr="";  } #
+  $1=="created_at"           {tm=substr($0,length($1)+2);print_tw();next;} #
+  $1=="id"                   {id=substr($0,length($1)+2);print_tw();next;} #
+  $1=="text"                 {tx=substr($0,length($1)+2);print_tw();next;} #
+  $1=="sender.name"          {ns=substr($0,length($1)+2);print_tw();next;} #
+  $1=="sender.screen_name"   {ss=substr($0,length($1)+2);print_tw();next;} #
+  $1=="recipient.name"       {nr=substr($0,length($1)+2);print_tw();next;} #
+  $1=="recipient.screen_name"{sr=substr($0,length($1)+2);print_tw();next;} #
+  function print_tw() {                                                    #
+    if (tm=="") {return;}                                                  #
+    if (id=="") {return;}                                                  #
+    if (tx=="") {return;}                                                  #
+    if (ns=="") {return;}                                                  #
+    if (ss=="") {return;}                                                  #
+    if (nr=="") {return;}                                                  #
+    if (sr=="") {return;}                                                  #
+    printf("%s\n"                                ,tm       );              #
+    printf("- From: %s (@%s)\n"                  ,ns,ss    );              #
+    printf("- To  : %s (@%s)\n"                  ,nr,sr    );              #
+    printf("- %s\n"                              ,tx       );              #
+    printf("- id=%s\n"                           ,id       );              #
+    tm=""; id=""; tx="";               ns=""; ss=""; nr=""; sr="";    }'   |
+# --- 2.日時フォーマット変換                                               #
+awk 'BEGIN {                                                               #
+       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";         #
+       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";         #
+       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }     #
+     /^[A-Z]/{t=$4;                                                        #
+              gsub(/:/,"",t);                                              #
+              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);      #
+              d*=1;                                                        #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);            #
+              next;                                                  }     #
+     "OTHERS"{print;}'                                                     |
+tr ' \t\034' '\006\025 '                                                   |
+awk 'BEGIN   {ORS="";             }                                        #
+     /^[0-9]/{print "\n" $0; next;}                                        #
+             {print "",  $0; next;}                                        #
+     END     {print "\n"   ;      }'                                       |
+tail -n +2                                                                 |
+# 1:UTC日時14桁 2:UTCとの差 3:送信者 4:受信者 5:ツイート 6:ID              #
+TZ=UTC+0 calclock 1                                                        |
+# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:送信者 5:受信者 6:ツイート 7:ID   #
+awk '{print $2-$3,$4,$5,$6,$7;}'                                           |
+# 1:UNIX時間（補正後） 2:送信者 3:受信者 4:ツイート 5:ID                   #
+calclock -r 1                                                              |
+# 1:UNIX時間（補正後） 2:現地日時 3:送信者 4:受信者 5:ツイート 6:ID        #
+self 2/6                                                                   |
+# 1:現地時間 2:送信者 3:受信者 4:ツイート 5:ID                             #
+tr ' \006\025' '\n \t'                                                     |
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }         #
+     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);           #
+              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                   #
+              next;                                              }         #
+     "OTHERS"{print;}                                             '        |
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                  #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
