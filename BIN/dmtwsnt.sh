@@ -2,10 +2,10 @@
 
 ######################################################################
 #
-# deltweet.sh
-# Twitterでツイートやリツイートを取り消す
+# dmtwsnt.sh
+# Twitterの送信済ダイレクトメッセージ一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -32,8 +32,15 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} <tweet_id>
-	Sat Feb 13 23:43:11 JST 2016
+	Usage : ${0##*/} [options]
+	        OPTIONS:
+	        -m <max_ID>  |--maxid=<max_ID>
+	        -n <count>   |--count=<count>
+	        -p <page_No> |--page=<page_No>
+	        -s <since_ID>|--sinceid=<since_ID>
+	        --rawout=<filepath_for_writing_JSON_data>
+	        --timeout=<waiting_seconds_to_connect>
+	Sun Feb 14 01:04:16 JST 2016
 __USAGE
   exit 1
 }
@@ -70,27 +77,54 @@ case "$# ${1:-}" in
 esac
 
 # === 変数初期化 =====================================================
-tweetid=''
+count=''
+max_id=''
+page_no=''
+since_id=''
 rawoutputfile=''
 timeout=''
 
-# === オプション読取 =================================================
-while :; do
+# === 取得ツイート数に指定がある場合はその数を取得 ===================
+while [ $# -gt 0 ]; do
   case "${1:-}" in
-    --rawout=*)  # for debug
-                 s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
-                 rawoutputfile=$s
+    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
                  shift
                  ;;
-    --timeout=*) # for debug
-                 s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
-                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-                   error_exit 1 'Invalid --timeout option'
-                 }
-                 timeout=$s
+    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
+                 count=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --maxid=*)   max_id=$(printf '%s' "${1#--maxid=}" | tr -d '\n')
                  shift
                  ;;
-    --|-)        break
+    -m)          case $# in 1) error_exit 1 'Invalid -m option';; esac
+                 max_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --page=*)    page_no=$(printf '%s' "${1#--page=}" | tr -d '\n')
+                 shift
+                 ;;
+    -p)          case $# in 1) error_exit 1 'Invalid -p option';; esac
+                 page_no=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --sinceid=*) since_id=$(printf '%s' "${1#--sinceid=}" | tr -d '\n')
+                 shift
+                 ;;
+    -s)          case $# in 1) error_exit 1 'Invalid -s option';; esac
+                 since_id=$(printf '%s' "$2" | tr -d '\n')
+                 shift 2
+                 ;;
+    --rawout=*)  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 shift
+                 ;;
+    --timeout=*) timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+                 shift
+                 ;;
+    --)          shift
+                 break
+                 ;;
+    -)           break
                  ;;
     --*|-*)      error_exit 1 'Invalid option'
                  ;;
@@ -98,14 +132,20 @@ while :; do
                  ;;
   esac
 done
-
-# === 削除用のツイートIDを取得 =======================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
+printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -n option'
+}
+printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -m option'
+}
+printf '%s\n' "$page_no" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -p option'
+}
+printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid -s option'
+}
+printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
+  error_exit 1 'Invalid --timeout option'
 }
 
 
@@ -115,21 +155,30 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-readonly API_endpt="https://api.twitter.com/1.1/statuses/destroy/$tweetid.json"
-readonly API_methd='POST'
+API_endpt='https://api.twitter.com/1.1/direct_messages/sent.json'
+API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-readonly API_param=''
+API_param=$(cat <<______________PARAM      |
+              count=${count}
+              max_id=${max_id}
+              page=${page_no}
+              since_id=${since_id}
+______________PARAM
+            sed 's/^ *//'                  |
+            grep -v '^[A-Za-z0-9_]\{1,\}=$')
+readonly API_param
 
 # === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.URLencodeされたAPIパラメーター
+# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
 #       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
-# --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
-apip_pos=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               )
+# --- 2.各行を"&"で結合する 註)APIにGETメソッドで渡す文字列
+apip_get=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               |
+           sed 's/^./?&/'            )
 
 # === OAuth1.0署名の作成 =============================================
 # --- 1.ランダム文字列
@@ -191,7 +240,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
                "${oa_param}"                             \
                "${sig_strin}"                            \
                "${API_param}"                            |
-        urlencode -r                                     |
+        urlencode                                        |
         sed 's/%3[Dd]/=/'                                |
         sort -k 1,1 -t '='                               |
         tr '\n' ','                                      |
@@ -205,60 +254,89 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
+            if type gunzip >/dev/null 2>&1; then         #
+              comp='--header=Accept-Encoding: gzip'      #
+            else                                         #
+              comp=''                                    #
+            fi                                           #
             "$CMD_WGET" --no-check-certificate -q -O -   \
                         --header="$oa_hdr"               \
-                        --post-data="$apip_pos"          \
-                        $timeout                         \
-                        "$API_endpt"                     #
+                        $timeout "$comp"                 \
+                        "$API_endpt$apip_get"          | #
+            case "$comp" in '') cat;; *) gunzip;; esac   #
           elif [ -n "${CMD_CURL:-}" ]; then              #
             case "$timeout" in                           #
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
             "$CMD_CURL" -ks                              \
-                        $timeout                         \
+                        $timeout --compressed            \
                         -H "$oa_hdr"                     \
-                        -d "$apip_pos"                   \
-                        "$API_endpt"                     #
+                        "$API_endpt$apip_get"            #
           fi                                             #
         done                                             `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                             #
-echo "$apires"                                                       |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi  |
-parsrj.sh 2>/dev/null                                                |
-awk 'BEGIN                {fid=0; fca=0;                         }   #
-     $1~/^\$\.created_at$/{fca=1; sca=substr($0,index($0," ")+1);}   #
-     $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
-     END                  {if(fid*fca) {print sca,sid}           }'  |
-# 1:曜日 2:月名 3:日 4:HH:MM:SS 5:UTCとの差 6:年 7:ID                #
-# --- 3.日時フォーマット変換                                         #
-awk 'BEGIN                                                        {  #
-       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
-       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #
-       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";}  #
-     /^[A-Z]/                                                     {  #
-       t=$4;                                                         #
-       gsub(/:/,"",t);                                               #
-       d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);       #
-       d*=1;                                                         #
-       printf("%04d%02d%02d%s %s %s\n",$6,m[$2],$3,t,d,$7);       }' |
-# 1:YYYYMMDDHHMMSS 2:UTCとの差(秒) 3:ID                              #
-TZ=UTC+0 calclock 1                                                  |
-# 1:YYYYMMDDHHMMSS 2:UNIX時間 3:UTCとの差(秒) 4:ID                   #
-awk '{print $2-$3,$4;}'                                              |
-# 1:UNIX時間（補正後） 2:ID                                          #
-calclock -r 1                                                        |
-# 1:UNIX時間（補正後） 2:現地日時 3:ID                               #
-self 2 3                                                             |
-# 1:現地日時 2:ID                                                    #
-awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
-           {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
-            printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする            #
+# --- 1.レスポンスパース                                                      #
+echo "$apires"                                                                |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
+parsrj.sh 2>/dev/null                                                         |
+unescj.sh -n 2>/dev/null                                                      |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
+awk '                                                                         #
+  BEGIN                      {tm=""; id=""; tx="";        nm=""; sn="";     } #
+  $2=="created_at"           {tm=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="id"                   {id=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="text"                 {tx=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="recipient.name"       {nm=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="recipient.screen_name"{sn=substr($0,length($1 $2)+3);print_tw();next;} #
+  function print_tw() {                                                       #
+    if (tm=="") {return;}                                                     #
+    if (id=="") {return;}                                                     #
+    if (tx=="") {return;}                                                     #
+    if (nm=="") {return;}                                                     #
+    if (sn=="") {return;}                                                     #
+    printf("%s\n"                                ,tm       );                 #
+    printf("- To: %s (@%s)\n"                    ,nm,sn    );                 #
+    printf("- %s\n"                              ,tx       );                 #
+    printf("- id=%s\n"                           ,id       );                 #
+    tm=""; id=""; tx="";                             nm=""; sn="";     }'     |
+# --- 3.日時フォーマット変換                                                  #
+awk 'BEGIN {                                                                  #
+       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";            #
+       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";            #
+       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }        #
+     /^[A-Z]/{t=$4;                                                           #
+              gsub(/:/,"",t);                                                 #
+              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);         #
+              d*=1;                                                           #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);               #
+              next;                                                  }        #
+     "OTHERS"{print;}'                                                        |
+tr ' \t\034' '\006\025 '                                                      |
+awk 'BEGIN   {ORS="";             }                                           #
+     /^[0-9]/{print "\n" $0; next;}                                           #
+             {print "",  $0; next;}                                           #
+     END     {print "\n"   ;      }'                                          |
+tail -n +2                                                                    |
+# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:ID                      #
+TZ=UTC+0 calclock 1                                                           |
+# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:ID           #
+awk '{print $2-$3,$4,$5,$6;}'                                                 |
+# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:ID                           #
+calclock -r 1                                                                 |
+# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:ID                #
+self 2/5                                                                      |
+# 1:現地時間 2:ユーザー名 3:ツイート 4:ID                                     #
+tr ' \006\025' '\n \t'                                                        |
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }            #
+     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
+              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
+              next;                                              }            #
+     "OTHERS"{print;}                                             '           |
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                     #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
@@ -271,7 +349,6 @@ case $? in [!0]*)
              $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-  error_exit 1 "API returned an unknown message: $apires"
 ;; esac
 
 

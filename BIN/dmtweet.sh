@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# deltweet.sh
-# Twitterでツイートやリツイートを取り消す
+# tweet.sh
+# Twitterでダイレクトメッセージを送るシェルスクリプト
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
 #
@@ -32,8 +32,17 @@ export IFS LC_ALL=C LANG=C PATH
 # === エラー終了関数定義 =============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} <tweet_id>
-	Sat Feb 13 23:43:11 JST 2016
+	Usage : ${0##*/} [options] <tweet_message>
+	      : echo <tweet_message> | ${0##*/} [options]
+	        OPTIONS:
+	        -t <loginname> |--to=<loginname>          <--- REQUIRED
+	        
+	        (The following options are still ignored by the current API)
+	        -f <media_file>|--file=<media_file>
+	        -m <media_id>  |--mediaid=<media_id>
+	        -l <lat>,<long>|--location=<lat>,<long>
+	        -p <place_id>  |--place=<place_id>
+	Sat Feb 13 23:33:46 JST 2016
 __USAGE
   exit 1
 }
@@ -64,19 +73,97 @@ fi
 # 引数解釈
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === 引数なしまたはヘルプ表示指定がある場合は表示して終了 ===========
 case "$# ${1:-}" in
-  '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
+  '0 '*|'1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
 # === 変数初期化 =====================================================
-tweetid=''
+location=''
+message=''
+place=''
+msgto=''
+mediaids=''
 rawoutputfile=''
 timeout=''
 
 # === オプション読取 =================================================
 while :; do
   case "${1:-}" in
+    --file=*)    [ -x "$Homedir/BIN/twmediup.sh" ] || {
+                   error_exit 1 'twmediup.sh command is required, but not found'
+                 }
+                 s=$(printf '%s' "${1#--file=}")
+                 [ -n "$s" ] || error_exit 1 'Invalid --file option'
+                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
+                 s=$(printf '%s\n' "$s"                               |
+                     while IFS='' read -r file; do                    #
+                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
+                     done                                             |
+                     awk 'sub(/^id=/,""){print;}'                     )
+                 case "$s" in
+                   '') error_exit 1 "Failed to upload: \"${1#--file=}\"";;
+                 esac
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift
+                 ;;
+    -f)          [ -x "$Homedir/BIN/twmediup.sh" ] || {
+                   error_exit 1 'twmediup.sh command is required, but not found'
+                 }
+                 s=$(printf '%s' "${2:-}")
+                 [ -n "$s" ] || error_exit 1 'Invalid -f option'
+                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
+                 s=$(printf '%s\n' "$s"                               |
+                     while IFS='' read -r file; do                    #
+                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
+                     done                                             |
+                     awk 'sub(/^id=/,""){print;}'                     )
+                 case "$s" in
+                   '') error_exit 1 "Failed to upload: \"${2:-}\"";;
+                 esac
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift 2
+                 ;;
+    --location=*) location=$(printf '%s' "${1#--location=}" | tr -d '\n')
+                 shift
+                 ;;
+    -l)          location=$(printf '%s' "${2:-}" | tr -d '\n')
+                 shift 2
+                 ;;
+    --mediaid=*) s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
+                   error_exit 1 'Invalid --mediaid option'
+                 }
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift
+                 ;;
+    -m)          s=$(printf '%s' "${2:-}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
+                   error_exit 1 'Invalid -m option'
+                 }
+                 mediaids=$(echo "${mediaids},$s" |
+                            sed 's/^,//'          |
+                            sed 's/,,*/,/'        )
+                 shift 2
+                 ;;
+    --place=*)   place=$(printf '%s' "${1#--place=}" | tr -d '\n')
+                 shift
+                 ;;
+    -p)          place=$(printf '%s' "${2:-}" | tr -d '\n')
+                 shift 2
+                 ;;
+    --to=*)      msgto=$(printf '%s' "${1#--to=}" | tr -d '\n' | sed 's/^@//')
+                 shift
+                 ;;
+    -t)          msgto=$(printf '%s' "${2:-}" | tr -d '\n' | sed 's/^@//')
+                 shift 2
+                 ;;
     --rawout=*)  # for debug
                  s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
                  rawoutputfile=$s
@@ -98,15 +185,36 @@ while :; do
                  ;;
   esac
 done
-
-# === 削除用のツイートIDを取得 =======================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
+[ -n "$msgto" ] || {
+  error_exit 1 '-t or --to option is always required, set that'
 }
+printf '%s\n' "$msgto" | grep -Eq '^[A-Za-z0-9_]+$' || {
+  error_exit 1 'Invalid -t,--to option'
+}
+printf '%s\n' "$location" | grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+$' || {
+  error_exit 1 'Invalid -l,--location option'
+}
+printf '%s\n' "$place" | grep -q '^[0-9a-f]*$' || {
+  error_exit 1 'Invalid -p,--place option'
+}
+# --- メディアIDが存在すればそれを先に出力する
+[ -n "$mediaids" ] && echo "mid=$mediaids"
+
+# === メッセージを取得 ===============================================
+case $# in
+  0) message=$(cat -)
+     ;;
+  1) case "${1:-}" in
+       '--') print_usage_and_exit;;
+        '-') message=$(cat -)    ;;
+          *) message=$1          ;;
+     esac
+     ;;
+  *) case "$1" in '--') shift;; esac
+     message="$*"
+     ;;
+esac
+message=$(printf '%s' "$message" | tr '\n' '\036') # 改行文字を0x1Eに退避
 
 
 ######################################################################
@@ -115,17 +223,28 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-readonly API_endpt="https://api.twitter.com/1.1/statuses/destroy/$tweetid.json"
+readonly API_endpt='https://api.twitter.com/1.1/direct_messages/new.json'
 readonly API_methd='POST'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-readonly API_param=''
+API_param=$(cat <<______________PARAM         |
+              screen_name=$msgto
+              text=$message
+              media_ids=$mediaids
+              lat=${location%,*}
+              long=${location#*,}
+              place_id=$place
+______________PARAM
+            sed 's/^ *//'                     |
+            grep -v '^[A-Za-z0-9_]\{1,\}=$'   )
+readonly API_param
 
 # === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.URLencodeされたAPIパラメーター
+# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
 #       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # 退避改行を本来の変換後の%0Aに戻す
            sed 's/%3[Dd]/=/'            )
 # --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
 apip_pos=$(printf '%s' "${apip_enc}" |
@@ -192,8 +311,9 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
                "${sig_strin}"                            \
                "${API_param}"                            |
         urlencode -r                                     |
-        sed 's/%3[Dd]/=/'                                |
-        sort -k 1,1 -t '='                               |
+        sed 's/%1[Ee]/%0A/g'                             | #<退避
+        sed 's/%3[Dd]/=/'                                | # 改行
+        sort -k 1,1 -t '='                               | # 復帰
         tr '\n' ','                                      |
         sed 's/^,*//'                                    |
         sed 's/,*$//'                                    |
@@ -235,7 +355,7 @@ awk 'BEGIN                {fid=0; fca=0;                         }   #
      $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
      END                  {if(fid*fca) {print sca,sid}           }'  |
 # 1:曜日 2:月名 3:日 4:HH:MM:SS 5:UTCとの差 6:年 7:ID                #
-# --- 3.日時フォーマット変換                                         #
+# --- 2.日時フォーマット変換                                         #
 awk 'BEGIN                                                        {  #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
        m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #

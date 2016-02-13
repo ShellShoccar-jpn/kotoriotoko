@@ -5,7 +5,7 @@
 # btwtl.sh
 # Twitterの指定ユーザーのタイムラインを見る（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -35,11 +35,11 @@ print_usage_and_exit () {
 	Usage : ${0##*/} [options] [loginname]
 	        OPTIONS:
 	        -m <max_ID>  |--maxid=<max_ID>
-	        -n <count>   |--count=<count> 
+	        -n <count>   |--count=<count>
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Jan 30 19:25:51 JST 2016
+	Sun Feb 14 01:07:07 JST 2016
 __USAGE
   exit 1
 }

@@ -2,8 +2,8 @@
 
 ######################################################################
 #
-# deltweet.sh
-# Twitterでツイートやリツイートを取り消す
+# deldmtw.sh
+# Twitterでダイレクトメッセージを消す
 #
 # Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <tweet_id>
-	Sat Feb 13 23:43:11 JST 2016
+	Sat Feb 13 23:41:50 JST 2016
 __USAGE
   exit 1
 }
@@ -115,10 +115,15 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-readonly API_endpt="https://api.twitter.com/1.1/statuses/destroy/$tweetid.json"
+readonly API_endpt="https://api.twitter.com/1.1/direct_messages/destroy.json"
 readonly API_methd='POST'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-readonly API_param=''
+API_param=$(cat <<______________PARAM      |
+              id=$tweetid
+______________PARAM
+            sed 's/^ *//'                  |
+            grep -v '^[A-Za-z0-9_]\{1,\}=$')
+readonly API_param
 
 # === パラメーターをAPIに向けて送信するために加工 ====================
 # --- 1.URLencodeされたAPIパラメーター

@@ -5,7 +5,7 @@
 # bretwer.sh
 # 指定ツイートをリツイートしたユーザー一覧を見る（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -34,10 +34,10 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [options] <tweet_id>
 	        OPTIONS:
-	        -n <count>|--count=<count> 
+	        -n <count>|--count=<count>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Jan 30 19:24:51 JST 2016
+	Sun Feb 14 01:06:17 JST 2016
 __USAGE
   exit 1
 }

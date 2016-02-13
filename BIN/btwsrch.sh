@@ -5,7 +5,7 @@
 # btwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -37,13 +37,13 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -m <max_ID>                   |--maxid=<max_ID>
-	        -n <count>                    |--count=<count> 
+	        -n <count>                    |--count=<count>
 	        -o <locale>                   |--locale=<locale>
 	        -s <since_ID>                 |--sinceid=<since_ID>
 	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Jan 30 19:25:12 JST 2016
+	Sun Feb 14 01:06:37 JST 2016
 __USAGE
   exit 1
 }
