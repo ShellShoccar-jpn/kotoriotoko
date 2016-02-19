@@ -41,14 +41,14 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Fri Feb 19 02:48:27 JST 2016
+	Fri Feb 19 14:12:15 JST 2016
 __USAGE
   exit 1
 }
 exit_trap() {
   trap EXIT HUP INT QUIT PIPE ALRM TERM
   [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
-  case $cmdpid in '-'*) :;; *) kill $cmdpid; fg;; esac
+  case $cmdpid in '-'*) :;; *) kill $cmdpid 2>/dev/null && fg;; esac
   exit ${1:-0}
 }
 trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
@@ -402,7 +402,7 @@ cmdpid=$(ps -Ao ppid,pid,comm                                         |
                 count++;                                              #
               }                                                       #
               END    {                                                #
-                print does_myCurlWget_exist_in('$$');                 #
+                print does_myCurlWget_exist_in('"$$"');               #
               }                                                       #
               function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
                 comm = pid2comm[mypid];                               #
