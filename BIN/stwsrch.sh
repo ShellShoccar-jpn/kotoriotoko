@@ -48,7 +48,11 @@ __USAGE
 exit_trap() {
   trap EXIT HUP INT QUIT PIPE ALRM TERM
   [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
-  case $cmdpid in '-'*) :;; *) kill $cmdpid 2>/dev/null && fg;; esac
+  case $cmdpid in
+    '-'*) :                                 ;;
+       *) echo 'Flush buffered data...' 1>&2
+          kill $cmdpid 2>/dev/null && fg    ;;
+  esac
   exit ${1:-0}
 }
 trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
@@ -288,19 +292,14 @@ ______________KEY_AND_DATA
   done                                                                        |
   #                                                                           #
   # --- 2.ファイルへの書き落とし                                              #
-  case "$rawoutputfile" in                                                    #
-    '') while read -r line; do                                                #
-          # エラー検出の為、1行目だけ                                         #
-          # 一時ファイルにも書き出し、                                        #
-          # 以降はcatでスルーする。                                           #
-          echo 'The 1st response has arrived...' 1>&2                         #
-          printf '%s\n' "$line" | tee $Tmp-apires                             #
-          cat                                                                 #
-        done                                                                  #
-        ;;                                                                    #
-     *) tee "$rawoutputfile"                                                  #
-        ;;                                                                    #
-  esac                                                                        |
+  # エラー検出の為、1行目だけ一時fileにも書き出し、以降はcat/teeでスルーする。#
+  while read -r line; do                                                      #
+    echo 'The 1st response has arrived...' 1>&3                               #
+    case "$rawoutputfile" in                                                  #
+      '') printf '%s\n' "$line" | tee $Tmp-apires ; cat                    ;; #
+       *) printf '%s\n' "$line" > "$rawoutputfile"; tee -a "$rawoutputfile";; #
+    esac                                                                      #
+  done                                                                        |
   #                                                                           #
   case $rawonly in                                                            #
     0) # --- 3a-1.JSONデータのパース                                          #
@@ -382,7 +381,7 @@ ______________KEY_AND_DATA
        esac                                                                   #
        ;;                                                                     #
   esac
-} &
+} 3>&2 2>/dev/null &
 
 # === 自分が呼んだ cURL or Wget のPIDを調べる ========================
 sleep 1
