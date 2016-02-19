@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Fri Feb 19 15:27:37 JST 2016
+	Fri Feb 19 15:55:45 JST 2016
 __USAGE
   exit 1
 }
@@ -415,10 +415,10 @@ cmdpid=$(ps -Ao ppid,pid,comm                                         |
               }'                                                      )
 
 # === 検索サブシェルの終了待機 =======================================
-exec 3>&1 >/dev/null
+exec 3>&1 4>&2 >/dev/null 2>&1
 wait
 cmdpid=-1
-exec 1>&3 3>&-
+exec 1>&3 2>&4 3>&- 4>&-
 
 # === 異常時のメッセージ出力 =========================================
 if [ -s "$apires_file" ]; then
