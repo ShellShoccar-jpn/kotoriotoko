@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Fri Feb 19 14:12:15 JST 2016
+	Fri Feb 19 15:27:37 JST 2016
 __USAGE
   exit 1
 }
@@ -51,7 +51,8 @@ exit_trap() {
   case $cmdpid in
     '-'*) :                                 ;;
        *) echo 'Flush buffered data...' 1>&2
-          kill $cmdpid 2>/dev/null && fg    ;;
+          kill $cmdpid 2>/dev/null && fg    
+          cmdpid=-1                         ;;
   esac
   exit ${1:-0}
 }
