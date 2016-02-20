@@ -50,7 +50,8 @@ exit_trap() {
   [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   case $cmdpid in
     '-'*) :                                 ;;
-       *) echo 'Flush buffered data...' 1>&2
+       *) exec 1>&3 2>&4 3>&- 4>&-
+          echo 'Flush buffered data...' 1>&2
           kill $cmdpid 2>/dev/null && fg    
           cmdpid=-1                         ;;
   esac
