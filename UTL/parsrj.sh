@@ -73,7 +73,7 @@ case $# in [!0]*)
     elif [ \( "_${arg#-ls}" != "_$arg" \) -a \( -z "$file" \) ]; then
       ls=${arg#-ls}
     elif [ \( "_${arg#-fn}" != "_$arg" \) -a \( -z "$file" \) -a \
-           -n "$(echo -n "_${arg#-fn}" | grep '^_[0-9]\{1,\}$')" ]; then
+           -n "$(printf '%s' "_${arg#-fn}" | grep '^_[0-9]\{1,\}$')" ]; then
       fn=${arg#-fn}
       fn=$((fn+0))
     elif [ \( "_$arg" = '_-li' \) -a \( -z "$file" \) ]; then
