@@ -102,13 +102,13 @@ readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec" |
 
 # === API通信 ========================================================
 if   [ -n "${CMD_WGET:-}" ]; then
-  apires=$("$CMD_WGET" --no-check-certificate -q -O - \
+  apires=$("$CMD_WGET" -q -O -                        \
                        --header="$HDR_auth"           \
                        --header="$HDR_ctype"          \
                        --post-data="$POS_gtype"       \
                        "$API_endpt"                   )
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=$("$CMD_CURL" -ks                            \
+  apires=$("$CMD_CURL" -s                             \
                        -H "$HDR_auth"                 \
                        -H "$HDR_ctype"                \
                        -d "$POS_gtype"                \

@@ -320,7 +320,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" -q -O -                          \
                         --header="$oa_hdr"               \
                         --post-data="$apip_pos"          \
                         $timeout                         \
@@ -330,7 +330,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" -s                               \
                         $timeout                         \
                         -H "$oa_hdr"                     \
                         -d "$apip_pos"                   \

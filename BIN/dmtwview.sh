@@ -219,7 +219,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
             else                                         #
               comp=''                                    #
             fi                                           #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" -q -O -                          \
                         --header="$oa_hdr"               \
                         $timeout "$comp"                 \
                         "$API_endpt$apip_get"          | #
@@ -229,7 +229,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" -s                               \
                         $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #

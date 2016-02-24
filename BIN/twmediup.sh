@@ -227,7 +227,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
                *) timeout="--connect-timeout=$timeout";;              #
             esac                                                      #
             cat > "$Tmp-mimedata"                                     #
-            "$CMD_WGET" --no-check-certificate -q -O -                \
+            "$CMD_WGET" -q -O -                                       \
                         --header="$oa_hdr"                            \
                         --header="$ct_hdr"                            \
                         --post-file="$Tmp-mimedata"                   \
@@ -238,7 +238,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout $timeout";;              #
             esac                                                      #
-            "$CMD_CURL" -ks                                           \
+            "$CMD_CURL" -s                                            \
                         $timeout                                      \
                         -H "$oa_hdr"                                  \
                         -H "$ct_hdr"                                  \
