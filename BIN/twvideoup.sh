@@ -103,7 +103,7 @@ while :; do
 done
 
 # === オプション読取 =================================================
-case $# in [^1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
+case $# in [!1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
 for arg in "$@"; do
   ext=$(printf '%s' "${arg##*/}" | tr -d '\n')
   case "${ext##*.}" in
