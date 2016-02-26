@@ -198,7 +198,7 @@ apires=`echo "Authorization: Bearer $MY_bearer"          |
             else                                         #
               comp=''                                    #
             fi                                           #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" -q -O -                          \
                         --header="$oa_hdr"               \
                         $timeout "$comp"                 \
                         "$API_endpt$apip_get"          | #
@@ -208,7 +208,7 @@ apires=`echo "Authorization: Bearer $MY_bearer"          |
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" -s                               \
                         $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
