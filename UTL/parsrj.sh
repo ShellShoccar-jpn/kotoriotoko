@@ -35,7 +35,7 @@
 #         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
 #         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Nov 25, 2015
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Feb 27, 2016
 #
 # This is a public-domain software. It measns that all of the people
 # can use this with no restrictions at all. By the way, I am fed up
@@ -73,7 +73,7 @@ case $# in [!0]*)
     elif [ \( "_${arg#-ls}" != "_$arg" \) -a \( -z "$file" \) ]; then
       ls=${arg#-ls}
     elif [ \( "_${arg#-fn}" != "_$arg" \) -a \( -z "$file" \) -a \
-           -n "$(echo -n "_${arg#-fn}" | grep '^_[0-9]\{1,\}$')" ]; then
+           -n "$(printf '%s\n' "${arg#-fn}" | grep '^[0-9]\{1,\}$')" ]; then
       fn=${arg#-fn}
       fn=$((fn+0))
     elif [ \( "_$arg" = '_-li' \) -a \( -z "$file" \) ]; then

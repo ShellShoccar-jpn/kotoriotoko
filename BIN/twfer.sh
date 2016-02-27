@@ -5,7 +5,7 @@
 # twfer.sh
 # Twitterの指定ユーザーのフォロワーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,13 +33,12 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Sat Jan 30 19:39:31 JST 2016
+	Sat Feb 27 09:48:26 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   exit $1
 }
 
@@ -229,7 +228,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
             else                                         #
               comp=''                                    #
             fi                                           #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -        \
                         --header="$oa_hdr"               \
                         $timeout "$comp"                 \
                         "$API_endpt$apip_get"          | #
@@ -239,7 +238,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" ${no_cert_curl:-} -s             \
                         $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
@@ -290,5 +289,4 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
 exit 0

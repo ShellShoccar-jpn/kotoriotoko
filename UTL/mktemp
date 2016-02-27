@@ -1,0 +1,261 @@
+#! /bin/sh
+
+######################################################################
+#
+# MKTEMP - The "mktemp" Command Also Works On Just A POSIX Environment
+#
+# USAGE: mktemp [--by-myself] [options] [template [...]]
+#
+#        "--by-myself" ..... (write as the 1st argument when use)
+#                            Not use the "built-in" mktemp command
+#                            and always do mktemp by myself but it is
+#                            inferior to the built-in in performance
+#        "-d" .............. Make a directory instead of a file
+#        "-p [DIR]" ........ Define the temporary directory instead of
+#                            $TMPDIR
+#        "-q" .............. Quiet even if some error occurred
+#        "-u" .............. Make a file but remove it immediately
+#        "-t" .............. Add the temporary directory as a prefix
+#                            in front of the filepath
+#        "--suffix=<suff>" . Add the suffix behind the filename
+#
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/07/25
+#
+# This is a public-domain software. It measns that all of the people
+# can use this with no restrictions at all. By the way, I am fed up
+# the side effects which are broght about by the major licenses.
+#
+######################################################################
+ 
+# print the usage and exit
+print_usage_and_exit () {
+  cat <<-__USAGE 1>&2
+	Usage   : ${0##*/} [--by-myself] [options] [template [...]]
+	        : "-d" "-p [DIR]" "-q" "-u" "-t" "--suffix=<suff>"
+	Version : Sat Jul 25 17:53:48 JST 2015
+__USAGE
+  exit 1
+}
+
+
+# ===== PREPARATION ==================================================
+
+# --- initialize -----------------------------------------------------
+set -u
+umask 0022
+PATH='/usr/bin:/bin'
+IFS=$(printf ' \t\n_'); IFS=${IFS%_}
+export IFS LC_ALL=C LANG=C PATH
+
+# --- set the temporary directory ------------------------------------
+Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');
+case "$Dir_tmp" in
+  '') Dir_tmp='/tmp'      ;;
+  /)  Dir_tmp='/.'        ;;
+  *)  Dir_tmp=${Dir_tmp%/};;
+esac
+
+# --- misc -----------------------------------------------------------
+chrs='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'
+max_retry_when_failed=10
+LF=$(printf '\\\n_');LF=${LF%_}
+
+# --- exec the mktemp command if exists ------------------------------
+case "${1:-}" in
+  --by-myself) shift                                                        ;;
+  *)           type mktemp >/dev/null 2>&1 && { exec mktemp "$@"; exit 1; } ;;
+esac
+
+
+# ===== OPTION PARSING ===============================================
+
+optd=0
+optu=0
+optq=0
+optt=0
+opts=''
+optmode=''
+while [ $# -gt 0 ]; do
+  case $# in 0) break;; esac
+  case "$optmode" in
+    '') case "$1" in
+          -[duqtp]*)   s=$(printf '%s\n' "${1#-}"                        |
+                           awk '{d = "_"; u = "_"; q = "_";              #
+                                 t = "_"; p = "_"; err = 0;              #
+                                 for (i=1;i<=length($0);i++) {           #
+                                   s = substr($0,i,1);                   #
+                                   if      (s == "d") { d   = "d"; }     #
+                                   else if (s == "u") { u   = "u"; }     #
+                                   else if (s == "q") { q   = "q"; }     #
+                                   else if (s == "t") { t   = "t"; }     #
+                                   else if (s == "p") { p   =  p ; }     #
+                                   else               { err =  1 ; }     #
+                                 }                                       #
+                                 p = (substr($0,i-1)=="p") ? "p" : "_";  #
+                                 printf("%s%s%s%s%s%s",d,u,q,t,p,err); }')
+                       case "$s" in *1*) print_usage_and_exit;; esac
+                       case "$s" in *d*) optd=1              ;; esac
+                       case "$s" in *u*) optu=1              ;; esac
+                       case "$s" in *q*) optq=1              ;; esac
+                       case "$s" in *t*) optt=1              ;; esac
+                       case "$s" in *p*) optmode='p'         ;; esac
+                       shift; continue
+                       ;;
+          --directory) optd=1     ; shift; continue;;
+          --dry-run)   optu=1     ; shift; continue;;
+          --quiet)     optq=1     ; shift; continue;;
+          --tmpdir)                 shift; continue;;
+          --tmpdir=*)  optmode='p'
+                       s=${1#--tmpdir=}            ;;
+          --suffix=*)  optmode='s'
+                       s=${1#--suffix=}            ;;
+          -*)          print_usage_and_exit ;;
+        esac                                         ;;
+    *)  s=$1                                         ;;
+  esac
+  case "$optmode" in
+    p) [ -d "$s" ] || {
+         printf '%s\n' "${0##*/}: Invalid path by -p,--tmpdir option" 1>&2
+         exit 1
+       }
+       Dir_tmp=${s%/}; [ -n "$Dir_tmp" ] || Dir_tmp='/.'
+       optmode=''; shift; continue        ;;
+    s) { printf '%s' "$s" | grep -q '/'; } && {
+         printf '%s\n' "${0##*/}: Invalid suffix option" 1>&2
+         exit 1
+       }
+       opts=$s
+       optmode=''; shift; continue        ;;
+  esac
+  break
+done
+
+
+# ===== FUNC: random string generator ================================
+# arg   : $1=length
+# ret   : 0
+# stdout: generated random string
+random_string () {
+  # calculate the number of words which required
+  nw=$(echo "${1}*l(${#chrs})/11.09+1" | # 11.09=ln(65536)
+       bc -l                           |
+       sed 's/\..*$//'                 )
+
+  # make a random hexadecimal digit
+  if [ -c /dev/urandom ]; then
+    hstr=$(dd if=/dev/urandom bs=2 count=$nw 2>/dev/null |
+           od -A n -t x2 -v                              |
+           tr 'abcdef ' 'ABCDEF\n'                       |
+           tr -Cd 0123456789ABCDEF                       )
+  else
+    hstr=$( (ps -Ao pid,etime,pcpu,vsz; date)         |
+           od -t d4 -A n -v                           |
+           sed 's/[^0-9]\{1,\}/'"$LF"'/g'             |
+           grep '[0-9]'                               |
+           tail -n 42                                 |
+           sed 's/.*\(.\{8\}\)$/\1/g'                 |
+           awk 'BEGIN{a=-2147483648;}                 #
+                     {a+=$1;        }                 #
+                END  {                                #
+                  srand(a);                           #
+                  for(i=0;i<'$nw';i++){               #
+                    printf("%02X",int(rand()*65536)); #
+                  }                                   #
+                }'                                    )
+  fi
+
+  # make a random string from the hexadecimal digit
+  echo "obase=${#chrs};ibase=16;$hstr"         |
+  bc                                           |
+  tr -d '\\\n'                                 |
+  tr ' ' '\n'                                  |
+  awk 'BEGIN  {for(i=1;i<'$1';i++){print 0;}}  #
+       /[0-9]/{print;                       }' |
+  awk 'BEGIN  {ORS="";                         #
+               s="'"$chrs"'";                  #
+               for(i=0;i<length(s);i++){       #
+                 c[i]=substr(s,i+1,1);         #
+               }                        }      #
+       /[0-9]/{print c[$0*1];           }'     |
+  tail -c $1
+}
+
+
+# ===== MAKING LOOP ==================================================
+
+case $# in 0) optt=1; set -- 'tmp.XXXXXXXXXX';; esac
+
+err=0
+for arg in "$@"; do
+
+  n=$max_retry_when_failed
+  while [ $n -ge 0 ]; do
+
+    # --- Making the file path ---------------------------------------
+    #
+    # replace the end of "XXX..." string to a random one
+    Path_target=$arg
+    s=$(printf '%s' "$Path_target" | sed 's/X*$//')
+    i=$((${#Path_target}-${#s}))
+    case $i in
+      0) :                                    ;;
+      *) Path_target="${s}$(random_string $i)";;
+    esac
+    #
+    # add the suffix
+    Path_target="${Path_target}${opts}"
+    #
+    # add the prefix if the option -t is enabled
+    case $optt in 1) Path_target="${Dir_tmp}/${Path_target}";; esac
+    #
+    # normalize
+    Path_target=$(printf '%s' "$Path_target" |
+                  sed 's!//!/!g'             |
+                  sed 's!/./!/!g'            )
+    #
+    # for security
+    case "$Path_target" in
+      -|/*|./*|../*) :                           ;;
+                  *) Path_target="./$Path_target";;
+    esac
+
+    # --- Making the file --------------------------------------------
+    case $optd in
+      0) (set -C; umask 177;   : > "$Path_target") 2>/dev/null || {
+           [ -f "$Path_target" ] && { n=$((n-1)); continue; }
+           n=-1; break;
+         }
+         ;;
+      1)          umask 077; mkdir "$Path_target"  2>/dev/null || {
+           [ -d "$Path_target" ] && { n=$((n-1)); continue; }
+           n=-1; break;
+         }
+         ;;
+    esac
+
+    break
+  done
+
+  # --- print error message when failed to make a file ---------------
+  case "${optq}${n}" in
+    '0-1') printf '%s\n' "${0##*/}: failed on $Path_target" 1>&2
+           err=1
+           continue
+           ;;
+    '1-1') err=1
+           continue
+           ;;
+  esac
+
+  # --- print the path of the file -----------------------------------
+  printf '%s\n' "$Path_target"
+
+  # --- remove the file if -u,--dry-run option is set ----------------
+  case $optu in 1) rm -rf "$Path_target";; esac
+
+done
+
+
+# ===== EXIT =========================================================
+
+exit $err

@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterでダイレクトメッセージを送るシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -42,13 +42,12 @@ print_usage_and_exit () {
 	        -m <media_id>  |--mediaid=<media_id>
 	        -l <lat>,<long>|--location=<lat>,<long>
 	        -p <place_id>  |--place=<place_id>
-	Sat Feb 13 23:33:46 JST 2016
+	Sat Feb 27 09:48:25 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   exit $1
 }
 
@@ -325,7 +324,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -        \
                         --header="$oa_hdr"               \
                         --post-data="$apip_pos"          \
                         $timeout                         \
@@ -335,7 +334,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" ${no_cert_curl:-} -s             \
                         $timeout                         \
                         -H "$oa_hdr"                     \
                         -d "$apip_pos"                   \
@@ -399,5 +398,4 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
 exit 0

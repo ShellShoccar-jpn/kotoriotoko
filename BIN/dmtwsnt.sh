@@ -5,7 +5,7 @@
 # dmtwsnt.sh
 # Twitterの送信済ダイレクトメッセージ一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/14
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -40,13 +40,12 @@ print_usage_and_exit () {
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sun Feb 14 01:04:16 JST 2016
+	Sat Feb 27 09:48:26 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   exit $1
 }
 
@@ -259,7 +258,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
             else                                         #
               comp=''                                    #
             fi                                           #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -        \
                         --header="$oa_hdr"               \
                         $timeout "$comp"                 \
                         "$API_endpt$apip_get"          | #
@@ -269,7 +268,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" ${no_cert_curl:-} -s             \
                         $timeout --compressed            \
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
@@ -356,5 +355,4 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
 exit 0

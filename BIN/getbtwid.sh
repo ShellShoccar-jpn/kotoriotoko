@@ -9,7 +9,7 @@
 # [備考]
 # CONFIG.SHLIBに、MY_apikeyとMY_apisecを設定していなければならない。
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -29,7 +29,6 @@ umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
-Tmp="/tmp/${0##*/}_$$"
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
@@ -43,13 +42,12 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Sat Jan 30 19:26:55 JST 2016
+	Sat Feb 27 09:48:26 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   exit $1
 }
 
@@ -102,13 +100,13 @@ readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec" |
 
 # === API通信 ========================================================
 if   [ -n "${CMD_WGET:-}" ]; then
-  apires=$("$CMD_WGET" --no-check-certificate -q -O - \
+  apires=$("$CMD_WGET" ${no_cert_wget:-} -q -O -      \
                        --header="$HDR_auth"           \
                        --header="$HDR_ctype"          \
                        --post-data="$POS_gtype"       \
                        "$API_endpt"                   )
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=$("$CMD_CURL" -ks                            \
+  apires=$("$CMD_CURL" ${no_cert_curl:-} -s           \
                        -H "$HDR_auth"                 \
                        -H "$HDR_ctype"                \
                        -d "$POS_gtype"                \
@@ -151,5 +149,4 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
 exit 0

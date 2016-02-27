@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/21
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -19,19 +19,18 @@
 # === このシステム(kotoriotoko)のホームディレクトリー ================
 Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
 
-# === 初期化 =========================================================
+# === 初期化 #1 ======================================================
 set -um
 umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
-Tmp="/tmp/${0##*/}_$$"
 cmdpid=-1
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
 
-# === 終了関数定義 ===================================================
+# === 終了関数定義・その他初期化 #2 ==================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [options] <keyword> [keyword ...]
@@ -41,13 +40,13 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Sun Feb 21 22:47:05 JST 2016
+	Sat Feb 27 09:48:26 JST 2016
 __USAGE
   exit 1
 }
 exit_trap() {
   trap EXIT HUP INT QUIT PIPE ALRM TERM
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
+  [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
   case $cmdpid in
     '-'*) :                                 ;;
        *) echo 'Flush buffered data...' 1>&4
@@ -62,6 +61,7 @@ error_exit() {
   [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
   exit $1
 }
+Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
 
 # === 必要なプログラムの存在を確認する ===============================
 # --- 1.符号化コマンド（OpenSSL）
@@ -144,7 +144,7 @@ printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid --timeout option'
 }
 case "$rawoutputfile" in
-  '') apires_file=$Tmp-apires   ;;
+  '') apires_file="$Tmp/apires" ;;
    *) apires_file=$rawoutputfile;;
 esac
 
@@ -274,7 +274,7 @@ ______________KEY_AND_DATA
       else                                                                    #
         comp=''                                                               #
       fi                                                                      #
-      "$CMD_WGET" --no-check-certificate -q -O -                              \
+      "$CMD_WGET" ${no_cert_wget:-} -q -O -                                   \
                   --header="$oa_hdr"                                          \
                   --post-data="$apip_pos"                                     \
                   $timeout "$comp"                                            \
@@ -285,7 +285,7 @@ ______________KEY_AND_DATA
         '') :                                   ;;                            #
          *) timeout="--connect-timeout $timeout";;                            #
       esac                                                                    #
-      "$CMD_CURL" -ks                                                         \
+      "$CMD_CURL" ${no_cert_curl:-} -s                                        \
                   $timeout --compressed                                       \
                   -H "$oa_hdr"                                                \
                   -d "$apip_pos"                                              \
@@ -298,7 +298,7 @@ ______________KEY_AND_DATA
   while read -r line; do                                                      #
     echo 'The 1st response has arrived...' 1>&3                               #
     case "$rawoutputfile" in                                                  #
-      '') printf '%s\n' "$line" | tee $Tmp-apires ; cat                    ;; #
+      '') printf '%s\n' "$line" | tee "$Tmp/apires" ; cat                  ;; #
        *) printf '%s\n' "$line" > "$rawoutputfile"; tee -a "$rawoutputfile";; #
     esac                                                                      #
   done                                                                        |
@@ -446,5 +446,5 @@ fi
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
+[ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
 exit 0

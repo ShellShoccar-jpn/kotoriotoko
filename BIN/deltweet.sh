@@ -5,7 +5,7 @@
 # deltweet.sh
 # Twitterでツイートやリツイートを取り消す
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/13
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -33,13 +33,12 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <tweet_id>
-	Sat Feb 13 23:43:11 JST 2016
+	Sat Feb 27 09:48:25 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
   exit $1
 }
 
@@ -205,7 +204,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout=$timeout";; #
             esac                                         #
-            "$CMD_WGET" --no-check-certificate -q -O -   \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -        \
                         --header="$oa_hdr"               \
                         --post-data="$apip_pos"          \
                         $timeout                         \
@@ -215,7 +214,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'            \
               '') :                                   ;; #
                *) timeout="--connect-timeout $timeout";; #
             esac                                         #
-            "$CMD_CURL" -ks                              \
+            "$CMD_CURL" ${no_cert_curl:-} -s             \
                         $timeout                         \
                         -H "$oa_hdr"                     \
                         -d "$apip_pos"                   \
@@ -279,5 +278,4 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
 exit 0

@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/01/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
 #
 # このソフトウェアは Public Domain であることを宣言する。
 #
@@ -19,30 +19,30 @@
 # === このシステム(kotoriotoko)のホームディレクトリー ================
 Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
 
-# === 初期化 =========================================================
+# === 初期化 #1 ======================================================
 set -u
 umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
-Tmp="/tmp/${0##*/}_$$"
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
 
-# === エラー終了関数定義 =============================================
+# === エラー終了関数定義・その他初期化 #2 ============================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Sat Jan 30 19:19:57 JST 2016
+	Sat Feb 27 09:48:26 JST 2016
 __USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
-  [ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
+  [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
   exit $1
 }
+Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
 
 # === 必要なプログラムの存在を確認する ===============================
 # --- 1.符号化コマンド（OpenSSL）
@@ -103,7 +103,7 @@ while :; do
 done
 
 # === オプション読取 =================================================
-case $# in [^1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
+case $# in [!1]) print_usage_and_exit;; esac # APIは同時1個しか対応してない
 for arg in "$@"; do
   ext=$(printf '%s' "${arg##*/}" | tr -d '\n')
   case "${ext##*.}" in
@@ -234,7 +234,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout=$timeout";;              #
             esac                                                      #
-            "$CMD_WGET" --no-check-certificate -q -O -                \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -                     \
                         --header="$oa_hdr"                            \
                         --post-data="$apip_pos"                       \
                         $timeout                                      \
@@ -244,7 +244,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout $timeout";;              #
             esac                                                      #
-            "$CMD_CURL" -ks                                           \
+            "$CMD_CURL" ${no_cert_curl:-} -s                          \
                         $timeout                                      \
                         -H "$oa_hdr"                                  \
                         -d "$apip_pos"                                \
@@ -375,11 +375,11 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout=$timeout";;              #
             esac                                                      #
-            cat > "$Tmp-mimedata"                                     #
-            "$CMD_WGET" --no-check-certificate -q -O /dev/null -S     \
+            cat > "$Tmp/mimedata"                                     #
+            "$CMD_WGET" ${no_cert_wget:-} -q -O /dev/null -S          \
                         --header="$oa_hdr"                            \
                         --header="$ct_hdr"                            \
-                        --post-file="$Tmp-mimedata"                   \
+                        --post-file="$Tmp/mimedata"                   \
                         $timeout                                      \
                         "$API_endpt"                                  #
           elif [ -n "${CMD_CURL:-}" ]; then                           #
@@ -387,7 +387,8 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout $timeout";;              #
             esac                                                      #
-            "$CMD_CURL" -ks -o /dev/null -w '%{http_code}\n'          \
+            "$CMD_CURL" ${no_cert_curl:-} -s -o /dev/null             \
+                        -w '%{http_code}\n'                           \
                         $timeout                                      \
                         -H "$oa_hdr"                                  \
                         -H "$ct_hdr"                                  \
@@ -506,7 +507,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout=$timeout";;              #
             esac                                                      #
-            "$CMD_WGET" --no-check-certificate -q -O -                \
+            "$CMD_WGET" ${no_cert_wget:-} -q -O -                     \
                         --header="$oa_hdr"                            \
                         --post-data="$apip_pos"                       \
                         $timeout                                      \
@@ -516,7 +517,7 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
               '') :                                   ;;              #
                *) timeout="--connect-timeout $timeout";;              #
             esac                                                      #
-            "$CMD_CURL" -ks                                           \
+            "$CMD_CURL" ${no_cert_curl:-} -s                          \
                         $timeout                                      \
                         -H "$oa_hdr"                                  \
                         -d "$apip_pos"                                \
@@ -561,5 +562,5 @@ case $? in [!0]*)
 # 終了
 ######################################################################
 
-[ -n "${Tmp:-}" ] && rm -f "${Tmp:-}"*
+[ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
 exit 0
