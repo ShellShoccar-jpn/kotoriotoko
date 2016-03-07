@@ -5,9 +5,9 @@
 # twview.sh
 # Twitterで指定したツイートIDを表示する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
 #
-# このソフトウェアは Public Domain であることを宣言する。
+# このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
 ######################################################################
 
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	        OPTIONS:
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Feb 27 09:48:26 JST 2016
+	Tue Mar  8 01:56:57 JST 2016
 __USAGE
   exit 1
 }
@@ -102,13 +102,13 @@ while :; do
 done
 
 # === ツイートIDを取得 ===============================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
-}
+tweetids=$(printf '%s\n' "$*"                    |
+           tr ' \t' ',,'                         |
+           sed 's/,,*/,/g'                       |
+           sed 's/^,*//g'                        |
+           sed 's/,*$//g'                        |
+           grep -E '^[0-9]+$|^[0-9][0-9,]+[0-9]$')
+case "$tweetids" in '') print_usage_and_exit;; esac
 
 
 ######################################################################
@@ -117,11 +117,11 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Twitter API関連（エンドポイント固有） ==========================
 # (1)基本情報
-API_endpt='https://api.twitter.com/1.1/statuses/show.json'
+API_endpt='https://api.twitter.com/1.1/statuses/lookup.json'
 API_methd='GET'
 # (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
 API_param=$(cat <<______________PARAM      |
-              id=$tweetid
+              id=$tweetids
 ______________PARAM
             sed 's/^ *//'                  |
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
@@ -243,25 +243,30 @@ echo "$apires"                                                           |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi      |
 parsrj.sh 2>/dev/null                                                    |
 unescj.sh -n 2>/dev/null                                                 |
-sed 's/^\$\.//'                                                          |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                    |
 awk '                                                                    #
-  BEGIN                   {tm=""; id=""; tx="";                          #
+  BEGIN                   {tm=""; id=""; tx=""; an=""; au="";            #
                            nr=""; nf=""; fr=""; ff=""; nm=""; sn="";     #
                            ge=""; la=""; lo=""; pl=""; pn="";         }  #
-  $1=="created_at"        {tm=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="id"                {id=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="text"              {tx=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="retweet_count"     {nr=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="favorite_count"    {nf=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="retweeted"         {fr=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="favorited"         {ff=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="user.name"         {nm=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="user.screen_name"  {sn=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="geo"               {ge=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="geo.coordinates[0]"{la=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="geo.coordinates[1]"{lo=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="place"             {pl=substr($0,length($1)+2);print_tw();next;}  #
-  $1=="place.full_name"   {pn=substr($0,length($1)+2);print_tw();next;}  #
+  $2=="created_at"        {tm=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="retweet_count"     {nr=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="favorite_count"    {nf=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="retweeted"         {fr=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="favorited"         {ff=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="user.name"         {nm=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="user.screen_name"  {sn=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="geo"               {ge=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="geo.coordinates[0]"{la=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="geo.coordinates[1]"{lo=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="place"             {pl=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="place.full_name"   {pn=substr($0,length($1 $2)+3);print_tw();next;} #
+  $2=="source"            {s =substr($0,length($1 $2)+3);
+                           an=s;sub(/<\/a>$/   ,"",an)  ;
+                                sub(/^<a[^>]*>/,"",an)  ;
+                           au=s;sub(/^.*href="/,"",au)  ;
+                                sub(/".*$/     ,"",au)  ;print_tw();next;} #
   function print_tw( r,f) {                                              #
     if (tm=="") {return;}                                                #
     if (id=="") {return;}                                                #
@@ -274,6 +279,8 @@ awk '                                                                    #
     if (sn=="") {return;}                                                #
     if (((la=="")||(lo==""))&&(ge!="null")) {return;}                    #
     if ((pn=="")&&(pl!="null"))             {return;}                    #
+    if (an=="") {return;}                                                #
+    if (au=="") {return;}                                                #
     r = (fr=="true") ? "RET" : "ret";                                    #
     f = (ff=="true") ? "FAV" : "fav";                                    #
     printf("%s\n"                                ,tm       );            #
@@ -283,9 +290,10 @@ awk '                                                                    #
     s = (pl=="null")?"-":pn;                                             #
     s = (ge=="null")?s:sprintf("%s (%s,%s)",s,la,lo);                    #
     print "-",s;                                                         #
+    printf("- %s (%s)\n",an,au);                                         #
     printf("- https://twitter.com/%s/status/%s\n",sn,id    );            #
     tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";       #
-    ge=""; la=""; lo=""; pl=""; pn="";                                }' |
+    ge=""; la=""; lo=""; pl=""; pn=""; an=""; au="";                  }' |
 # --- 2.日時フォーマット変換                                             #
 awk 'BEGIN {                                                             #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
@@ -305,17 +313,18 @@ awk 'BEGIN   {ORS="";             }                                      #
      END     {print "\n"   ;      }'                                     |
 tail -n +2                                                               |
 # 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所#
-# 7:URL                                                                  #
+# 7:App名 8:URL                                                          #
 TZ=UTC+0 calclock 1                                                      |
 # 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート           #
-# 6:リツイート等 7:場所 8:URL                                            #
-awk '{print $2-$3,$4,$5,$6,$7,$8;}'                                      |
+# 6:リツイート等 7:場所 8:App名 9:URL                                    #
+awk '{print $2-$3,$4,$5,$6,$7,$8,$9;}'                                   |
 # 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL
+# 7:App名                                                                #
 calclock -r 1                                                            |
 # 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等 #
-# 6:場所 7:URL                                                           #
-self 2/7                                                                 |
-# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL         #
+# 6:場所 7:URL 8:App名                                                   #
+self 2/8                                                                 |
+# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名 #
 tr ' \006\025' '\n \t'                                                   |
 awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }       #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);         #

@@ -10,11 +10,12 @@
 #
 # Usage: unsecj.sh [-n] [JSON_value_textfile]
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Jan 13, 2016
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Mar  8, 2016
 #
-# This is a public-domain software. It measns that all of the people
-# can use this with no restrictions at all. By the way, I am fed up
-# the side effects which are broght about by the major licenses.
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 
 
 set -u

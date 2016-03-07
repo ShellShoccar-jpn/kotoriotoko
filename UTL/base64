@@ -18,11 +18,12 @@
 #                         from wrapping.
 #        "-i" ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/12/01
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
 #
-# This is a public-domain software. It measns that all of the people
-# can use this with no restrictions at all. By the way, I am fed up
-# the side effects which are broght about by the major licenses.
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
@@ -31,7 +32,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage   : ${0##*/} [--by-myself] [-w <COLS>] <file>
 	          ${0##*/} [--by-myself] -d [-i] <file>
-	Version : Tue Dec  1 15:35:00 JST 2015
+	Version : Tue Mar  8 02:00:53 JST 2016
 	        : (POSIX.1 Bourne Shell/POSIX.1 commands)
 	        :   * Although the bult-in base64, uuencode and uudecode command or
 	        :     GNU AWK produces better performance than the POSIX commands set

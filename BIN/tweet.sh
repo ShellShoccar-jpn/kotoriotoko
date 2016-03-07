@@ -5,9 +5,9 @@
 # tweet.sh
 # Twitterに投稿するシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
 #
-# このソフトウェアは Public Domain であることを宣言する。
+# このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
 ######################################################################
 
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        -r <tweet_id>  |--reply=<tweet_id>
 	        -l <lat>,<long>|--location=<lat>,<long>
 	        -p <place_id>  |--place=<place_id>
-	Sat Feb 27 09:48:26 JST 2016
+	Tue Mar  8 01:56:57 JST 2016
 __USAGE
   exit 1
 }

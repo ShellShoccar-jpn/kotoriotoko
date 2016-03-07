@@ -41,11 +41,12 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/11/25
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
 #
-# This is a public-domain software. It measns that all of the people
-# can use this with no restrictions at all. By the way, I am fed up
-# the side effects which are broght about by the major licenses.
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
@@ -86,7 +87,7 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : Wed Nov 25 01:46:03 JST 2015
+	Version : Tue Mar  8 02:01:24 JST 2016
 	        : (POSIX.1 Bourne Shell/POSIX.1 commands/UTF-8)
 __USAGE
   exit 1

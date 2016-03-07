@@ -1,8 +1,8 @@
 /*  sleep command which accepts a decimal time
  *
- *  2016/01/10 written by ShellShoccar Japan
+ *  2016/03/08 written by ShellShoccar Japan
  *
- *  The software is PUBLIC DOMAIN.
+*  The software is PUBLIC DOMAIN (CC0).
  */
 #include <limits.h>
 #include <stdio.h>

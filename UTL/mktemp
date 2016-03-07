@@ -19,11 +19,12 @@
 #                            in front of the filepath
 #        "--suffix=<suff>" . Add the suffix behind the filename
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2015/07/25
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
 #
-# This is a public-domain software. It measns that all of the people
-# can use this with no restrictions at all. By the way, I am fed up
-# the side effects which are broght about by the major licenses.
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
  
@@ -32,7 +33,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage   : ${0##*/} [--by-myself] [options] [template [...]]
 	        : "-d" "-p [DIR]" "-q" "-u" "-t" "--suffix=<suff>"
-	Version : Sat Jul 25 17:53:48 JST 2015
+	Version : Tue Mar  8 02:01:49 JST 2016
 __USAGE
   exit 1
 }

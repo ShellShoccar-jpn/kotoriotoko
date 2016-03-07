@@ -35,11 +35,12 @@
 #         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
 #         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Feb 27, 2016
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Mar  8, 2016
 #
-# This is a public-domain software. It measns that all of the people
-# can use this with no restrictions at all. By the way, I am fed up
-# the side effects which are broght about by the major licenses.
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 
 
 set -u

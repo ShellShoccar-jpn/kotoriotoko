@@ -5,9 +5,9 @@
 # twunfollow.sh
 # Twitterで指定ユーザーのフォローを解除する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/02/27
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
 #
-# このソフトウェアは Public Domain であることを宣言する。
+# このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
 ######################################################################
 
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <loginname>
-	Sat Feb 27 09:48:26 JST 2016
+	Tue Mar  8 01:56:57 JST 2016
 __USAGE
   exit 1
 }
