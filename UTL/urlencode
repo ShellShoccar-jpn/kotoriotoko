@@ -9,7 +9,7 @@
 #                  replaced with "%20" instead of "+".
 #        --raw ... same as the "-r" option
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/28
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -21,7 +21,7 @@
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage   : ${0##*/} [-r|--raw] <file> ...
-	Version : Tue Mar  8 02:04:00 JST 2016
+	Version : Mon Mar 28 01:26:28 JST 2016
 __USAGE
   exit 1
 }
@@ -62,7 +62,7 @@ case $# in
      done                     ;;
 esac |
 (cat -; printf '\n') |
-env - awk '
+awk '
 BEGIN {
   # --- prepare
   LF = sprintf("\n");
