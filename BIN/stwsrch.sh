@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/30
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Mar  8 01:56:57 JST 2016
+	Wed Mar 30 02:29:56 JST 2016
 __USAGE
   exit 1
 }
@@ -387,7 +387,11 @@ ______________KEY_AND_DATA
 
 # === 自分が呼んだ cURL or Wget のPIDを調べる ========================
 sleep 1
-cmdpid=$(ps -Ao ppid,pid,comm                                         |
+cmdpid=$(case $(uname) in                                             #
+           CYGWIN*) ps -af                                      |     #
+                    awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
+                 *) ps -Ao ppid,pid,comm                        ;;    #
+         esac                                                         |
          grep -v '^[^0-9]*PPID'                                       |
          sort -k 1n,1 -k 2n,2                                         |
          awk 'BEGIN    {ppid0="" ;         }                          #
