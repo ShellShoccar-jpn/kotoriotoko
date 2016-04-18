@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Apr 19 02:31:05 JST 2016
+	Tue Apr 19 02:52:44 JST 2016
 __USAGE
   exit 1
 }
@@ -425,37 +425,37 @@ ______________KEY_AND_DATA
 
 # === 自分が呼んだ cURL or Wget のPIDを調べる ========================
 sleep 1
-cmdpid=$(case $(uname) in                                             #
-           CYGWIN*) ps -af                                      |     #
-                    awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
-                 *) ps -Ao ppid,pid,comm                        ;;    #
-         esac                                                         |
-         grep -v '^[^0-9]*PPID'                                       |
-         sort -k 1n,1 -k 2n,2                                         |
-         awk 'BEGIN    {ppid0="" ;         }                          #
-              ppid0!=$1{print "-";         }                          #
-              "EVERY"  {print    ;ppid0=$1;}'                         |
-         awk '$1=="-"{                                                #
-                count=1;                                              #
-                next;                                                 #
-              }                                                       #
-              "EVERY"{                                                #
-                pid2comm[$2]      =$3;                                #
-                ppid2pid[$1,count]=$2;                                #
-                count++;                                              #
-              }                                                       #
-              END    {                                                #
-                print does_myCurlWget_exist_in('"$$"');               #
-              }                                                       #
-              function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
-                comm = pid2comm[mypid];                               #
-                if ((comm=="curl") || (comm=="wget")) {return mypid;} #
-                for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
-                  ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
-                  if (ret >= 0) {return ret;}                         #
-                }                                                     #
-                return -1;                                            #
-              }'                                                      )
+cmdpid=`case $(uname) in                                             #
+          CYGWIN*) ps -af                                      |     #
+                   awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
+                *) ps -Ao ppid,pid,comm                        ;;    #
+        esac                                                         |
+        grep -v '^[^0-9]*PPID'                                       |
+        sort -k 1n,1 -k 2n,2                                         |
+        awk 'BEGIN    {ppid0="" ;         }                          #
+             ppid0!=$1{print "-";         }                          #
+             "EVERY"  {print    ;ppid0=$1;}'                         |
+        awk '$1=="-"{                                                #
+               count=1;                                              #
+               next;                                                 #
+             }                                                       #
+             "EVERY"{                                                #
+               pid2comm[$2]      =$3;                                #
+               ppid2pid[$1,count]=$2;                                #
+               count++;                                              #
+             }                                                       #
+             END    {                                                #
+               print does_myCurlWget_exist_in('"$$"');               #
+             }                                                       #
+             function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
+               comm = pid2comm[mypid];                               #
+               if ((comm=="curl") || (comm=="wget")) {return mypid;} #
+               for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
+                 ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
+                 if (ret >= 0) {return ret;}                         #
+               }                                                     #
+               return -1;                                            #
+             }'                                                      `
 
 # === 検索サブシェルの終了待機 =======================================
 exec 3>&1 4>&2 >/dev/null 2>&1
