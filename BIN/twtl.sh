@@ -5,7 +5,7 @@
 # twtl.sh
 # Twitterの指定ユーザーのタイムラインを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/04/19
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/12
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        -v           |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Apr 19 02:17:53 JST 2016
+	Thu May 12 19:45:14 JST 2016
 __USAGE
   exit 1
 }
@@ -151,7 +151,7 @@ case $# in
      [ -z "$scname" ] && scname=$MY_scname      ;;
   *) print_usage_and_exit                       ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]+$|' || {
+printf '%s\n' "$scname" | grep -Eq '^$|^[A-Za-z0-9_]+$' || {
   print_usage_and_exit
 }
 
