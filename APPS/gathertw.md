@@ -215,7 +215,7 @@ gathertw.sh -d GW2016 --until=2016-04-30 -- -仕事 ゴールデンウィーク
 - リッチ―大佐 (@c_richie)
 - 世界制覇だ！
 - ret:12 fav:345
-- Bando-shi, Ibaraki (36.0,139.9) 場所の名前と、緯度経度
+- Bando-shi, Ibaraki (36.0,139.9)
 - Twitter for iPhone (http://twitter.com/download/iphone)
 - https://twitter.com/c_richie/status/123456789012345678
 ```
