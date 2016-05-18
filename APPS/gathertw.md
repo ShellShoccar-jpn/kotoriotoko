@@ -36,7 +36,7 @@ gathertw.sh [オプション] [検索キーワード ...]
 
 ```
 -g <緯度,経度,半径>       :
---geocode=<経度,緯度,半径>:
+--geocode=<緯度,経度,半径>:
     検索条件として、<緯度>、<経度>を中心とした<半径>で指定された円の中でツイートされた
     ツイートだけに絞り込む。（緯度、経度の順番に注意）
     従って、このオプションを指定すると位置情報無しのツイートは全て検索対象外になる。
@@ -217,7 +217,7 @@ gathertw.sh -d GW2016 --until=2016-04-30 -- -仕事 ゴールデンウィーク
 - ret:12 fav:345
 - Bando-shi, Ibaraki (36.0,139.9) 場所の名前と、緯度経度
 - Twitter for iPhone (http://twitter.com/download/iphone)
-- https://twitter.com/HutgLy/status/732284527146500096
+- https://twitter.com/c_richie/status/123456789012345678
 ```
 
 1. ツイートされた日時（タイムゾーンは収集したホストのもの）
