@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -v                            |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon May 30 05:34:46 JST 2016
+	Mon May 30 06:10:58 JST 2016
 __USAGE
   exit 1
 }
@@ -276,13 +276,17 @@ apires=`echo "Authorization: Bearer $MY_bearer"          |
                         -H "$oa_hdr"                     \
                         "$API_endpt$apip_get"            #
           fi                                             #
-        done                                             `
+        done                                             |
+        case $(echo '1\n1' | tr '\n' '_') in             #
+          '1_1_') sed 's/\\/\\\\/g';;                    #
+               *) cat              ;;                    #
+        esac                                             `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス出力 =================================================
 # --- 1.レスポンスパース                                                   #
-printf '%s\n' "$apires"                                                    |
+echo "$apires"                                                             |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi        |
 parsrj.sh 2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                   |
@@ -387,7 +391,7 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(printf '%s\n' "$apires"                                     |
+  err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #

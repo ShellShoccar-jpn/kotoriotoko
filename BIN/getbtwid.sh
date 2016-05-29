@@ -42,7 +42,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Mon May 30 05:34:46 JST 2016
+	Mon May 30 06:10:59 JST 2016
 __USAGE
   exit 1
 }
@@ -100,24 +100,32 @@ readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec" |
 
 # === API通信 ========================================================
 if   [ -n "${CMD_WGET:-}" ]; then
-  apires=$("$CMD_WGET" ${no_cert_wget:-} -q -O -      \
-                       --header="$HDR_auth"           \
-                       --header="$HDR_ctype"          \
-                       --post-data="$POS_gtype"       \
-                       "$API_endpt"                   )
+  apires=`"$CMD_WGET" ${no_cert_wget:-} -q -O - \
+                      --header="$HDR_auth"      \
+                      --header="$HDR_ctype"     \
+                      --post-data="$POS_gtype"  \
+                      "$API_endpt"              |
+          case $(echo '1\n1' | tr '\n' '_') in  #
+            '1_1_') sed 's/\\/\\\\/g';;         #
+                 *) cat              ;;         #
+          esac                                  `
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=$("$CMD_CURL" ${no_cert_curl:-} -s           \
-                       -H "$HDR_auth"                 \
-                       -H "$HDR_ctype"                \
-                       -d "$POS_gtype"                \
-                       "$API_endpt"                   )
+  apires=`"$CMD_CURL" ${no_cert_curl:-} -s      \
+                      -H "$HDR_auth"            \
+                      -H "$HDR_ctype"           \
+                      -d "$POS_gtype"           \
+                      "$API_endpt"              |
+          case $(echo '1\n1' | tr '\n' '_') in  #
+            '1_1_') sed 's/\\/\\\\/g';;         #
+                 *) cat              ;;         #
+          esac                                  `
 fi
 
 # === 結果判定 =======================================================
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === メッセージ出力 =================================================
-printf '%s\n' "$apires"                                 |
+echo "$apires"                                          |
 parsrj.sh                                               |
 awk '$1=="$.access_token"{bearer =$2;}                  #
      END {                                              #
@@ -133,7 +141,7 @@ awk '$1=="$.access_token"{bearer =$2;}                  #
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(printf '%s\n' "$apires"                                     |
+  err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #

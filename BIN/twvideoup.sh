@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Mon May 30 05:34:47 JST 2016
+	Mon May 30 06:10:59 JST 2016
 __USAGE
   exit 1
 }
@@ -250,20 +250,24 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
                         -d "$apip_pos"                                \
                         "$API_endpt"                                  #
           fi                                                          #
-        done                                                          `
+        done                                                          |
+        case $(echo '1\n1' | tr '\n' '_') in                          #
+          '1_1_') sed 's/\\/\\\\/g';;                                 #
+               *) cat              ;;                                 #
+        esac                                                          `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to upload a video at step (1/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース
-id=$(printf '%s\n' "$apires"                                             |
+id=$(echo "$apires"                                                      |
      if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi |
      parsrj.sh 2>/dev/null                                               |
      awk '$1~/^\$\.media_id$/{print $2; ok=1;}                           #
           END                {exit (1-ok);   }'                          )
 # --- 2.所定のデータが1行も無かった場合はエラー終了
 case $? in [!0]*)
-  err=$(printf '%s\n' "$apires"                                     |
+  err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
@@ -395,7 +399,11 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
                         --data-binary @-                              \
                         "$API_endpt"                                  #
           fi                                                          #
-        done                                                          `
+        done                                                          |
+        case $(echo '1\n1' | tr '\n' '_') in                          #
+          '1_1_') sed 's/\\/\\\\/g';;                                 #
+               *) cat              ;;                                 #
+        esac                                                          `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to upload a video at step (2/3)';; esac
 
@@ -523,13 +531,17 @@ apires=`printf '%s\noauth_signature=%s\n%s\n'                         \
                         -d "$apip_pos"                                \
                         "$API_endpt"                                  #
           fi                                                          #
-        done                                                          `
+        done                                                          |
+        case $(echo '1\n1' | tr '\n' '_') in                          #
+          '1_1_') sed 's/\\/\\\\/g';;                                 #
+               *) cat              ;;                                 #
+        esac                                                          `
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to upload a video at step (3/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース                                               #
-printf '%s\n' "$apires"                                                |
+echo "$apires"                                                         |
 if [ -n "$rawoutputfile" ]; then tee -a "$rawoutputfile"; else cat; fi |
 parsrj.sh 2>/dev/null                                                  |
 unescj.sh 2>/dev/null                                                  |
@@ -544,7 +556,7 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(printf '%s\n' "$apires"                                     |
+  err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
