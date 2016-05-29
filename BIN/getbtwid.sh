@@ -9,7 +9,7 @@
 # [備考]
 # CONFIG.SHLIBに、MY_apikeyとMY_apisecを設定していなければならない。
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -42,7 +42,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Tue Mar  8 01:56:56 JST 2016
+	Mon May 30 05:34:46 JST 2016
 __USAGE
   exit 1
 }
@@ -117,7 +117,7 @@ fi
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === メッセージ出力 =================================================
-echo "$apires"                                          |
+printf '%s\n' "$apires"                                 |
 parsrj.sh                                               |
 awk '$1=="$.access_token"{bearer =$2;}                  #
      END {                                              #
@@ -133,7 +133,7 @@ awk '$1=="$.access_token"{bearer =$2;}                  #
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(echo "$apires"                                              |
+  err=$(printf '%s\n' "$apires"                                     |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #

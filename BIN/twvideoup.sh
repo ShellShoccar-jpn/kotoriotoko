@@ -5,7 +5,7 @@
 # twvideoup.sh
 # Twitterに動画(MP4形式)ファイルをアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Tue Mar  8 01:56:57 JST 2016
+	Mon May 30 05:34:47 JST 2016
 __USAGE
   exit 1
 }
@@ -256,14 +256,14 @@ case $? in [!0]*) error_exit 1 'Failed to upload a video at step (1/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース
-id=$(echo "$apires"                                                      |
+id=$(printf '%s\n' "$apires"                                             |
      if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi |
      parsrj.sh 2>/dev/null                                               |
      awk '$1~/^\$\.media_id$/{print $2; ok=1;}                           #
           END                {exit (1-ok);   }'                          )
 # --- 2.所定のデータが1行も無かった場合はエラー終了
 case $? in [!0]*)
-  err=$(echo "$apires"                                              |
+  err=$(printf '%s\n' "$apires"                                     |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
@@ -529,7 +529,7 @@ case $? in [!0]*) error_exit 1 'Failed to upload a video at step (3/3)';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース                                               #
-echo "$apires"                                                         |
+printf '%s\n' "$apires"                                                |
 if [ -n "$rawoutputfile" ]; then tee -a "$rawoutputfile"; else cat; fi |
 parsrj.sh 2>/dev/null                                                  |
 unescj.sh 2>/dev/null                                                  |
@@ -544,7 +544,7 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(echo "$apires"                                              |
+  err=$(printf '%s\n' "$apires"                                     |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #

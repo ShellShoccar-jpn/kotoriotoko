@@ -5,7 +5,7 @@
 # tweet.sh
 # Twitterでダイレクトメッセージを送るシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -42,7 +42,7 @@ print_usage_and_exit () {
 	        -m <media_id>  |--mediaid=<media_id>
 	        -l <lat>,<long>|--location=<lat>,<long>
 	        -p <place_id>  |--place=<place_id>
-	Tue Mar  8 01:56:56 JST 2016
+	Mon May 30 05:34:46 JST 2016
 __USAGE
   exit 1
 }
@@ -346,7 +346,7 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース                                             #
-echo "$apires"                                                       |
+printf '%s\n' "$apires"                                              |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi  |
 parsrj.sh 2>/dev/null                                                |
 awk 'BEGIN                {fid=0; fca=0;                         }   #
@@ -382,7 +382,7 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(echo "$apires"                                              |
+  err=$(printf '%s\n' "$apires"                                     |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #

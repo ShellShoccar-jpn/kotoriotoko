@@ -5,7 +5,7 @@
 # bretwer.sh
 # 指定ツイートをリツイートしたユーザー一覧を見る（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/03/08
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -37,7 +37,7 @@ print_usage_and_exit () {
 	        -n <count>|--count=<count>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Mar  8 01:56:56 JST 2016
+	Mon May 30 05:34:46 JST 2016
 __USAGE
   exit 1
 }
@@ -192,7 +192,7 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
 # --- 1.レスポンスパース                                                     #
-echo "$apires"                                                               |
+printf '%s\n' "$apires"                                                      |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
 parsrj.sh 2>/dev/null                                                        |
 unescj.sh -n 2>/dev/null                                                     |
@@ -214,7 +214,7 @@ awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================
 case $? in [!0]*)
-  err=$(echo "$apires"                                              |
+  err=$(printf '%s\n' "$apires"                                     |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
