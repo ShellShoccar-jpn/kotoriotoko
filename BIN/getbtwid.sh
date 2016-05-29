@@ -42,7 +42,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Mon May 30 06:10:59 JST 2016
+	Mon May 30 08:08:12 JST 2016
 __USAGE
   exit 1
 }
@@ -100,25 +100,27 @@ readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec" |
 
 # === API通信 ========================================================
 if   [ -n "${CMD_WGET:-}" ]; then
-  apires=`"$CMD_WGET" ${no_cert_wget:-} -q -O - \
-                      --header="$HDR_auth"      \
-                      --header="$HDR_ctype"     \
-                      --post-data="$POS_gtype"  \
-                      "$API_endpt"              |
-          case $(echo '1\n1' | tr '\n' '_') in  #
-            '1_1_') sed 's/\\/\\\\/g';;         #
-                 *) cat              ;;         #
-          esac                                  `
+  apires=$("$CMD_WGET" ${no_cert_wget:-} -q -O -              \
+                       --header="$HDR_auth"                   \
+                       --header="$HDR_ctype"                  \
+                       --post-data="$POS_gtype"               \
+                       "$API_endpt"                           |
+           if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
+             sed 's/\\/\\\\/g'                                #
+           else                                               #
+             cat                                              #
+           fi                                                 )
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=`"$CMD_CURL" ${no_cert_curl:-} -s      \
-                      -H "$HDR_auth"            \
-                      -H "$HDR_ctype"           \
-                      -d "$POS_gtype"           \
-                      "$API_endpt"              |
-          case $(echo '1\n1' | tr '\n' '_') in  #
-            '1_1_') sed 's/\\/\\\\/g';;         #
-                 *) cat              ;;         #
-          esac                                  `
+  apires=$("$CMD_CURL" ${no_cert_curl:-} -s                   \
+                       -H "$HDR_auth"                         \
+                       -H "$HDR_ctype"                        \
+                       -d "$POS_gtype"                        \
+                       "$API_endpt"                           |
+           if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
+             sed 's/\\/\\\\/g'                                #
+           else                                               #
+             cat                                              #
+           fi                                                 )
 fi
 
 # === 結果判定 =======================================================

@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        -r <tweet_id>  |--reply=<tweet_id>
 	        -l <lat>,<long>|--location=<lat>,<long>
 	        -p <place_id>  |--place=<place_id>
-	Mon May 30 06:10:59 JST 2016
+	Mon May 30 08:08:12 JST 2016
 __USAGE
   exit 1
 }
@@ -300,46 +300,51 @@ ______________KEY_AND_DATA
 
 # === API通信 ========================================================
 # --- 1.APIコール
-apires=`printf '%s\noauth_signature=%s\n%s\n'            \
-               "${oa_param}"                             \
-               "${sig_strin}"                            \
-               "${API_param}"                            |
-        urlencode -r                                     |
-        sed 's/%1[Ee]/%0A/g'                             | #<退避
-        sed 's/%3[Dd]/=/'                                | # 改行
-        sort -k 1,1 -t '='                               | # 復帰
-        tr '\n' ','                                      |
-        sed 's/^,*//'                                    |
-        sed 's/,*$//'                                    |
-        sed 's/^/Authorization: OAuth /'                 |
-        grep ^                                           |
-        while read -r oa_hdr; do                         #
-          if   [ -n "${CMD_WGET:-}" ]; then              #
-            case "$timeout" in                           #
-              '') :                                   ;; #
-               *) timeout="--connect-timeout=$timeout";; #
-            esac                                         #
-            "$CMD_WGET" ${no_cert_wget:-} -q -O -        \
-                        --header="$oa_hdr"               \
-                        --post-data="$apip_pos"          \
-                        $timeout                         \
-                        "$API_endpt"                     #
-          elif [ -n "${CMD_CURL:-}" ]; then              #
-            case "$timeout" in                           #
-              '') :                                   ;; #
-               *) timeout="--connect-timeout $timeout";; #
-            esac                                         #
-            "$CMD_CURL" ${no_cert_curl:-} -s             \
-                        $timeout                         \
-                        -H "$oa_hdr"                     \
-                        -d "$apip_pos"                   \
-                        "$API_endpt"                     #
-          fi                                             #
-        done                                             |
-        case $(echo '1\n1' | tr '\n' '_') in             #
-          '1_1_') sed 's/\\/\\\\/g';;                    #
-               *) cat              ;;                    #
-        esac                                             `
+apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
+                "${oa_param}"                               \
+                "${sig_strin}"                              \
+                "${API_param}"                              |
+         urlencode -r                                       |
+         sed 's/%1[Ee]/%0A/g'                               | #<退避
+         sed 's/%3[Dd]/=/'                                  | # 改行
+         sort -k 1,1 -t '='                                 | # 復帰
+         tr '\n' ','                                        |
+         sed 's/^,*//'                                      |
+         sed 's/,*$//'                                      |
+         sed 's/^/Authorization: OAuth /'                   |
+         grep ^                                             |
+         while read -r oa_hdr; do                           #
+           if   [ -n "${CMD_WGET:-}" ]; then                #
+             [ -n "$timeout" ] && {                         #
+               timeout="--connect-timeout=$timeout"         #
+             }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
+             "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
+                         --header="$oa_hdr"                 \
+                         --post-data="$apip_pos"            \
+                         $timeout "$comp"                   \
+                         "$API_endpt"                     | #
+             if [ -n "$comp" ]; then gunzip; else cat; fi   #
+           elif [ -n "${CMD_CURL:-}" ]; then                #
+             [ -n "$timeout" ] && {                         #
+               timeout="--connect-timeout $timeout"         #
+             }                                              #
+             "$CMD_CURL" ${no_cert_curl:-} -s               \
+                         $timeout --compressed              \
+                         -H "$oa_hdr"                       \
+                         -d "$apip_pos"                     \
+                         "$API_endpt"                       #
+           fi                                               #
+         done                                               |
+         if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
+           sed 's/\\/\\\\/g'                                #
+         else                                               #
+           cat                                              #
+         fi                                                 )
 # --- 2.結果判定
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
