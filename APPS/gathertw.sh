@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/17
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/20
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Tue May 17 22:18:49 JST 2016
+	Mon Jun 20 00:39:51 JST 2016
 __USAGE
   exit 1
 }
@@ -380,7 +380,7 @@ while :; do
   s=$(awk 'BEGIN {                                           #
              getline l1; getline l2; getline l3; getline l4; #
              getline l5; getline l6; getline l7;             #
-             last_dt=l1; gsub(/[/:]/ ," ",last_dt);          #
+             last_dt=l1; gsub(/[\/:]/," ",last_dt);          #
              last_id=l7;  sub(/^.*\//,"" ,last_id);          #
              l1="";                                          #
              while (1) {                                     #
@@ -392,7 +392,7 @@ while :; do
                }                                             #
              }                                               #
              if (length(l1)>0) {                             #
-               since_dt=l1; gsub(/[/:]/ ," ",since_dt);      #
+               since_dt=l1; gsub(/[\/:]/," ",since_dt);      #
                since_id=l7;  sub(/^.*\//,"" ,since_id);      #
              } else            {                             #
                since_dt=last_dt; since_id=last_id;           #
@@ -465,7 +465,7 @@ while :; do
           if (! getline l5) {break;}
           if (! getline l6) {break;}
           if (! getline l7) {break;}
-          s = l1; gsub(/[/:]/," ",s); split(s, dt);
+          s = l1; gsub(/[\/:]/," ",s); split(s, dt);
           Dir_curr  = Dir_RES  "/" dt[1] dt[2] dt[3] "/" dt[4];
           File_curr = Dir_curr "/" dt[4] dt[5] dt[6] ".txt";
           if (Dir_curr != Dir_last) {
