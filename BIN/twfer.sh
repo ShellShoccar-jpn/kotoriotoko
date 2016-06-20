@@ -5,7 +5,7 @@
 # twfer.sh
 # Twitterの指定ユーザーのフォロワーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Mon May 30 08:08:12 JST 2016
+	Tue Jun 21 02:44:44 JST 2016
 __USAGE
   exit 1
 }
@@ -256,6 +256,7 @@ echo "$apires"                                                               |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
 parsrj.sh 2>/dev/null                                                        |
 unescj.sh -n 2>/dev/null                                                     |
+tr -d '\000'                                                                 |
 sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                 |
 grep -v '^\$'                                                                |
 awk '                                                                        #

@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/04/19
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Apr 19 02:52:44 JST 2016
+	Tue Jun 21 03:06:05 JST 2016
 __USAGE
   exit 1
 }
@@ -316,6 +316,7 @@ ______________KEY_AND_DATA
        tr -d '\r'                                                              |
        parsrj.sh 2>/dev/null                                                   |
        unescj.sh -n 2>/dev/null                                                |
+       tr -d '\000'                                                            |
        sed 's/^[^.]*.//'                                                       |
        grep -v '^\$'                                                           |
        awk '                                                                   #

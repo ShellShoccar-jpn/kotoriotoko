@@ -5,7 +5,7 @@
 # twmediup.sh
 # Twitterに画像等をアップロードするシェルスクリプト
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} <file>
-	Mon May 30 08:08:12 JST 2016
+	Tue Jun 21 03:05:06 JST 2016
 __USAGE
   exit 1
 }
@@ -263,7 +263,6 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 echo "$apires"                                                         |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi    |
 parsrj.sh 2>/dev/null                                                  |
-unescj.sh 2>/dev/null                                                  |
 awk 'BEGIN                        {id= 0; ex=0;                     }  #
      $1~/^\$\.media_id$/          {id=$2;                           }  #
      $1~/^\$\.expires_after_secs$/{ex=$2;                           }  #

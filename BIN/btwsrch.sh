@@ -5,7 +5,7 @@
 # btwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -v                            |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon May 30 08:08:12 JST 2016
+	Tue Jun 21 03:03:18 JST 2016
 __USAGE
   exit 1
 }
@@ -289,6 +289,7 @@ echo "$apires"                                                             |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi        |
 parsrj.sh 2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                   |
+tr -d '\000'                                                               |
 sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                            |
 grep -v '^\$'                                                              |
 awk '                                                                      #
