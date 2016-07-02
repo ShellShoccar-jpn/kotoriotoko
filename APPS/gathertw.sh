@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/20
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/07/03
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Mon Jun 20 00:39:51 JST 2016
+	Sun Jul  3 06:18:12 JST 2016
 __USAGE
   exit 1
 }
@@ -62,9 +62,16 @@ error_exit() {
 
 # === コマンド存在チェック ===========================================
 sleep 0.001 2>/dev/null || {
-  error_exit 1 'A sleep command can sleep at >1 is required'
+  error_exit 1 'A sleep command can sleep at <1 is required'
 }
 [ -x "$Dir_kotori/BIN/btwsrch.sh" ] || error_exit 1 'Kotoriotoko not found'
+if   type bc >/dev/null 2>&1                                      ; then
+  CMD_CALC='bc'
+elif [ "$(expr 9223372036854775806 + 1)" = '9223372036854775807' ]; then
+  CMD_CALC='xargs expr'
+else
+  error_exit 1 'bc command or 64bit-expr command is required'
+fi
 
 
 ######################################################################
@@ -277,15 +284,15 @@ since=''
 s=''
 [ -f "$File_lastid" ] && s=$(cat "$File_lastid" | tr -Cd 0123456789)
 case "$sinceid-$s" in
-  -)   :                                                      ;;
-  -*)  since="--sinceid=$s"                                   ;;
-  *-*) since="--sinceid=$sinceid"                             ;;
- #*-)  since="--sinceid=$sinceid"                             ;;
- #*-*) if echo "$sinceid - $s" | bc | grep -q '^[0-9]'; then #
- #       since="--sinceid=$sinceid"                          #
- #     else                                                  #
- #       since="--sinceid=$s"                                #
- #     fi                                                     ;;
+  -)   :                                                             ;;
+  -*)  since="--sinceid=$s"                                          ;;
+  *-*) since="--sinceid=$sinceid"                                    ;;
+ #*-)  since="--sinceid=$sinceid"                                    ;;
+ #*-*) if echo "$sinceid - $s" | $CMD_CALC | grep -q '^[0-9]'; then #
+ #       since="--sinceid=$sinceid"                                 #
+ #     else                                                         #
+ #       since="--sinceid=$s"                                       #
+ #     fi                                                            ;;
 esac
 
 # === 初回の検索範囲（最終ツイート）指定 =============================
@@ -411,10 +418,10 @@ while :; do
   # === 最新ツイートIDが、記録されているものより新しければ更新 =======
   overwrite=0
   while :; do
-    [ -s "$File_lastid" ]                || { overwrite=1; break; }
+    [ -s "$File_lastid" ]                       || { overwrite=1; break; }
     s=$(cat "$File_lastid")
-    echo "$s" | grep -Eq '^[0-9]+$'      || { overwrite=1; break; }
-    echo "$s - $eID" | bc | grep -q '^-' && { overwrite=1; break; }
+    echo "$s" | grep -Eq '^[0-9]+$'             || { overwrite=1; break; }
+    echo "$s - $eID" | $CMD_CALC | grep -q '^-' && { overwrite=1; break; }
     break
   done
   case $overwrite in [!0]*)
@@ -426,10 +433,10 @@ while :; do
   # === 最古ツイートIDが、記録されているものより古ければ更新 =========
   overwrite=0
   while :; do
-    [ -s "$File_sinceid" ]               || { overwrite=1; break; }
+    [ -s "$File_sinceid" ]                      || { overwrite=1; break; }
     s=$(cat "$File_sinceid")
-    echo "$s" | grep -Eq '^[0-9]+$'      || { overwrite=1; break; }
-    echo "$sID - $s" | bc | grep -q '^-' && { overwrite=1; break; }
+    echo "$s" | grep -Eq '^[0-9]+$'             || { overwrite=1; break; }
+    echo "$sID - $s" | $CMD_CALC | grep -q '^-' && { overwrite=1; break; }
     break
   done
   case $overwrite in [!0]*)
@@ -489,13 +496,13 @@ while :; do
 
   # === ツイートが最古設定したものよりも古ければ終了 =================
   if [ -n "${sincedt:-}" ]; then
-    echo "$sY$sM$sD$sh$sm$ss - $sincedt" | bc | grep -q '^-' && {
+    echo "$sY$sM$sD$sh$sm$ss - $sincedt" | $CMD_CALC | grep -q '^-' && {
       echo "Arrived at the since date and time ... finish searching" 1>&2; break
     }
   fi
 
   # === ループ =======================================================
-  last="--maxid=$(echo $sID - 1 | bc)"
+  last="--maxid=$(echo $sID - 1 | $CMD_CALC)"
   retry_ok=$((maxretry_ok+1))
   retry_ng=$((maxretry_ng+1))
   interval=$interval_ok
