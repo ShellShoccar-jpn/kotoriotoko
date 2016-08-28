@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/15
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/28
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Sun Jul  3 06:18:12 JST 2016
+	Sun Aug 28 21:32:16 JST 2016
 __USAGE
   exit 1
 }
@@ -323,6 +323,7 @@ n_total=0
 retry_ok=$((maxretry_ok+1))
 retry_ng=$((maxretry_ng+1))
 interval=$interval_ok
+lastTIME=''
 while :; do
   # === API呼び出し間隔が$interval秒未満ならcontinue =================
   ut_curr=$(date +%Y%m%d%H%M%S | calclock 1 | awk '{print $2}')
@@ -363,10 +364,86 @@ while :; do
     retry_ok=$((retry_ok-1))
     case "$continuously $retry_ok" in
       '0 0') echo "No tweet found ... finish gathering"             1>&2;break;;
-      '1 0') echo "No tweet found ... regather from the last tweet" 1>&2
+      '1 0') next_utc_local=$(date -u '+%Y%m%d000000' | # 現在日時から次に訪れる
+                              TZ= calclock 1          | # UTCの0時をlocal時間の
+                              awk '{print $2+86400}'  | # YMDhmsで表現したもの
+                              calclock -r 1           |
+                              awk '{print $2};'       )
+             bContFromLast=1
+             while :; do
+               f=''
+               case "$until" in [0-9]*)       f="${f}Until";; esac
+               case "$last"  in *'--maxid='*) f="${f}Maxid";; esac
+               case "$f" in 'UntilMaxid')
+                 s=$(echo "${until}000000" |
+                     TZ= calclock 1        |
+                     calclock -r 2         |
+                     sed 's/^.* //'        )
+                 if echo "$s - $lastTIME" | $CMD_CALC | grep -q '^[0-9]'; then
+                   f='Until'
+                 else
+                   f='Maxid'
+                 fi
+                 ;;
+               esac
+               case "$f" in 
+               'Until')
+                 s=$(echo "${until}000000"  |
+                     TZ= calclock 1         |
+                     awk '{print $2+86400;}')
+                 next_uopt_date=$(echo "$s"                                  |
+                                  TZ= calclock -r 1                          |
+                                  self 2.1.8                                 |
+                                  sed 's/^\(.\{1,\}\)\(..\)\(..\)$/\1-\2-\3/')
+                 s=$(echo "$s"        |
+                     calclock -r 1    |
+                     awk '{print $2;}')
+                 echo "$s - $next_utc_local" | $CMD_CALC | grep -q '^[0-9]' && {
+                   break
+                 }
+                 bContFromLast=0
+                 break
+                 ;;
+               'Maxid')
+                 case "$lastTIME" in '') break;; esac
+                 s=$(echo "$lastTIME"                      |
+                     calclock 1                            |
+                     awk '{print $2+86400;}'               |
+                     TZ= calclock -r 1                     |
+                     sed 's/.*\(.\{8\}\)......$/\1000000/' |
+                     TZ= calclock 1                        |
+                     sed 's/^.* //'                        )
+                 next_uopt_date=$(echo "$s"                                  |
+                                  TZ= calclock -r 1                          |
+                                  self 2.1.8                                 |
+                                  sed 's/^\(.\{1,\}\)\(..\)\(..\)$/\1-\2-\3/')
+                 s=$(echo "$s"        |
+                     calclock -r 1    |
+                     awk '{print $2;}')
+                 echo "$s - $next_utc_local" | $CMD_CALC | grep -q '^[0-9]' && {
+                   break
+                 }
+                 bContFromLast=0
+                 break
+                 ;;
+               esac
+               break
+             done
+             case $bContFromLast in
+               1) until=''
+                  last=''
+                  s='the current time'
+                  ;;
+               0) until=$(echo "$next_uopt_date" | tr -d '-')
+                  last="--until=$next_uopt_date"
+                  s=$(echo $next_uopt_date        |
+                      tr '_-' '_/'                |
+                      sed 's/.*/&-00:00:00 (UTC)/')
+                  ;;
+             esac
+             echo "No tweet found ... regather from ${s}" 1>&2
              retry_ok=$((maxretry_ok+1))
              retry_ng=$((maxretry_ng+1))
-             last=''
              if [ -s "$File_lastid" ]; then
                lastID=$(cat "$File_lastid" | tr -Cd 0123456789)
              else
@@ -430,6 +507,7 @@ while :; do
   case $overwrite in [!0]*)
     [ -s "$File_lastid" ] && mv "$File_lastid" "$File_lastid.bak"
     echo "$eID" > "$File_lastid"
+    lastTIME="$eY$eM$eD$eh$em$es"
     ;;
   esac
 
