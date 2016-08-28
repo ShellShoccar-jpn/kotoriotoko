@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Mon Aug 29 00:28:38 JST 2016
+	Mon Aug 29 01:37:05 JST 2016
 __USAGE
   exit 1
 }
@@ -372,14 +372,16 @@ while :; do
              bContFromLast=1
              while :; do
                f=''
-               case "$until" in [0-9]*)       f="${f}Until";; esac
-               case "$last"  in *'--maxid='*) f="${f}Maxid";; esac
+               case "$until" in [0-9]*) f="${f}Until";; esac
+               case "$maxid" in [0-9]*) f="${f}Maxid";; esac
                case "$f" in 'UntilMaxid')
                  s=$(echo "${until}000000" |
                      TZ= calclock 1        |
                      calclock -r 2         |
                      sed 's/^.* //'        )
-                 if echo "$s - $lastTIME" | $CMD_CALC | grep -q '^[0-9]'; then
+                 if   [ -z "$lastTIME"                                   ]; then
+                   f='Until'
+                 elif echo "$s - $lastTIME" | $CMD_CALC | grep -q '^[0-9]'; then
                    f='Until'
                  else
                    f='Maxid'
@@ -429,6 +431,7 @@ while :; do
                esac
                break
              done
+             maxid=''
              case $bContFromLast in
                1) until=''
                   last=''
