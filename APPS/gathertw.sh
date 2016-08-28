@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/28
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Sun Aug 28 21:32:16 JST 2016
+	Mon Aug 29 00:28:38 JST 2016
 __USAGE
   exit 1
 }
@@ -335,7 +335,7 @@ while :; do
   ut_last=$ut_curr
 
   # === 検索実行 =====================================================
-  case $noraw in 0) rawout="--rawout=$Tmp/raw";; *) rawout='';; esac
+  case $noraw in 0) rawout="--rawout=$Tmp/raw";; *) rawout='-v';; esac
   btwsrch.sh -v                        \
              "$rawout"                 \
              "--timeout=$((interval))" \
