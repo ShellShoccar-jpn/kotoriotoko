@@ -18,7 +18,7 @@
 #                         from wrapping.
 #        "-i" ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
+# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/08/28
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage   : ${0##*/} [--by-myself] [-w <COLS>] <file>
 	          ${0##*/} [--by-myself] -d [-i] <file>
-	Version : Tue Mar  8 02:00:53 JST 2016
+	Version : Sun Aug 28 14:27:08 JST 2016
 	        : (POSIX.1 Bourne Shell/POSIX.1 commands)
 	        :   * Although the bult-in base64, uuencode and uudecode command or
 	        :     GNU AWK produces better performance than the POSIX commands set
@@ -65,9 +65,12 @@ by_myself=0
 case "${1:-}" in '--by-myself') shift; by_myself=1;; esac
 
 # --- use "bult-in" base64 if available and wanted -------------------
-if [ $by_myself -eq 0 ] && type base64 >/dev/null 2>&1; then
+if   [ $by_myself -eq 0 ] && printf 1 | base64 -w 0 >/dev/null 2>&1; then
   exec base64 "$@"
   exit 1
+elif [ $by_myself -eq 0 ] && printf 1 | base64 -b 0 >/dev/null 2>&1; then
+  # If Mac OS X version exists, I will use it after option parsing
+  CMD_BASE64_MAC=$(which base64)
 fi
 
 # --- check whether this host has a "binarable" AWK command or not ---
@@ -97,56 +100,61 @@ while :; do
   case $# in 0) break;; esac
   case "$optmode" in
     '') case "$1" in
-          -)        case $# in 1) break;; esac
-                    ;;
-          -[diw]*)  s=$(printf '%s\n' "${1#-}"                             |
-                        awk '{d = "_"; i = "_"; w = "_"; err=0;            #
-                              s = $0;                                      #
-                              sub(/w[0-9]+$/, "w", s);                     #
-                              l = length(s);                               #
-                              for (n=1;n<=l;n++) {                         #
-                                c = substr(s, n, 1);                       #
-                                if      ( c=="d"         ) { d   = "d"; }  #
-                                else if ( c=="i"         ) { i   = "i"; }  #
-                                else if ((c=="w")&&(n==l)) { w   = "w"; }  #
-                                else                       { err =  1 ; }  #
-                              }                                            #
-                              printf("%s%s%s%s",d,i,w,err);              }')
-                    case "$s" in *1*) print_usage_and_exit;; esac
-                    case "$s" in *d*) mode='d'            ;; esac
-                    case "$s" in *i*) opti=1              ;; esac
-                    case "$s" in
-                      *w*) echo ${1#-} | grep -Eq 'w$' &&       {
-                             optmode='w'
-                             shift
-                             continue
-                           }
-                           echo ${1#-} | grep -Eq 'w[0-9]+$' && {
-                             optmode='w'
-                             s=${1##*w}
-                           }
-                           ;;
-                      *)   shift
-                           continue
-                           ;;
-                    esac
-                    ;;
-          --decode) mode='d'
-                    shift
-                    continue
-                    ;;
+          -)         case $# in 1) break;; esac
+                     ;;
+          -[bdiw]*)  s=$(printf '%s\n' "${1#-}"                             |
+                         awk '{d = "_"; i = "_"; w = "_"; err=0;            #
+                               s = $0;                                      #
+                               sub(/w[0-9]+$/, "w", s);                     #
+                               l = length(s);                               #
+                               for (n=1;n<=l;n++) {                         #
+                                 c = substr(s, n, 1);                       #
+                                 if      ( c=="d"         ) { d   = "d"; }  #
+                                 else if ( c=="i"         ) { i   = "i"; }  #
+                                 else if ((c=="w")&&(n==l)) { w   = "w"; }  #
+                                 else if ((c=="b")&&(n==l)) { w   = "w"; }  #
+                                 else                       { err =  1 ; }  #
+                               }                                            #
+                               printf("%s%s%s%s",d,i,w,err);              }')
+                     case "$s" in *1*) print_usage_and_exit    ;; esac
+                     case "$s" in *d*) mode='d'                ;; esac
+                     case "$s" in *i*) opti=1;CMD_BASE64_MAC='';; esac
+                     case "$s" in
+                       *w*) echo ${1#-} | grep -Eq 'w$' &&       {
+                              optmode='w'
+                              shift
+                              continue
+                            }
+                            echo ${1#-} | grep -Eq 'w[0-9]+$' && {
+                              optmode='w'
+                              s=${1##*w}
+                            }
+                            ;;
+                       *)   shift
+                            continue
+                            ;;
+                     esac
+                     ;;
+          --decode)  mode='d'
+                     shift
+                     continue
+                     ;;
           --ignore-garbage)
-                    opti=1
-                    shift
-                    continue
-                    ;;
-          --wrap=*) optmode='w'
-                    s=${1#--wrap=}
-                    ;;
-          -*)       print_usage_and_exit
-                    ;;
-          *)        break
-                    ;;
+                     opti=1;
+                     CMD_BASE64_MAC=''
+                     shift
+                     continue
+                     ;;
+          --wrap=*)  optmode='w'
+                     s=${1#--wrap=}
+                     ;;
+          --break=*) optmode='w'
+                     s=${1#--break=}
+                     ;;
+          -*)        print_usage_and_exit
+                     ;;
+          *)         break
+                     ;;
         esac
         ;;
     *)  s=$1
@@ -180,6 +188,16 @@ esac
 
 
 # ===== ENCODING / DECODING ==========================================
+
+# --- If Mac OS X version base64 was requested, call it here ---------
+case "$by_myself${CMD_BASE64_MAC:-}" in 0/*)
+  opts=''
+  case $mode in d) opts="$opts -d";; esac
+  opts="$opts -b $width"
+  exec "$CMD_BASE64_MAC" $opts -i "$file"
+  exit 1
+  ;;
+esac
 
 # --- use uu*code command if available and wanted --------------------
 if [ $by_myself -eq 0 ] && uuencode -m dummy </dev/null >/dev/null 2>&1; then

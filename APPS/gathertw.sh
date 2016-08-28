@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/07/03
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/15
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -96,6 +96,7 @@ continuously=0
 peek=0
 noraw=0
 nores=0
+opts=''
 queries=''
 
 # === オプション取得 =================================================
@@ -231,9 +232,10 @@ case $# in
      queries="$*"
      ;;
 esac
-[ -n "$geocode$lang$locale$queries" ] || {
-  print_usage_and_exit
-}
+case "$geocode$lang$locale$queries" in '') print_usage_and_exit;; esac
+case "$geocode" in '') :;; *) opts="$opts -g $geocode";; esac
+case "$lang"    in '') :;; *) opts="$opts -l $lang"   ;; esac
+case "$locale"  in '') :;; *) opts="$opts -o $locale" ;; esac
 
 
 ######################################################################
@@ -298,10 +300,10 @@ esac
 # === 初回の検索範囲（最終ツイート）指定 =============================
 last=''
 case "$until" in
-  '') :                                                            ;;
-   *) last=$(echo $until                                          |
-             sed 's/../& /g'                                      |
-             xargs printf '%s --until=%02d%02d-%02d-%02d' "$last" );;
+  '') :                                                    ;;
+   *) last=$(echo $until                                  |
+             sed 's/../& /g'                              |
+             xargs printf '%s --until=%s%s-%s-%s' "$last" );;
 esac
 case "$maxid" in
   '') :                       ;;
@@ -339,6 +341,7 @@ while :; do
              -n "$count"               \
              $since                    \
              $last                     \
+             $opts                     \
              "$queries"                > "$Tmp/res"
   [ $? -eq 0 ] || {
     retry_ng=$((retry_ng-1))
