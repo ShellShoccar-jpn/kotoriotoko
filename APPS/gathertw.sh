@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Mon Aug 29 01:37:05 JST 2016
+	Mon Aug 29 23:23:27 DST 2016
 __USAGE
   exit 1
 }
@@ -268,6 +268,7 @@ mkdir -p "${Dir_DATA}" || error_exit 1 "Can't mkdir \"${Dir_DATA}\""
 # === サブディレクトリー・ファイル・一時ファイル用ディレクトリー定義 =
 File_lastid="${Dir_DATA%/}/LAST_TWID.txt"
 File_sinceid="${Dir_DATA%/}/SINCE_TWID.txt"
+File_numtweets="${Dir_DATA%/}/NUM_OF_TWEETS.txt"
 export Dir_RAW="${Dir_DATA%/}/RAW"
 export Dir_RES="${Dir_DATA%/}/RES"
 Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXXX"` || {
@@ -297,6 +298,13 @@ case "$sinceid-$s" in
  #     fi                                                            ;;
 esac
 
+# === これまでの検索済累積ツイート数ファイルがあれば取り込む =========
+n_total=0
+[ -s "$File_numtweets" ] && {
+  s=$(cat "$File_numtweets" | head -n 1 | grep -E '^[0-9]+$')
+  case "$s" in [0-9]*) n_total=$s;; esac
+}
+
 # === 初回の検索範囲（最終ツイート）指定 =============================
 last=''
 case "$until" in
@@ -319,7 +327,6 @@ ut_last=$(date +%Y%m%d%H%M%S | calclock 1 | awk '{print $2-1}')
 # メインループ
 ######################################################################
 
-n_total=0
 retry_ok=$((maxretry_ok+1))
 retry_ng=$((maxretry_ng+1))
 interval=$interval_ok
@@ -498,6 +505,10 @@ while :; do
   s="$s gathered $n tweet(s) (tot.$n_total)"
   echo "$s" 1>&2
 
+  # === 検索済累積ツイート数ファイルを更新 ===========================
+  #[ -s "$File_numtweets" ] && mv "$File_numtweets" "$File_numtweets.bak"
+  echo $n_total > "$File_numtweets"
+
   # === 最新ツイートIDが、記録されているものより新しければ更新 =======
   overwrite=0
   while :; do
@@ -508,7 +519,7 @@ while :; do
     break
   done
   case $overwrite in [!0]*)
-    [ -s "$File_lastid" ] && mv "$File_lastid" "$File_lastid.bak"
+    #[ -s "$File_lastid" ] && mv "$File_lastid" "$File_lastid.bak"
     echo "$eID" > "$File_lastid"
     lastTIME="$eY$eM$eD$eh$em$es"
     ;;
@@ -524,7 +535,7 @@ while :; do
     break
   done
   case $overwrite in [!0]*)
-    [ -s "$File_sinceid" ] && mv "$File_sinceid" "$File_sinceid.bak"
+    #[ -s "$File_sinceid" ] && mv "$File_sinceid" "$File_sinceid.bak"
     echo "$sID" > "$File_sinceid"
     ;;
   esac
