@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -v                            |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon Aug 29 09:33:47 JST 2016
+	Mon Aug 29 16:32:18 JST 2016
 __USAGE
   exit 1
 }
@@ -295,7 +295,8 @@ grep -v '^\$'                                                              |
 awk '                                                                      #
   BEGIN                   {tm=""; id=""; tx=""; an=""; au="";              #
                            nr=""; nf=""; fr=""; ff=""; nm=""; sn="";       #
-                           ge=""; la=""; lo=""; pl=""; pn="";            } #
+                           ge=""; la=""; lo=""; pl=""; pn="";              #
+                           en= 0; split("",eu);                          } #
   $2=="created_at"        {tm=substr($0,length($1 $2)+3);print_tw();next;} #
   $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
   $2=="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
@@ -317,6 +318,8 @@ awk '                                                                      #
                                 sub(/".*$/     ,"",au)  ;print_tw();next;} #
   $2=="retweeted_status.text"{tx="RT " substr($0,length($1 $2)+3);         #
                                                          print_tw();next;} #
+  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
+                           en++;eu[en]=substr($0,length($1 $2)+3);next;  } #
   function print_tw( r,f) {                                                #
     if (tm=="") {return;}                                                  #
     if (id=="") {return;}                                                  #
@@ -333,6 +336,7 @@ awk '                                                                      #
     if (au=="") {return;}                                                  #
     r = (fr=="true") ? "RET" : "ret";                                      #
     f = (ff=="true") ? "FAV" : "fav";                                      #
+    if (en>0) {replace_url();}                                             #
     printf("%s\n"                                ,tm       );              #
     printf("- %s (@%s)\n"                        ,nm,sn    );              #
     printf("- %s\n"                              ,tx       );              #
@@ -343,7 +347,18 @@ awk '                                                                      #
     printf("- %s (%s)\n",an,au);                                           #
     printf("- https://twitter.com/%s/status/%s\n",sn,id    );              #
     tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";         #
-    ge=""; la=""; lo=""; pl=""; pn=""; an=""; au="";                    }' |
+    ge=""; la=""; lo=""; pl=""; pn=""; an=""; au="";                       #
+    en= 0; split("",eu);                                                 } #
+  function replace_url( tx0,i) {                                           #
+    tx0= tx;                                                               #
+    tx = "";                                                               #
+    i  =  0;                                                               #
+    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {        #
+      i++;                                                                 #
+      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                #
+      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                #
+    }                                                                      #
+    tx = tx tx0;                                                        }' |
 # --- 2.日時フォーマット変換                                               #
 awk 'BEGIN {                                                               #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";         #
