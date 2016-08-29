@@ -5,7 +5,7 @@
 # btwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -v                            |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Jun 21 03:03:18 JST 2016
+	Mon Aug 29 09:33:47 JST 2016
 __USAGE
   exit 1
 }
@@ -315,6 +315,8 @@ awk '                                                                      #
                                 sub(/^<a[^>]*>/,"",an)  ;                  #
                            au=s;sub(/^.*href="/,"",au)  ;                  #
                                 sub(/".*$/     ,"",au)  ;print_tw();next;} #
+  $2=="retweeted_status.text"{tx="RT " substr($0,length($1 $2)+3);         #
+                                                         print_tw();next;} #
   function print_tw( r,f) {                                                #
     if (tm=="") {return;}                                                  #
     if (id=="") {return;}                                                  #

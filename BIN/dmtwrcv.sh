@@ -5,7 +5,7 @@
 # dmtwrcv.sh
 # Twitterの受信済ダイレクトメッセージ一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -39,7 +39,7 @@ print_usage_and_exit () {
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Jun 21 03:10:50 JST 2016
+	Mon Aug 29 14:36:25 JST 2016
 __USAGE
   exit 1
 }
@@ -276,23 +276,44 @@ unescj.sh -n 2>/dev/null                                                   |
 tr -d '\000'                                                               |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                      |
 awk '                                                                      #
-  BEGIN                   {tm=""; id=""; tx="";        nm=""; sn="";     } #
-  $2=="created_at"        {tm=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="sender.name"       {nm=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="sender.screen_name"{sn=substr($0,length($1 $2)+3);print_tw();next;} #
+  BEGIN                   {tm=""; id=""; tx="";        nm=""; sn="";       #
+                           en= 0; split("",eu); no= 0;                   } #
+  $1!=no                  {no=$1;print_tw();                             } #
+  $2=="created_at"        {tm=substr($0,length($1 $2)+3);next;           } #
+  $2=="id"                {id=substr($0,length($1 $2)+3);next;           } #
+  $2=="text"              {tx=substr($0,length($1 $2)+3);next;           } #
+  $2=="sender.name"       {nm=substr($0,length($1 $2)+3);next;           } #
+  $2=="sender.screen_name"{sn=substr($0,length($1 $2)+3);next;           } #
+  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
+                           s =substr($0,length($1 $2)+3);                  #
+             if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
+               next;                                                       #
+             }                                                             #
+                           en++;eu[en]=s;                                } #
+  END                     {print_tw();                                   } #
   function print_tw() {                                                    #
     if (tm=="") {return;}                                                  #
     if (id=="") {return;}                                                  #
     if (tx=="") {return;}                                                  #
     if (nm=="") {return;}                                                  #
     if (sn=="") {return;}                                                  #
+    if (en>0) {replace_url();}                                             #
     printf("%s\n"                                ,tm       );              #
     printf("- %s (@%s)\n"                        ,nm,sn    );              #
     printf("- %s\n"                              ,tx       );              #
     printf("- id=%s\n"                           ,id       );              #
-    tm=""; id=""; tx="";                             nm=""; sn="";     }'  |
+    tm=""; id=""; tx="";                             nm=""; sn="";         #
+    en= 0; split("",eu);                                                 } #
+  function replace_url( tx0,i) {                                           #
+    tx0= tx;                                                               #
+    tx = "";                                                               #
+    i  =  0;                                                               #
+    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {        #
+      i++;                                                                 #
+      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                #
+      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                #
+    }                                                                      #
+    tx = tx tx0;                                                        }' |
 # --- 3.日時フォーマット変換                                               #
 awk 'BEGIN {                                                               #
        m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";         #
