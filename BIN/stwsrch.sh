@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/31
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Mon Aug 29 14:09:06 JST 2016
+	Wed Aug 31 15:47:33 JST 2016
 __USAGE
   exit 1
 }
@@ -343,11 +343,11 @@ ______________KEY_AND_DATA
                                        sub(/^<a[^>]*>/,"",an);                 #
                                   au=s;sub(/^.*href="/,"",au);                 #
                                        sub(/".*$/     ,"",au);                 #
-                                                            print_tw();next;}  #
-         $2=="retweeted_status.text"{tx="RT " substr($0,length($1)+2);         #
                                                              print_tw();next;} #
-         $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                #
-                                 en++;eu[en]=substr($0,length($1 $2)+3);next;} #
+         $1=="retweeted_status.text"{tx="RT " substr($0,length($1)+2);         #
+                                                             print_tw();next;} #
+         $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                #
+                                  en++;eu[en]=substr($0,length($1)+2);  next;} #
          function print_tw( r,f) {                                             #
            if (tm=="") {return;}                                               #
            if (id=="") {return;}                                               #
