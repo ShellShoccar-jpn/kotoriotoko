@@ -5,7 +5,7 @@
 # bretwer.sh
 # 指定ツイートをリツイートしたユーザー一覧を見る（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -37,7 +37,7 @@ print_usage_and_exit () {
 	        -n <count>|--count=<count>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Jun 21 03:07:30 JST 2016
+	Thu Sep  1 15:44:12 DST 2016
 __USAGE
   exit 1
 }
@@ -203,16 +203,18 @@ tr -d '\000'                                                                 |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\.user\.\([^ .]*\)/ \1 \2/'                     |
 grep '^ '                                                                    |
 awk '                                                                        #
-  BEGIN                    {id=""; nm=""; sn="";                          }  #
+  BEGIN                    {id=""; nm=""; sn=""; vf="";                   }  #
   $2=="id"                 {id=substr($0,length($1 $2)+4);print_tw();next;}  #
   $2=="name"               {nm=substr($0,length($1 $2)+4);print_tw();next;}  #
   $2=="screen_name"        {sn=substr($0,length($1 $2)+4);print_tw();next;}  #
+  $2=="verified"          {vf=(substr($0,length($1 $2)+4)=="true"?"[v]":""); #
+                                                                      next;} #
   function print_tw( stat) {                                                 #
     if (id=="") {return;}                                                    #
     if (nm=="") {return;}                                                    #
     if (sn=="") {return;}                                                    #
-    printf("%-10s %s (@%s)\n",id,nm,sn);                                     #
-    id=""; nm=""; sn="";                                                  }' |
+    printf("%-10s %s (@%s)%s\n",id,nm,sn,vf);                                #
+    id=""; nm=""; sn=""; vf="";                                           }' |
 # --- 2.所定のデータが1行も無かった場合はエラー扱いにする                    #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 

@@ -5,7 +5,7 @@
 # btwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -v                            |--verbose
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon Aug 29 16:32:18 JST 2016
+	Thu Sep  1 16:04:16 DST 2016
 __USAGE
   exit 1
 }
@@ -293,33 +293,38 @@ tr -d '\000'                                                               |
 sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                            |
 grep -v '^\$'                                                              |
 awk '                                                                      #
-  BEGIN                   {tm=""; id=""; tx=""; an=""; au="";              #
-                           nr=""; nf=""; fr=""; ff=""; nm=""; sn="";       #
-                           ge=""; la=""; lo=""; pl=""; pn="";              #
-                           en= 0; split("",eu);                          } #
-  $2=="created_at"        {tm=substr($0,length($1 $2)+3);print_tw();next;} #
+  "ALL"                   {k=$2;                                         } #
+  sub(/^retweeted_status\./,"",k) {rtwflg++;                             } #
+  rtwflg==1               {init_param(1);                                } #
+  $2=="created_at"     {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
   $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="retweet_count"     {nr=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="favorite_count"    {nf=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="retweeted"         {fr=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="favorited"         {ff=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="retweet_count"     {nr=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="favorite_count"    {nf=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="retweeted"         {fr=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="favorited"         {ff=substr($0,length($1 $2)+3);print_tw();next;} #
   $2=="user.name"         {nm=substr($0,length($1 $2)+3);print_tw();next;} #
   $2=="user.screen_name"  {sn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="geo"               {ge=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="geo.coordinates[0]"{la=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="geo.coordinates[1]"{lo=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="place"             {pl=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="place.full_name"   {pn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="source"            {s =substr($0,length($1 $2)+3);                  #
+  $2=="user.verified"   {vf=(substr($0,length($1 $2)+3)=="true"?"[v]":""); #
+                                                                    next;} #
+  k =="geo"               {ge=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="geo.coordinates[0]"{la=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="geo.coordinates[1]"{lo=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="place"             {pl=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="place.full_name"   {pn=substr($0,length($1 $2)+3);print_tw();next;} #
+  k =="source"            {s =substr($0,length($1 $2)+3);                  #
                            an=s;sub(/<\/a>$/   ,"",an)  ;                  #
                                 sub(/^<a[^>]*>/,"",an)  ;                  #
                            au=s;sub(/^.*href="/,"",au)  ;                  #
                                 sub(/".*$/     ,"",au)  ;print_tw();next;} #
-  $2=="retweeted_status.text"{tx="RT " substr($0,length($1 $2)+3);         #
-                                                         print_tw();next;} #
-  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
+  k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
                            en++;eu[en]=substr($0,length($1 $2)+3);next;  } #
+  function init_param(lv) {tx=""; an=""; au="";                            #
+                           nr=""; nf=""; fr=""; ff="";                     #
+                           ge=""; la=""; lo=""; pl=""; pn="";              #
+                           en= 0; split("",eu);                            #
+                           if (lv<2) {return;}                             #
+                           tm=""; id=""; nm=""; sn=""; vf=""; rtwflg=""; } #
   function print_tw( r,f) {                                                #
     if (tm=="") {return;}                                                  #
     if (id=="") {return;}                                                  #
@@ -334,11 +339,12 @@ awk '                                                                      #
     if ((pn=="")&&(pl!="null"))             {return;}                      #
     if (an=="") {return;}                                                  #
     if (au=="") {return;}                                                  #
+    if (rtwflg>0){tx=" RT " tx;}                                           #
     r = (fr=="true") ? "RET" : "ret";                                      #
     f = (ff=="true") ? "FAV" : "fav";                                      #
     if (en>0) {replace_url();}                                             #
     printf("%s\n"                                ,tm       );              #
-    printf("- %s (@%s)\n"                        ,nm,sn    );              #
+    printf("- %s (@%s)%s\n"                      ,nm,sn,vf );              #
     printf("- %s\n"                              ,tx       );              #
     printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);              #
     s = (pl=="null")?"-":pn;                                               #
@@ -346,9 +352,7 @@ awk '                                                                      #
     print "-",s;                                                           #
     printf("- %s (%s)\n",an,au);                                           #
     printf("- https://twitter.com/%s/status/%s\n",sn,id    );              #
-    tm=""; id=""; tx=""; nr=""; nf=""; fr=""; ff=""; nm=""; sn="";         #
-    ge=""; la=""; lo=""; pl=""; pn=""; an=""; au="";                       #
-    en= 0; split("",eu);                                                 } #
+    init_param(2);                                                       } #
   function replace_url( tx0,i) {                                           #
     tx0= tx;                                                               #
     tx = "";                                                               #

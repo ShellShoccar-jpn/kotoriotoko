@@ -5,7 +5,7 @@
 # dmtwrcv.sh
 # Twitterの受信済ダイレクトメッセージ一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -39,7 +39,7 @@ print_usage_and_exit () {
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon Aug 29 14:36:25 JST 2016
+	Thu Sep  1 15:20:24 DST 2016
 __USAGE
   exit 1
 }
@@ -276,7 +276,7 @@ unescj.sh -n 2>/dev/null                                                   |
 tr -d '\000'                                                               |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                      |
 awk '                                                                      #
-  BEGIN                   {tm=""; id=""; tx="";        nm=""; sn="";       #
+  BEGIN                   {tm=""; id=""; tx="";       nm=""; sn=""; vf=""; #
                            en= 0; split("",eu); no= 0;                   } #
   $1!=no                  {no=$1;print_tw();                             } #
   $2=="created_at"        {tm=substr($0,length($1 $2)+3);next;           } #
@@ -284,6 +284,8 @@ awk '                                                                      #
   $2=="text"              {tx=substr($0,length($1 $2)+3);next;           } #
   $2=="sender.name"       {nm=substr($0,length($1 $2)+3);next;           } #
   $2=="sender.screen_name"{sn=substr($0,length($1 $2)+3);next;           } #
+  $2=="sender.verified" {vf=(substr($0,length($1 $2)+3)=="true"?"[v]":""); #
+                                                                    next;} #
   $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
                            s =substr($0,length($1 $2)+3);                  #
              if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
@@ -299,10 +301,10 @@ awk '                                                                      #
     if (sn=="") {return;}                                                  #
     if (en>0) {replace_url();}                                             #
     printf("%s\n"                                ,tm       );              #
-    printf("- %s (@%s)\n"                        ,nm,sn    );              #
+    printf("- %s (@%s)%s\n"                      ,nm,sn,vf );              #
     printf("- %s\n"                              ,tx       );              #
     printf("- id=%s\n"                           ,id       );              #
-    tm=""; id=""; tx="";                             nm=""; sn="";         #
+    tm=""; id=""; tx="";                             nm=""; sn=""; vf="";  #
     en= 0; split("",eu);                                                 } #
   function replace_url( tx0,i) {                                           #
     tx0= tx;                                                               #

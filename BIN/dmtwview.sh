@@ -5,7 +5,7 @@
 # dmtwview.sh
 # Twitterで指定したダイレクトメッセージを表示する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	        OPTIONS:
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Mon Aug 29 15:13:37 JST 2016
+	Thu Sep  1 15:34:52 DST 2016
 __USAGE
   exit 1
 }
@@ -250,15 +250,19 @@ tr -d '\000'                                                               |
 sed 's/^\$\.//'                                                            |
 awk '                                                                      #
   BEGIN                      {tm=""; id=""; tx="";                         #
-                                            ns=""; ss=""; nr=""; sr="";    #
+                              ns=""; ss=""; vs=""; nr=""; sr=""; vr="";    #
                               en= 0; split("",eu);                       } #
   $1=="created_at"           {tm=substr($0,length($1)+2);next;           } #
   $1=="id"                   {id=substr($0,length($1)+2);next;           } #
   $1=="text"                 {tx=substr($0,length($1)+2);next;           } #
   $1=="sender.name"          {ns=substr($0,length($1)+2);next;           } #
   $1=="sender.screen_name"   {ss=substr($0,length($1)+2);next;           } #
+  $1=="sender.verified"   {vs=(substr($0,length($1)+2)=="true"?"[v]":"");  #
+                                                                    next;} #
   $1=="recipient.name"       {nr=substr($0,length($1)+2);next;           } #
   $1=="recipient.screen_name"{sr=substr($0,length($1)+2);next;           } #
+  $1=="recipient.verified"{vr=(substr($0,length($1)+2)=="true"?"[v]":"");  #
+                                                                    next;} #
   $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
                               s =substr($0,length($1)+2);                  #
              if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
@@ -276,11 +280,11 @@ awk '                                                                      #
     if (sr=="") {return;}                                                  #
     if (en>0) {replace_url();}                                             #
     printf("%s\n"                                ,tm       );              #
-    printf("- From: %s (@%s)\n"                  ,ns,ss    );              #
-    printf("- To  : %s (@%s)\n"                  ,nr,sr    );              #
+    printf("- From: %s (@%s)%s\n"                ,ns,ss,vs );              #
+    printf("- To  : %s (@%s)%s\n"                ,nr,sr,vr );              #
     printf("- %s\n"                              ,tx       );              #
     printf("- id=%s\n"                           ,id       );              #
-    tm=""; id=""; tx="";               ns=""; ss=""; nr=""; sr="";         #
+    tm=""; id=""; tx=""; ns=""; ss=""; vs=""; nr=""; sr=""; vr="";         #
     en= 0; split("",eu);                                                 } #
   function replace_url( tx0,i) {                                           #
     tx0= tx;                                                               #
