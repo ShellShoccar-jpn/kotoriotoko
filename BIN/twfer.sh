@@ -5,7 +5,7 @@
 # twfer.sh
 # Twitterの指定ユーザーのフォロワーを見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Thu Sep  1 17:16:17 DST 2016
+	Sun Sep  4 00:49:04 JST 2016
 __USAGE
   exit 1
 }
@@ -251,31 +251,33 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                     #
-echo "$apires"                                                               |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi          |
-parsrj.sh 2>/dev/null                                                        |
-unescj.sh -n 2>/dev/null                                                     |
-tr -d '\000'                                                                 |
-sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                 |
-grep -v '^\$'                                                                |
-awk '                                                                        #
-  BEGIN                    {id=""; nm=""; sn=""; fl=""; vf="";            }  #
-  $2=="id"                 {id=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="name"               {nm=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="screen_name"        {sn=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="following"          {fl=substr($0,length($1 $2)+3);print_tw();next;}  #
-  $2=="verified"          {vf=(substr($0,length($1 $2)+3)=="true"?"[v]":""); #
-                                                                     next;}  #
-  function print_tw( stat) {                                                 #
-    if (id=="") {return;}                                                    #
-    if (nm=="") {return;}                                                    #
-    if (sn=="") {return;}                                                    #
-    if (fl=="") {return;}                                                    #
-    stat = (fl=="true") ? "<=>" : "<==";                                     #
-    printf("%s %-18s %s (@%s)%s\n",stat,id,nm,sn,vf);                        #
-    id=""; nm=""; sn=""; fl=""; vf="";                                    }' |
-# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                    #
+# --- 1.レスポンスパース                                                       #
+echo "$apires"                                                                 |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi            |
+parsrj.sh 2>/dev/null                                                          |
+unescj.sh -n 2>/dev/null                                                       |
+tr -d '\000'                                                                   |
+sed 's/^\$\.users\[\([0-9]\{1,\}\)\]\./\1 /'                                   |
+grep -v '^\$'                                                                  |
+awk '                                                                          #
+  BEGIN                   {init_param(2);                                   }  #
+  $2=="id"                {id= substr($0,length($1 $2)+3);print_tw();  next;}  #
+  $2=="name"              {nm= substr($0,length($1 $2)+3);print_tw();  next;}  #
+  $2=="screen_name"       {sn= substr($0,length($1 $2)+3);print_tw();  next;}  #
+  $2=="following"         {fl= substr($0,length($1 $2)+3);print_tw();  next;}  #
+  $2=="verified"          {vf=(substr($0,length($1 $2)+3)=="true")?"[v]":"";   #
+                                                                       next;}  #
+  function init_param(lv) {if (lv<2) {return;}                                 #
+                           id=""; nm=""; sn=""; fl=""; vf="";               }  #
+  function print_tw( stat){                                                    #
+    if (id=="") {return;}                                                      #
+    if (nm=="") {return;}                                                      #
+    if (sn=="") {return;}                                                      #
+    if (fl=="") {return;}                                                      #
+    stat = (fl=="true") ? "<=>" : "<==";                                       #
+    printf("%s %-18s %s (@%s)%s\n",stat,id,nm,sn,vf);                          #
+    init_param(2);                                                          }' |
+# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                      #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================

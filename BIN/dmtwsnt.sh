@@ -5,7 +5,7 @@
 # dmtwsnt.sh
 # Twitterの送信済ダイレクトメッセージ一覧を見る
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	        -s <since_ID>|--sinceid=<since_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Thu Sep  1 15:33:54 DST 2016
+	Sun Sep  4 00:49:05 JST 2016
 __USAGE
   exit 1
 }
@@ -281,87 +281,85 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                      #
-echo "$apires"                                                                |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
-parsrj.sh 2>/dev/null                                                         |
-unescj.sh -n 2>/dev/null                                                      |
-tr -d '\000'                                                                  |
-sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
-awk '                                                                         #
-  BEGIN                      {tm=""; id=""; tx="";       nm=""; sn=""; vf=""; #
-                              en= 0; split("",eu); no= 0;                   } #
-  $1!=no                     {no=$1;print_tw();                             } #
-  $2=="created_at"           {tm=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="id"                   {id=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="text"                 {tx=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="recipient.name"       {nm=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="recipient.screen_name"{sn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="recipient.verified" {vf=(substr($0,length($1 $2)+3)=="true"?"[v]":""); #
-                                                                       next;} #
-  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
-                              s =substr($0,length($1 $2)+3);                  #
-                if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
-                  next;                                                       #
-                }                                                             #
-                              en++;eu[en]=s;                                } #
-     END                     {print_tw();                                   } #
-  function print_tw() {                                                       #
-    if (tm=="") {return;}                                                     #
-    if (id=="") {return;}                                                     #
-    if (tx=="") {return;}                                                     #
-    if (nm=="") {return;}                                                     #
-    if (sn=="") {return;}                                                     #
-    printf("%s\n"                                ,tm       );                 #
-    printf("- To: %s (@%s)%s\n"                  ,nm,sn,vf );                 #
-    printf("- %s\n"                              ,tx       );                 #
-    printf("- id=%s\n"                           ,id       );                 #
-    tm=""; id=""; tx="";                             nm=""; sn=""; vf="";     #
-    en= 0; split("",eu);                                                    } #
-  function replace_url( tx0,i) {                                              #
-    tx0= tx;                                                                  #
-    tx = "";                                                                  #
-    i  =  0;                                                                  #
-    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {           #
-      i++;                                                                    #
-      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                   #
-      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                   #
-    }                                                                         #
-    tx = tx tx0;                                                           }' |
-# --- 3.日時フォーマット変換                                                  #
-awk 'BEGIN {                                                                  #
-       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";            #
-       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";            #
-       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }        #
-     /^[A-Z]/{t=$4;                                                           #
-              gsub(/:/,"",t);                                                 #
-              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);         #
-              d*=1;                                                           #
-              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);               #
-              next;                                                  }        #
-     "OTHERS"{print;}'                                                        |
-tr ' \t\034' '\006\025 '                                                      |
-awk 'BEGIN   {ORS="";             }                                           #
-     /^[0-9]/{print "\n" $0; next;}                                           #
-             {print "",  $0; next;}                                           #
-     END     {print "\n"   ;      }'                                          |
-tail -n +2                                                                    |
-# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:ID                      #
-TZ=UTC+0 calclock 1                                                           |
-# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:ID           #
-awk '{print $2-$3,$4,$5,$6;}'                                                 |
-# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:ID                           #
-calclock -r 1                                                                 |
-# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:ID                #
-self 2/5                                                                      |
-# 1:現地時間 2:ユーザー名 3:ツイート 4:ID                                     #
-tr ' \006\025' '\n \t'                                                        |
-awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }            #
-     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
-              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
-              next;                                              }            #
-     "OTHERS"{print;}                                             '           |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                     #
+# --- 1.レスポンスパース                                                       #
+echo "$apires"                                                                 |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi            |
+parsrj.sh 2>/dev/null                                                          |
+unescj.sh -n 2>/dev/null                                                       |
+tr -d '\000'                                                                   |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                          |
+awk '                                                                          #
+  BEGIN                      {init_param(2); no= 0;                          } #
+  $1!=no                     {no=$1;print_tw();                              } #
+  $2=="created_at"           {tm=substr($0,length($1 $2)+3);print_tw();next; } #
+  $2=="id"                   {id=substr($0,length($1 $2)+3);print_tw();next; } #
+  $2=="text"                 {tx=substr($0,length($1 $2)+3);print_tw();next; } #
+  $2=="recipient.name"       {nm=substr($0,length($1 $2)+3);print_tw();next; } #
+  $2=="recipient.screen_name"{sn=substr($0,length($1 $2)+3);print_tw();next; } #
+  $2=="recipient.verified" {vf=(substr($0,length($1 $2)+3)=="true")?"[v]":"";  #
+                                                                        next;} #
+  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                       #
+                              s =substr($0,length($1 $2)+3);                   #
+                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
+                   next;                                                       #
+                 }                                                             #
+                              en++;eu[en]=s;                                 } #
+     END                     {print_tw();                                    } #
+  function init_param(lv) {nm=""; sn=""; vf="";                                #
+                           en= 0; split("",eu);                                #
+                           if (lv<2) {return;}                                 #
+                           tm=""; id=""; tx="";                              } #
+  function print_tw()        {                                                 #
+    if (tm=="") {return;}                                                      #
+    if (id=="") {return;}                                                      #
+    if (tx=="") {return;}                                                      #
+    if (nm=="") {return;}                                                      #
+    if (sn=="") {return;}                                                      #
+    printf("%s\n"              ,tm       );                                    #
+    printf("- To: %s (@%s)%s\n",nm,sn,vf );                                    #
+    printf("- %s\n"            ,tx       );                                    #
+    printf("- id=%s\n"         ,id       );                                    #
+    init_param(2);                                                           } #
+  function replace_url( tx0,i) {                                               #
+    tx0= tx;                                                                   #
+    tx = "";                                                                   #
+    i  =  0;                                                                   #
+    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {            #
+      i++;                                                                     #
+      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                    #
+      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                    #
+    }                                                                          #
+    tx = tx tx0;                                                            }' |
+# --- 3.日時フォーマット変換                                                   #
+awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";        #
+            m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";        #
+            m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";    }   #
+     /^[A-Z]/{t=$4; gsub(/:/,"",t);                                            #
+              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;    #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);       next;}   #
+     "OTHERS"{print;                                                       }'  |
+tr ' \t\034' '\006\025 '                                                       |
+awk 'BEGIN   {ORS="";             }                                            #
+     /^[0-9]/{print "\n" $0; next;}                                            #
+             {print "",  $0; next;}                                            #
+     END     {print "\n"   ;      }'                                           |
+tail -n +2                                                                     |
+# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:ID                       #
+TZ=UTC+0 calclock 1                                                            |
+# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:ID            #
+awk '{print $2-$3,$4,$5,$6;}'                                                  |
+# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:ID                            #
+calclock -r 1                                                                  |
+# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:ID                 #
+self 2/5                                                                       |
+# 1:現地時間 2:ユーザー名 3:ツイート 4:ID                                      #
+tr ' \006\025' '\n \t'                                                         |
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }              #
+     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);               #
+              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                       #
+              next;                                             }              #
+     "OTHERS"{print;                                            }'             |
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                      #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================

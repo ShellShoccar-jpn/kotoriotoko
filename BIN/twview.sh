@@ -5,7 +5,7 @@
 # twview.sh
 # Twitterで指定したツイートIDを表示する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	        OPTIONS:
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Thu Sep  1 17:31:40 DST 2016
+	Sun Sep  4 00:49:05 JST 2016
 __USAGE
   exit 1
 }
@@ -241,122 +241,116 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                   #
-echo "$apires"                                                             |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi        |
-parsrj.sh 2>/dev/null                                                      |
-unescj.sh -n 2>/dev/null                                                   |
-tr -d '\000'                                                               |
-sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                      |
-awk '                                                                      #
-  "ALL"                   {k=$2;                                         } #
-  sub(/^retweeted_status\./,"",k) {rtwflg++;                             } #
-  rtwflg==1               {init_param(1);                                } #
-  $2=="created_at"     {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
-  $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="text"              {tx=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="retweet_count"     {nr=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="favorite_count"    {nf=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="retweeted"         {fr=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="favorited"         {ff=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="user.name"         {nm=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="user.screen_name"  {sn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="user.verified"   {vf=(substr($0,length($1 $2)+3)=="true"?"[v]":""); #
-                                                                    next;} #
-  k =="geo"               {ge=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="geo.coordinates[0]"{la=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="geo.coordinates[1]"{lo=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="place"             {pl=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="place.full_name"   {pn=substr($0,length($1 $2)+3);print_tw();next;} #
-  k =="source"            {s =substr($0,length($1 $2)+3);                  #
-                           an=s;sub(/<\/a>$/   ,"",an)  ;                  #
-                                sub(/^<a[^>]*>/,"",an)  ;                  #
-                           au=s;sub(/^.*href="/,"",au)  ;                  #
-                                sub(/".*$/     ,"",au)  ;print_tw();next;} #
-  k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
-                           en++;eu[en]=substr($0,length($1 $2)+3);next;  } #
-  function init_param(lv) {tx=""; an=""; au="";                            #
-                           nr=""; nf=""; fr=""; ff="";                     #
-                           ge=""; la=""; lo=""; pl=""; pn="";              #
-                           en= 0; split("",eu);                            #
-                           if (lv<2) {return;}                             #
-                           tm=""; id=""; nm=""; sn=""; vf=""; rtwflg=""; } #
-  function print_tw( r,f) {                                                #
-    if (tm=="") {return;}                                                  #
-    if (id=="") {return;}                                                  #
-    if (tx=="") {return;}                                                  #
-    if (nr=="") {return;}                                                  #
-    if (nf=="") {return;}                                                  #
-    if (fr=="") {return;}                                                  #
-    if (ff=="") {return;}                                                  #
-    if (nm=="") {return;}                                                  #
-    if (sn=="") {return;}                                                  #
-    if (((la=="")||(lo==""))&&(ge!="null")) {return;}                      #
-    if ((pn=="")&&(pl!="null"))             {return;}                      #
-    if (an=="") {return;}                                                  #
-    if (au=="") {return;}                                                  #
-    if (rtwflg>0){tx=" RT " tx;}                                           #
-    r = (fr=="true") ? "RET" : "ret";                                      #
-    f = (ff=="true") ? "FAV" : "fav";                                      #
-    if (en>0) {replace_url();}                                             #
-    printf("%s\n"                                ,tm       );              #
-    printf("- %s (@%s)%s\n"                      ,nm,sn,vf );              #
-    printf("- %s\n"                              ,tx       );              #
-    printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);              #
-    s = (pl=="null")?"-":pn;                                               #
-    s = (ge=="null")?s:sprintf("%s (%s,%s)",s,la,lo);                      #
-    print "-",s;                                                           #
-    printf("- %s (%s)\n",an,au);                                           #
-    printf("- https://twitter.com/%s/status/%s\n",sn,id    );              #
-    init_param(2);                                                       } #
-  function replace_url( tx0,i) {                                           #
-    tx0= tx;                                                               #
-    tx = "";                                                               #
-    i  =  0;                                                               #
-    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {        #
-      i++;                                                                 #
-      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                #
-      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                #
-    }                                                                      #
-    tx = tx tx0;                                                        }' |
-# --- 2.日時フォーマット変換                                               #
-awk 'BEGIN {                                                               #
-       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";         #
-       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";         #
-       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";   }     #
-     /^[A-Z]/{t=$4;                                                        #
-              gsub(/:/,"",t);                                              #
-              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);      #
-              d*=1;                                                        #
-              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);            #
-              next;                                                  }     #
-     "OTHERS"{print;}'                                                     |
-tr ' \t\034' '\006\025 '                                                   |
-awk 'BEGIN   {ORS="";             }                                        #
-     /^[0-9]/{print "\n" $0; next;}                                        #
-             {print "",  $0; next;}                                        #
-     END     {print "\n"   ;      }'                                       |
-tail -n +2                                                                 |
-# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所  #
-# 7:App名 8:URL                                                            #
-TZ=UTC+0 calclock 1                                                        |
-# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート             #
-# 6:リツイート等 7:場所 8:App名 9:URL                                      #
-awk '{print $2-$3,$4,$5,$6,$7,$8,$9;}'                                     |
-# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL #
-# 7:App名                                                                  #
-calclock -r 1                                                              |
-# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等   #
-# 6:場所 7:URL 8:App名                                                     #
-self 2/8                                                                   |
-# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名   #
-tr ' \006\025' '\n \t'                                                     |
-awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }         #
-     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);           #
-              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                   #
-              next;                                              }         #
-     "OTHERS"{print;}                                             '        |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                  #
+# --- 1.レスポンスパース                                                      #
+echo "$apires"                                                                |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
+parsrj.sh 2>/dev/null                                                         |
+unescj.sh -n 2>/dev/null                                                      |
+tr -d '\000'                                                                  |
+sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
+awk '                                                                         #
+  "ALL"                   {k=$2;                                            } #
+  sub(/^retweeted_status\./,"",k){rtwflg++;if(rtwflg==1){init_param(1);}    } #
+  $2=="created_at"        {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
+  $2=="id"                {id= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="text"              {tx= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="retweet_count"     {nr= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="favorite_count"    {nf= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="retweeted"         {fr= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="favorited"         {ff= substr($0,length($1 $2)+3);print_tw();  next;} #
+  $2=="user.name"         {nm= substr($0,length($1 $2)+3);print_tw();  next;} #
+  $2=="user.screen_name"  {sn= substr($0,length($1 $2)+3);print_tw();  next;} #
+  $2=="user.verified"     {vf=(substr($0,length($1 $2)+3)=="true")?"[v]":"";  #
+                                                                       next;} #
+  k =="geo"               {ge= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="geo.coordinates[0]"{la= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="geo.coordinates[1]"{lo= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="place"             {pl= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="place.full_name"   {pn= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="source"            {s = substr($0,length($1 $2)+3);                    #
+                           an= s;sub(/<\/a>$/,"",an);sub(/^<a[^>]*>/,"",an);  #
+                           au= s;sub(/^.*href="/,"",au);sub(/".*$/,"",au);    #
+                                                          print_tw();  next;} #
+  k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
+                           en++;eu[en]=substr($0,length($1 $2)+3);     next;} #
+  function init_param(lv) {tx=""; an=""; au="";                               #
+                           nr=""; nf=""; fr=""; ff="";                        #
+                           ge=""; la=""; lo=""; pl=""; pn="";                 #
+                           en= 0; split("",eu);                               #
+                           if (lv<2) {return;}                                #
+                           tm=""; id=""; nm=""; sn=""; vf=""; rtwflg="";    } #
+  function print_tw( r,f) {                                                   #
+    if (tm=="") {return;}                                                     #
+    if (id=="") {return;}                                                     #
+    if (tx=="") {return;}                                                     #
+    if (nr=="") {return;}                                                     #
+    if (nf=="") {return;}                                                     #
+    if (fr=="") {return;}                                                     #
+    if (ff=="") {return;}                                                     #
+    if (nm=="") {return;}                                                     #
+    if (sn=="") {return;}                                                     #
+    if (((la=="")||(lo==""))&&(ge!="null")) {return;}                         #
+    if ((pn=="")&&(pl!="null"))             {return;}                         #
+    if (an=="") {return;}                                                     #
+    if (au=="") {return;}                                                     #
+    if (rtwflg>0){tx=" RT " tx;}                                              #
+    r = (fr=="true") ? "RET" : "ret";                                         #
+    f = (ff=="true") ? "FAV" : "fav";                                         #
+    if (en>0) {replace_url();}                                                #
+    printf("%s\n"                                ,tm       );                 #
+    printf("- %s (@%s)%s\n"                      ,nm,sn,vf );                 #
+    printf("- %s\n"                              ,tx       );                 #
+    printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);                 #
+    s = (pl=="null")?"-":pn;                                                  #
+    s = (ge=="null")?s:sprintf("%s (%s,%s)",s,la,lo);                         #
+    print "-",s;                                                              #
+    printf("- %s (%s)\n",an,au);                                              #
+    printf("- https://twitter.com/%s/status/%s\n",sn,id    );                 #
+    init_param(2);                                                          } #
+  function replace_url( tx0,i) {                                              #
+    tx0= tx;                                                                  #
+    tx = "";                                                                  #
+    i  =  0;                                                                  #
+    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {           #
+      i++;                                                                    #
+      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                   #
+      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                   #
+    }                                                                         #
+    tx = tx tx0;                                                           }' |
+# --- 2.日時フォーマット変換                                                  #
+awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
+            m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";       #
+            m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";    }  #
+     /^[A-Z]/{t=$4; gsub(/:/,"",t);                                           #
+              d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;   #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);       next;}  #
+     "OTHERS"{print;                                                       }' |
+tr ' \t\034' '\006\025 '                                                      |
+awk 'BEGIN   {ORS="";             }                                           #
+     /^[0-9]/{print "\n" $0; next;}                                           #
+             {print "",  $0; next;}                                           #
+     END     {print "\n"   ;      }'                                          |
+tail -n +2                                                                    |
+# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所     #
+# 7:App名 8:URL                                                               #
+TZ=UTC+0 calclock 1                                                           |
+# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:リツイート等 #
+# 7:場所 8:App名 9:URL                                                        #
+awk '{print $2-$3,$4,$5,$6,$7,$8,$9;}'                                        |
+# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL    #
+# 7:App名                                                                     #
+calclock -r 1                                                                 |
+# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等      #
+# 6:場所 7:URL 8:App名                                                        #
+self 2/8                                                                      |
+# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名      #
+tr ' \006\025' '\n \t'                                                        |
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }             #
+     /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
+              printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
+              next;                                             }             #
+     "OTHERS"{print;}                                            '            |
+# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                     #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================

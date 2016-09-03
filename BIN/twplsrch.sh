@@ -5,7 +5,7 @@
 # twplsrch.sh
 # Twitterで指定条件に該当する位置情報を検索する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/06/21
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -44,7 +44,7 @@ print_usage_and_exit () {
 	        -w <place_ID>         |--containedwithin=<place_ID>
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --timeout=<waiting_seconds_to_connect>
-	Tue Jun 21 03:10:20 JST 2016
+	Sun Sep  4 00:49:05 JST 2016
 __USAGE
   exit 1
 }
@@ -333,39 +333,41 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === レスポンス出力 =================================================
-# --- 1.レスポンスパース                                                   #
-echo "$apires"                                                             |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi        |
-parsrj.sh 2>/dev/null                                                      |
-unescj.sh -n 2>/dev/null                                                   |
-tr -d '\000'                                                               |
-grep '^\$\.result\.places\[[0-9]*\]'                                       |
-sed 's/^[^[]*\[\([0-9]\{1,\}\)\]\./\1 /'                                   |
-awk '                                                                      #
-  BEGIN                   {id=""; ty=""; fn=""; au="";                     #
-                           cc=""; cn=""; la=""; lo="";                   } #
-  $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="place_type"        {ty=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="full_name"         {fn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="country_code"      {cc=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="country"           {cn=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="centroid[0]"       {lo=substr($0,length($1 $2)+3);print_tw();next;} #
-  $2=="centroid[1]"       {la=substr($0,length($1 $2)+3);print_tw();next;} #
-  function print_tw( r,f) {                                                #
-    if (id=="") {return;}                                                  #
-    if (ty=="") {return;}                                                  #
-    if (fn=="") {return;}                                                  #
-    if (cc=="") {return;}                                                  #
-    if (cn=="") {return;}                                                  #
-    if (lo=="") {return;}                                                  #
-    if (la=="") {return;}                                                  #
-    printf("%s\n"                                ,id       );              #
-    printf("- %s\n"                              ,fn       );              #
-    printf("- %s (%s)\n"                         ,cn,cc    );              #
-    printf("- %s\n"                              ,ty       );              #
-    printf("- %s,%s\n"                           ,la,lo    );              #
-    id=""; ty=""; fn=""; au=""; cc=""; cn=""; la=""; lo="";             }' |
-# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                  #
+# --- 1.レスポンスパース                                                    #
+echo "$apires"                                                              |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi         |
+parsrj.sh 2>/dev/null                                                       |
+unescj.sh -n 2>/dev/null                                                    |
+tr -d '\000'                                                                |
+grep '^\$\.result\.places\[[0-9]*\]'                                        |
+sed 's/^[^[]*\[\([0-9]\{1,\}\)\]\./\1 /'                                    |
+awk '                                                                       #
+  BEGIN                   {init_param(2);                                }  #
+  $2=="id"                {id=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="place_type"        {ty=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="full_name"         {fn=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="country_code"      {cc=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="country"           {cn=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="centroid[0]"       {lo=substr($0,length($1 $2)+3);print_tw();next;}  #
+  $2=="centroid[1]"       {la=substr($0,length($1 $2)+3);print_tw();next;}  #
+  function init_param(lv) {cc=""; cn=""; la=""; lo="";                      #
+                           if (lv<2) {return;}                              #
+                           id=""; ty=""; fn=""; au="";                   }  #
+  function print_tw( r,f) {                                                 #
+    if (id=="") {return;}                                                   #
+    if (ty=="") {return;}                                                   #
+    if (fn=="") {return;}                                                   #
+    if (cc=="") {return;}                                                   #
+    if (cn=="") {return;}                                                   #
+    if (lo=="") {return;}                                                   #
+    if (la=="") {return;}                                                   #
+    printf("%s\n"       ,id   );                                            #
+    printf("- %s\n"     ,fn   );                                            #
+    printf("- %s (%s)\n",cn,cc);                                            #
+    printf("- %s\n"     ,ty   );                                            #
+    printf("- %s,%s\n"  ,la,lo);                                            #
+    init_param(2);                                                       }' |
+# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                   #
 awk '"ALL"{print;} END{exit 1-(NR>0);}'
 
 # === 異常時のメッセージ出力 =========================================

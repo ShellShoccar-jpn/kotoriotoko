@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/01
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Thu Sep  1 16:10:53 DST 2016
+	Sun Sep  4 00:49:04 JST 2016
 __USAGE
   exit 1
 }
@@ -321,8 +321,8 @@ ______________KEY_AND_DATA
        grep -v '^\$'                                                           |
        awk '                                                                   #
          "ALL"                   {k=$1;                                      } #
-         sub(/^retweeted_status\./,"",k) {rtwflg++;                          } #
-         rtwflg==1               {init_param(1);                             } #
+         sub(/^retweeted_status\./,"",k){rtwflg++;                             #
+                                         if(rtwflg==1){init_param(1);}       } #
          $1=="created_at"     {init_param(2);tm=substr($0,length($1)+2);next;} #
          $1=="id"                {id=substr($0,length($1)+2);print_tw();next;} #
          k =="text"              {tx=substr($0,length($1)+2);print_tw();next;} #
@@ -332,7 +332,7 @@ ______________KEY_AND_DATA
          k =="favorited"         {ff=substr($0,length($1)+2);print_tw();next;} #
          $1=="user.name"         {nm=substr($0,length($1)+2);print_tw();next;} #
          $1=="user.screen_name"  {sn=substr($0,length($1)+2);print_tw();next;} #
-         $1=="user.verified"   {vf=(substr($0,length($1)+2)=="true"?"[v]":""); #
+         $1=="user.verified"  {vf=(substr($0,length($1)+2)=="true")?"[v]":"";  #
                                                                         next;} #
          k =="geo"               {ge=substr($0,length($1)+2);print_tw();next;} #
          k =="geo.coordinates[0]"{la=substr($0,length($1)+2);print_tw();next;} #
@@ -344,7 +344,7 @@ ______________KEY_AND_DATA
                                        sub(/^<a[^>]*>/,"",an);                 #
                                   au=s;sub(/^.*href="/,"",au);                 #
                                        sub(/".*$/     ,"",au);                 #
-                                                          print_tw();next;   } #
+                                                             print_tw();next;} #
          k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                #
                                   en++;eu[en]=substr($0,length($1)+2);  next;} #
          function init_param(lv) {tx=""; an=""; au="";                         #
@@ -402,15 +402,15 @@ ______________KEY_AND_DATA
                      d*=1;                                                     #
                      printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);         #
                      next;                                                  }  #
-            "OTHERS"{print;}'                                                  |
+            "OTHERS"{print;                                                 }' |
        tr ' \t\034' '\006\025 '                                                |
        awk 'BEGIN   {ORS="";             }                                     #
             /^[0-9]/{print "\n" $0; next;}                                     #
                     {print "",  $0; next;}                                     #
             END     {print "\n"   ;      }'                                    |
        tail -n +2                                                              |
-       # 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所
-       # 7:App名 8:URL                                                         #
+       # 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等      #
+       # 6:場所 7:App名 8:URL                                                  #
        TZ=UTC+0 calclock 1                                                     |
        # 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート          #
        # 6:リツイート等 7:場所 8:App名 9:URL                                   #
@@ -423,11 +423,11 @@ ______________KEY_AND_DATA
        self 2/8                                                                |
        # 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名#
        tr ' \006\025' '\n \t'                                                  |
-       awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }      #
+       awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }       #
             /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);        #
                      printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                #
-                     next;                                              }      #
-            "OTHERS"{print;}                                             '     |
+                     next;                                             }       #
+            "OTHERS"{print;}                                            '      |
        # --- 3a-3.verbose指定でない場合は(7n+5,7n+6行目をトル)                 #
        case $verbose in                                                        #
          0) awk 'BEGIN{                                                        #
