@@ -6,16 +6,15 @@
 #    ・このスクリプトはJSONの値部分のみの処理を想定している
 #      (値の中に改行を示すエスケープがあったら素直に改行に変換する。
 #       これが困る場合は -n オプションを使う。すると "\n" と出力される)
-#    ・JSON文字列のパース(キーと値の分離)はjsonparser.shで予め行うこと
+#    ・JSON文字列のパース(キーと値の分離)はparsrj.shで予め行うこと
 #
 # Usage: unsecj.sh [-n] [JSON_value_textfile]
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Mar  8, 2016
+# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Sep 9, 2016
 #
-# This is a public-domain software (CC0). It measns that all of the
-# people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
-# the major licenses.
+# This is a public-domain software. It measns that all of the people
+# can use this with no restrictions at all. By the way, I am fed up
+# the side effects which are broght about by the major licenses.
 
 
 set -u
@@ -23,26 +22,19 @@ PATH=/bin:/usr/bin
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LANG=C LC_ALL=C PATH
 
-BS=$(printf '\010')             # バックスペース
-TAB=$(printf '\011')            # タブ
-LF=$(printf '\\\n_');LF=${LF%_} # 改行(sedコマンド取扱用)
-FF=$(printf '\014')             # 改ページ
-CR=$(printf '\015')             # キャリッジリターン
-ifdef__nopt='#'
-ifndef_nopt=''
+BS=$(printf '\010')                # バックスペース
+TAB=$(printf '\011')               # タブ
+LFs=$(printf '\\\n_');LFs=${LFs%_} # 改行(sedコマンド取扱用)
+FF=$(printf '\014')                # 改ページ
+CR=$(printf '\015')                # キャリッジリターン
+ACK=$(printf '\006')               # "\\"の一時退避用
+nopt=0
 
-case "$#" in
-  [!0]*) case "$1" in '-n')
-           ifdef__nopt=''; ifndef_nopt='#'; shift;;
-         esac
-         ;;
-esac
+case "$#" in [!0]*) case "$1" in '-n') nopt=1;shift;; esac;; esac
 case "$#" in
   0) file='-'
      ;;
-  1) if [ \( -f "$1" \) -o \( -c "$1" \) -o \( -p "$1" \) -o \
-          \( "_$1" = '_-' \)                                 ]
-     then
+  1) if [ -f "$1" ] || [ -c "$1" ] || [ -p "$1" ] || [ "_$1" = '_-' ]; then
        file=$1
      fi
      ;;
@@ -51,82 +43,80 @@ case "$#" in
      ;;
 esac
 
-# === データの流し込み ============================================= #
-cat "$file"                                                          |
-#                                                                    #
-# === もとからあった改行に印"\n"をつけ、手前に改行も挿入 =========== #
-if [ -n "${ifdef__nopt:-}" ]; then                                   #
-  sed '$!s/$/'"$LF"'\\n/'                                            #
-else                                                   #"\N"とする   #
-  sed '$!s/$/'"$LF"'\\N/' # -nオプション付の場合は"\n"を保持する為   #
-fi                                                                   |
-#                                                                    #
-# === Unicodeエスケープ文字列(\uXXXX)の手前に改行を挿入 ============ #
-sed 's/\(\\u[0-9A-Fa-f]\{4\}\)/'"$LF"'\1/g'                          |
-#                                                                    #
-# === Unicodeエスケープ文字列をデコード ============================ #
-#     (但し\u000a と \u000d と \u005c は \n、\r、\\ に変換する）     #
-awk '                                                                #
-BEGIN {                                                              #
-  OFS=""; ORS="";                                                    #
-  for(i=255;i>=0;i--) {                                              #
-    s=sprintf("%c",i);                                               #
-    bhex2chr[sprintf("%02x",i)]=s;                                   #
-    bhex2chr[sprintf("%02X",i)]=s;                                   #
-    #bhex2int[sprintf("%02x",i)]=i;                                  #
-    #bhex2int[sprintf("%02X",i)]=i;                                  #
-  }                                                                  #
-  for(i=65535;i>=0;i--) {          # 0000～FFFFの16進値を10進値に変  #
-    whex2int[sprintf("%02x",i)]=i; # 換する際、00～FFまでの連想配列  #
-    whex2int[sprintf("%02X",i)]=i; # 256個を作って2桁ずつ2度使うより #
-  }                                # こちらを1度使う方が若干速かった #
-}                                                                    #
-'"$ifndef_nopt"'/^\\n/ {print "\n", substr($0,3); next; }            #
-'"$ifdef__nopt"'/^\\N/ {print "\n", substr($0,3); next; }            #
-/^\\u000[Aa]/ {                                                      #
-  print "\\n", substr($0,7);                                         #
-  next;                                                              #
-}                                                                    #
-/^\\u000[Dd]/ {                                                      #
-  print "\\r", substr($0,7);                                         #
-  next;                                                              #
-}                                                                    #
-/^\\u005[Cc]/ {                                                      #
-  print "\\\\", substr($0,7);                                        #
-  next;                                                              #
-}                                                                    #
-/^\\u00[0-7][0-9a-fA-F]/ {                                           #
-  print bhex2chr[substr($0,5,2)], substr($0,7);                      #
-  next;                                                              #
-}                                                                    #
-/^\\u0[0-7][0-9a-fA-F][0-9a-fA-F]/ {                                 #
-  i=whex2int[substr($0,3,4)];                                        #
-  #i=bhex2int[substr($0,3,2)]*256+bhex2int[substr($0,5,2)];          #
-  printf("%c",192+int(i/64));                                        #
-  printf("%c",128+    i%64 );                                        #
-  print substr($0,7);                                                #
-  next;                                                              #
-}                                                                    #
-/^\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/ {                 #
-  i=whex2int[substr($0,3,4)];                                        #
-  #i=bhex2int[substr($0,3,2)]*256+bhex2int[substr($0,5,2)];          #
-  printf("%c",224+int( i/4096    ));                                 #
-  printf("%c",128+int((i%4096)/64));                                 #
-  printf("%c",128+     i%64       );                                 #
-  print substr($0,7);                                                #
-  next;                                                              #
-}                                                                    #
-{                                                                    #
-  print;                                                             #
-}                                                                    #
-'                                                                    |
-# === \\ 以外のエスケープ文字列をデコード ========================== #
-sed 's/\\"/"/g'                                                      |
-sed 's/\\\//\//g'                                                    |
-sed 's/\\b/'"$BS"'/g'                                                |
-sed 's/\\f/'"$FF"'/g'                                                |
-sed 's/\\r/'"$CR"'/g'                                                |
-sed 's/\\t/'"$TAB"'/g'                                               |
-#                                                                    #
-# === \\ をデコード ================================================ #
-sed 's/\\\\/\\/g'
+# === データの流し込み ====================================================== #
+cat "$file"                                                                   |
+#                                                                             #
+# === "\\"を一時的にACKに退避 =============================================== #
+sed 's/\\\\/'"$ACK"'/g'                                                       |
+#                                                                             #
+# === もとからあった改行に印"\N"をつけ、手前に改行も挿入 ==================== #
+sed 's/$/'"$LFs"'\\N/'                                                        |
+#                                                                             #
+# === Unicodeエスケープ文字列(\uXXXX)の手前に改行を挿入し、デコード準備 ===== #
+sed 's/\(\\u[0-9A-Fa-f]\{4\}\)/'"$LFs"'\1/g'                                  |
+#                                                                             #
+# === Unicodeエスケープ文字列をデコード ===================================== #
+#     (但し一部の文字は次のように変換する。                                   #
+#      \u000a -> \n, \u000d -> \r, \u005c -> \\, \u0000 -> \0, \u0006 -> \A)  #
+awk '                                                                         #
+BEGIN {                                                                       #
+  OFS=""; ORS="";                                                             #
+  for(i=255;i>0;i--) {                                                        #
+    s=sprintf("%c",i);                                                        #
+    bhex2chr[sprintf("%02x",i)]=s;                                            #
+    #bhex2int[sprintf("%02x",i)]=i;                                           #
+  }                                                                           #
+  bhex2chr["00"]="\\0" ;                                                      #
+  bhex2chr["06"]="\\A" ;                                                      #
+  bhex2chr["0a"]="\\n" ;                                                      #
+  bhex2chr["0d"]="\\r" ;                                                      #
+  bhex2chr["5c"]="\\\\";           # 0000～FFFFの16進値を10進値に変           #
+  for(i=65535;i>=0;i--) {          # 換する際、00～FFまでの連想配列           #
+    whex2int[sprintf("%02x",i)]=i; # 256個を作って2桁ずつ2度使うより          #
+  }                                # こちらを1度使う方が若干速かった          #
+}                                                                             #
+$0=="\\N" {print "\n"; next; }                                                #
+/^\\u00[0-7][0-9a-fA-F]/ {                                                    #
+  print bhex2chr[tolower(substr($0,5,2))], substr($0,7);                      #
+  next;                                                                       #
+}                                                                             #
+/^\\u0[0-7][0-9a-fA-F][0-9a-fA-F]/ {                                          #
+  i=whex2int[tolower(substr($0,3,4))];                                        #
+  #i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))]; #
+  printf("%c%c",192+int(i/64),128+i%64);                                      #
+  print substr($0,7);                                                         #
+  next;                                                                       #
+}                                                                             #
+/^\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/ {                          #
+  i=whex2int[tolower(substr($0,3,4))];                                        #
+  #i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))]; #
+  printf("%c%c%c",224+int(i/4096),128+int((i%4096)/64),128+i%64);             #
+  print substr($0,7);                                                         #
+  next;                                                                       #
+}                                                                             #
+{                                                                             #
+  print;                                                                      #
+}                                                                             #
+'                                                                             |
+# === "\n","\0"（および"\\"）以外のエスケープ文字列をデコード =============== #
+sed 's/\\"/"/g'                                                               |
+sed 's/\\\//\//g'                                                             |
+sed 's/\\b/'"$BS"'/g'                                                         |
+sed 's/\\f/'"$FF"'/g'                                                         |
+sed 's/\\r/'"$CR"'/g'                                                         |
+sed 's/\\t/'"$TAB"'/g'                                                        |
+#                                                                             #
+# === "-n"オプションがないなら "\0","\n","\\" もデコード ==================== #
+case "$nopt" in                                                               #
+  0) sed 's/\\0//g'                             |  # "\0"は<0x00>にせず消す   #
+     sed 's/\\n/'"$LFs"'/g'                     |  #   :                      #
+     sed 's/'"$ACK"'/\\\\/g'                    |  # 退避していた"\\"を戻し、 #
+     sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |  # \Aを<ACK>に戻す。        #
+     sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |  #   :                      #
+     sed 's/^\(\(\\\\\)*\)\\A/\1'"$ACK"'/g'     |  #   :                      #
+     sed 's/\\\\/\\/g'                          ;; # "\\"を"\"にデコード      #
+  *) sed 's/'"$ACK"'/\\\\/g'                    |                             #
+     sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |                             #
+     sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |                             #
+     sed 's/^\(\(\\\\\)*\)\\A/\1'"$ACK"'/g'     ;;                            #
+esac
