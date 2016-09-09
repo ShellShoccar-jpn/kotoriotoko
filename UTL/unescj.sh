@@ -22,14 +22,14 @@ PATH=/bin:/usr/bin
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LANG=C LC_ALL=C PATH
 
-BS=$(printf '\010')                # バックスペース
-TAB=$(printf '\011')               # タブ
+BS=$( printf '\010' )              # バックスペース
+TAB=$(printf '\011' )              # タブ
 LFs=$(printf '\\\n_');LFs=${LFs%_} # 改行(sedコマンド取扱用)
-FF=$(printf '\014')                # 改ページ
-CR=$(printf '\015')                # キャリッジリターン
-ACK=$(printf '\006')               # "\\"の一時退避用
-nopt=0
+FF=$( printf '\014' )              # 改ページ
+CR=$( printf '\015' )              # キャリッジリターン
+ACK=$(printf '\006' )              # "\\"の一時退避用
 
+nopt=0
 case "$#" in [!0]*) case "$1" in '-n') nopt=1;shift;; esac;; esac
 case "$#" in
   0) file='-'
@@ -64,16 +64,16 @@ BEGIN {                                                                       #
   for(i=255;i>0;i--) {                                                        #
     s=sprintf("%c",i);                                                        #
     bhex2chr[sprintf("%02x",i)]=s;                                            #
-    #bhex2int[sprintf("%02x",i)]=i;                                           #
+    bhex2int[sprintf("%02x",i)]=i; # (a)                                      #
   }                                                                           #
   bhex2chr["00"]="\\0" ;                                                      #
   bhex2chr["06"]="\\A" ;                                                      #
   bhex2chr["0a"]="\\n" ;                                                      #
   bhex2chr["0d"]="\\r" ;                                                      #
-  bhex2chr["5c"]="\\\\";           # 0000～FFFFの16進値を10進値に変           #
-  for(i=65535;i>=0;i--) {          # 換する際、00～FFまでの連想配列           #
-    whex2int[sprintf("%02x",i)]=i; # 256個を作って2桁ずつ2度使うより          #
-  }                                # こちらを1度使う方が若干速かった          #
+  bhex2chr["5c"]="\\\\";                  # 0000～FFFFの16進値を10進値に変換  #
+  #for(i=65535;i>=0;i--) {          # (b) # する際、00～FFまでの連想配列256個 #
+  #  whex2int[sprintf("%02x",i)]=i; #  :  # を作って(a)2桁ずつ2度使う方が、   #
+  #}                                #  :  # (b)を1度使う方が若干速かった      #
 }                                                                             #
 $0=="\\N" {print "\n"; next; }                                                #
 /^\\u00[0-7][0-9a-fA-F]/ {                                                    #
@@ -81,15 +81,15 @@ $0=="\\N" {print "\n"; next; }                                                #
   next;                                                                       #
 }                                                                             #
 /^\\u0[0-7][0-9a-fA-F][0-9a-fA-F]/ {                                          #
-  i=whex2int[tolower(substr($0,3,4))];                                        #
-  #i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))]; #
+  #i=whex2int[tolower(substr($0,3,4))]; # <-(a) V(b)                          #
+  i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))];  #
   printf("%c%c",192+int(i/64),128+i%64);                                      #
   print substr($0,7);                                                         #
   next;                                                                       #
 }                                                                             #
 /^\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/ {                          #
-  i=whex2int[tolower(substr($0,3,4))];                                        #
-  #i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))]; #
+  #i=whex2int[tolower(substr($0,3,4))]; # <-(a) V(b)                          #
+  i=bhex2int[tolower(substr($0,3,2))]*256+bhex2int[tolower(substr($0,5,2))];  #
   printf("%c%c%c",224+int(i/4096),128+int((i%4096)/64),128+i%64);             #
   print substr($0,7);                                                         #
   next;                                                                       #
