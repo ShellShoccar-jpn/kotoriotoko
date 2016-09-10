@@ -5,7 +5,7 @@
 # stwsrch.sh
 # Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/10
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -20,17 +20,17 @@
 Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
 
 # === 初期化 #1 ======================================================
-set -um
+set -um                     # "-m"はfgを利用可能にするために付けている
 umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
-cmdpid=-1
+webcmdpid=''
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
 
-# === 終了関数定義・その他初期化 #2 ==================================
+# === エラー終了関数 =================================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [options] <keyword> [keyword ...]
@@ -41,19 +41,57 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Sun Sep  4 00:49:04 JST 2016
+	Sat Sep 10 01:41:02 DST 2016
 __USAGE
   exit 1
 }
+
+# === 自分が呼んだ cURL or Wget のPIDを調べる関数 ====================
+set_webcmdpid() {
+  webcmdpid=`case $(uname) in                                             #
+               CYGWIN*) ps -af                                      |     #
+                        awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
+                     *) ps -Ao ppid,pid,comm                        ;;    #
+             esac                                                         |
+             grep -v '^[^0-9]*PPID'                                       |
+             sort -k 1n,1 -k 2n,2                                         |
+             awk 'BEGIN    {ppid0="" ;         }                          #
+                  ppid0!=$1{print "-";         }                          #
+                  "EVERY"  {print    ;ppid0=$1;}'                         |
+             awk '$1=="-"{                                                #
+                    count=1;                                              #
+                    next;                                                 #
+                  }                                                       #
+                  "EVERY"{                                                #
+                    pid2comm[$2]      =$3;                                #
+                    ppid2pid[$1,count]=$2;                                #
+                    count++;                                              #
+                  }                                                       #
+                  END    {                                                #
+                    print does_myCurlWget_exist_in('"$$"');               #
+                  }                                                       #
+                  function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
+                    comm = pid2comm[mypid];                               #
+                    if ((comm=="curl") || (comm=="wget")) {return mypid;} #
+                    for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
+                      ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
+                      if (ret >= 0) {return ret;}                         #
+                    }                                                     #
+                    return -1;                                            #
+                  }'                                                      `
+}
+
+# === 終了時後始末関数 ===============================================
 exit_trap() {
-  trap EXIT HUP INT QUIT PIPE ALRM TERM
+  trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
-  case $cmdpid in
+  case "$webcmdpid" in '') sleep 1; set_webcmdpid;; esac
+  case "$webcmdpid" in
     '-'*) :                                 ;;
-       *) echo 'Flush buffered data...' 1>&4
-          kill $cmdpid 2>/dev/null && fg
-          cmdpid=-1
-          exec 1>&3 2>&4 3>&- 4>&-          ;;
+       *) echo 'Flush buffered data...' 1>&3
+          kill $webcmdpid 2>/dev/null && fg
+          webcmdpid=-1
+          exec 2>&3 3>&-                    ;;
   esac
   exit ${1:-0}
 }
@@ -444,46 +482,14 @@ ______________KEY_AND_DATA
        ;;                                                                      #
   esac
 } 3>&2 2>/dev/null &
-
-# === 自分が呼んだ cURL or Wget のPIDを調べる ========================
-sleep 1
-cmdpid=`case $(uname) in                                             #
-          CYGWIN*) ps -af                                      |     #
-                   awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
-                *) ps -Ao ppid,pid,comm                        ;;    #
-        esac                                                         |
-        grep -v '^[^0-9]*PPID'                                       |
-        sort -k 1n,1 -k 2n,2                                         |
-        awk 'BEGIN    {ppid0="" ;         }                          #
-             ppid0!=$1{print "-";         }                          #
-             "EVERY"  {print    ;ppid0=$1;}'                         |
-        awk '$1=="-"{                                                #
-               count=1;                                              #
-               next;                                                 #
-             }                                                       #
-             "EVERY"{                                                #
-               pid2comm[$2]      =$3;                                #
-               ppid2pid[$1,count]=$2;                                #
-               count++;                                              #
-             }                                                       #
-             END    {                                                #
-               print does_myCurlWget_exist_in('"$$"');               #
-             }                                                       #
-             function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
-               comm = pid2comm[mypid];                               #
-               if ((comm=="curl") || (comm=="wget")) {return mypid;} #
-               for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
-                 ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
-                 if (ret >= 0) {return ret;}                         #
-               }                                                     #
-               return -1;                                            #
-             }'                                                      `
+exec 3>&2 2>/dev/null # "set -m"の副作用で生成されるジョブ完了通知を無視
 
 # === 検索サブシェルの終了待機 =======================================
-exec 3>&1 4>&2 >/dev/null 2>&1
+sleep 1 || exit_trap 0
+set_webcmdpid
 wait
-cmdpid=-1
-exec 1>&3 2>&4 3>&- 4>&-
+webcmdpid=-1
+exec 2>&3 3>&-
 
 # === 異常時のメッセージ出力 =========================================
 if [ -s "$apires_file" ]; then

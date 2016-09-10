@@ -45,12 +45,12 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Mon Aug 29 23:23:27 DST 2016
+	Sat Sep 10 14:56:38 JST 2016
 __USAGE
   exit 1
 }
 exit_trap() {
-  trap EXIT HUP INT QUIT PIPE ALRM TERM
+  trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
   exit ${1:-0}
 }
