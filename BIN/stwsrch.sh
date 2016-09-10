@@ -20,17 +20,23 @@
 Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
 
 # === 初期化 #1 ======================================================
-set -um                     # "-m"はfgを利用可能にするために付けている
+set -um # "-m"はfgコマンドを利用可能にするために付けている
 umask 0022
 PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
-webcmdpid=''
+webcmdpid=-1 # Web APIアクセス用バックグラウンドプロセスのID
+             # (a)負値 …バックグラウンドにプロセスはいない、或いは終了した。
+             #           →killせずに終了してよい
+             # (b)空 ……バックグラウンドプロセスができつつある。
+             #           →暫く待って生成pidを調べよ
+             # (c)0以上…バックグラウンドプロセスのIDはそれである。
+             #           →終了する前にkillせよ
 
 # === 共通設定読み込み ===============================================
 . "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
 
-# === エラー終了関数 =================================================
+# === Usage表示終了関数 ==============================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/} [options] <keyword> [keyword ...]
@@ -41,7 +47,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Sep 10 01:41:02 DST 2016
+	Sat Sep 10 18:12:10 JST 2016
 __USAGE
   exit 1
 }
@@ -81,7 +87,7 @@ set_webcmdpid() {
                   }'                                                      `
 }
 
-# === 終了時後始末関数 ===============================================
+# === 終了前処理関数 =================================================
 exit_trap() {
   trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
@@ -95,11 +101,15 @@ exit_trap() {
   esac
   exit ${1:-0}
 }
-trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
+
+# === エラー終了関数 =================================================
 error_exit() {
   [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
-  exit $1
+  exit_trap $1
 }
+
+# === 終了時後始末関数有効化 =========================================
+trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
 Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
 
 # === 必要なプログラムの存在を確認する ===============================
@@ -295,6 +305,7 @@ ______________KEY_AND_DATA
             done                                                 )
 
 # === 検索処理 =======================================================
+webcmdpid=''
 {
   # --- 1.APIコール
   printf '%s\noauth_signature=%s\n%s\n'                                        \
@@ -485,11 +496,11 @@ ______________KEY_AND_DATA
 exec 3>&2 2>/dev/null # "set -m"の副作用で生成されるジョブ完了通知を無視
 
 # === 検索サブシェルの終了待機 =======================================
-sleep 1 || exit_trap 0
-set_webcmdpid
-wait
-webcmdpid=-1
-exec 2>&3 3>&-
+sleep 1 || exit_trap 0 #<FreeBSDでは"set -m"有効時、このsleep中に[CTRL]+[C]で
+set_webcmdpid          # 強制終了すると、即座にtrapで定義した処理に飛ばず、
+wait                   # 次の処理を続行しようとする。（これはバグなんじゃ？）
+webcmdpid=-1           # 仕方が無いので、sleep中断と判断された時は
+exec 2>&3 3>&-         # 自力でexit_trapに飛ぶようにした。
 
 # === 異常時のメッセージ出力 =========================================
 if [ -s "$apires_file" ]; then
