@@ -47,7 +47,7 @@ print_usage_and_exit () {
 	        --rawout=<filepath_for_writing_JSON_data>
 	        --rawonly
 	        --timeout=<waiting_seconds_to_connect>
-	Sat Sep 10 18:12:10 JST 2016
+	Sat Sep 10 20:31:45 JST 2016
 __USAGE
   exit 1
 }
@@ -97,7 +97,7 @@ exit_trap() {
        *) echo 'Flush buffered data...' 1>&3
           kill $webcmdpid 2>/dev/null && fg
           webcmdpid=-1
-          exec 2>&3 3>&-                    ;;
+          exec 1>&3 2>&4 3>&- 4>&-          ;;
   esac
   exit ${1:-0}
 }
@@ -493,14 +493,14 @@ webcmdpid=''
        ;;                                                                      #
   esac
 } 3>&2 2>/dev/null &
-exec 3>&2 2>/dev/null # "set -m"の副作用で生成されるジョブ完了通知を無視
+exec 3>&1 4>&2 >/dev/null 2>&1 # "set -m"の副作用で生成されるjob完了通知を無視
 
 # === 検索サブシェルの終了待機 =======================================
-sleep 1 || exit_trap 0 #<FreeBSDでは"set -m"有効時、このsleep中に[CTRL]+[C]で
-set_webcmdpid          # 強制終了すると、即座にtrapで定義した処理に飛ばず、
-wait                   # 次の処理を続行しようとする。（これはバグなんじゃ？）
-webcmdpid=-1           # 仕方が無いので、sleep中断と判断された時は
-exec 2>&3 3>&-         # 自力でexit_trapに飛ぶようにした。
+sleep 1 || exit_trap 0   #<FreeBSDでは"set -m"有効時、このsleep中に[CTRL]+[C]で
+set_webcmdpid            # 強制終了すると、即座にtrapで定義した処理に飛ばず、
+wait                     # 次の処理を続行しようとする。（これはバグなんじゃ？）
+webcmdpid=-1             # 仕方が無いので、sleep中断と判断された時は
+exec 1>&3 2>&4 3>&- 4>&- # 自力でexit_trapに飛ぶようにした。
 
 # === 異常時のメッセージ出力 =========================================
 if [ -s "$apires_file" ]; then
