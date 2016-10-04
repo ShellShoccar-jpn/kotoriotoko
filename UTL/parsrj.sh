@@ -36,7 +36,7 @@
 #         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
 #         : -e     は、キー名に" ",".","[","]"を含む困ったJSONを扱う場合に指定
 #
-# Written by 321516 (@shellshoccarjpn) / Date : Sep 15, 2016
+# Written by 321516 (@shellshoccarjpn) / Date : Oct  4, 2016
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -70,7 +70,7 @@ Options : -sk<s> はキー名文字列内にあるスペースの置換文字列
         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
         : -e     は、キー名に" ",".","[","]"を含む困ったJSONを扱う場合に指定
-Wed Sep 23 22:19:55 JST 2016
+Tue Oct  4 19:43:48 JST 2016
 __USAGE
   exit 1
 }
@@ -176,7 +176,7 @@ BEGIN {                                                                  #
   }                                                                      #
 }'                                                                       |
 awk '         # 3)restore DQ to the head and tail of lines               #
-BEGIN {           which have DQs at head and tail originally             #
+BEGIN {       #   which have DQs at head and tail originally             #
   OFS=""; even=0;                                                        #
   while (getline line)                   {                               #
     if (even==0) {print      line     ;}                                 #
