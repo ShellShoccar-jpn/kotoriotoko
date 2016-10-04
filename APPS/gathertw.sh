@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/08/29
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/04
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Sat Sep 10 14:56:38 JST 2016
+	Tue Oct  4 23:03:33 JST 2016
 __USAGE
   exit 1
 }
@@ -475,26 +475,37 @@ while :; do
 
   # === 検索結果から最初と最後の日時・ツイートIDを求める =============
   s=$(awk 'BEGIN {                                           #
-             getline l1; getline l2; getline l3; getline l4; #
-             getline l5; getline l6; getline l7;             #
-             last_dt=l1; gsub(/[\/:]/," ",last_dt);          #
-             last_id=l7;  sub(/^.*\//,"" ,last_id);          #
-             l1="";                                          #
+             get_datetime_id();                              #
+             last_d  =cur_d ; last_t  =cur_t ;               #
+             last_dt =cur_dt; last_id =cur_id;               #
+             since_d =cur_d ; since_t =cur_t ;               #
+             since_dt=cur_dt; since_id=cur_id;               #
              while (1) {                                     #
-               if (getline l1) {                             #
-                 getline l2; getline l3; getline l4;         #
-                 getline l5; getline l6; getline l7;         #
-               } else          {                             #
-                 break;                                      #
+               if (! get_datetime_id()) {break;}             #
+               if (cur_d>=last_d ) {                         #
+                 if (cur_t>last_t ) {                        #
+                   last_d  =cur_d ; last_t  =cur_t ;         #
+                   last_dt =cur_dt; last_id =cur_id;         #
+                 }                                           #
+               }                                             #
+               if (cur_d<=since_d) {                         #
+                 if (cur_t>since_t) {                        #
+                   since_d =cur_d ; since_t =cur_t ;         #
+                   since_dt=cur_dt; since_id=cur_id;         #
+                 }                                           #
                }                                             #
              }                                               #
-             if (length(l1)>0) {                             #
-               since_dt=l1; gsub(/[\/:]/," ",since_dt);      #
-               since_id=l7;  sub(/^.*\//,"" ,since_id);      #
-             } else            {                             #
-               since_dt=last_dt; since_id=last_id;           #
-             }                                               #
              print last_dt,last_id,since_dt,since_id,NR/7;   #
+           }                                                 #
+           function get_datetime_id( l1,l2,l3,l4,l5,l6,l7) { #
+             if (! getline l1) {return 0;}                   #
+             getline l2; getline l3; getline l4;             #
+             getline l5; getline l6; getline l7;             #
+             cur_d  =substr(l1, 1,10);gsub(/\//,"",cur_d);   #
+             cur_t  =substr(l1,12   );gsub(/:/ ,"",cur_d);   #
+             cur_dt =l1; gsub(/[\/:]/," ",cur_dt);           #
+             cur_id =l7;  sub(/^.*\//,"" ,cur_id);           #
+             return 1;                                       #
            }' "$Tmp/res"                                     )
   set -- $s
   eY=$1; eM=$2; eD=$3   ; eh=$4   ; em=$5   ; es=$6   ; eID=$7
