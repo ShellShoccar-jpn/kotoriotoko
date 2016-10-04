@@ -34,8 +34,9 @@
 #         : -li    は配列行終了時に添字なしの配列フルパス行(値は空)を挿入する
 #         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
 #         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
+#         : -e     は、キー名に" ",".","[","]"を含む困ったJSONを扱う場合に指定
 #
-# Written by Rich Mikan(richmikan[at]richlab.org) / Date : Mar  8, 2016
+# Written by 321516 (@shellshoccarjpn) / Date : Sep 15, 2016
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -43,58 +44,19 @@
 # the major licenses.
 
 
+######################################################################
+# Initial configuration
+######################################################################
+
+# === Initialize =====================================================
 set -u
 PATH='/usr/bin:/bin'
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LANG=C LC_ALL=C PATH
 
-DQ=$(printf '\026')              # 値のダブルクォーテーション(DQ)エスケープ用
-LF=$(printf '\\\n_');LF=${LF%_}  # sed内で改行を変数として扱うためのもの
-
-file=''
-sk='_'
-rt='$'
-kd='.'
-lp='['
-ls=']'
-fn=0
-unoptli='#'
-optt=''
-unoptt='#'
-case $# in [!0]*)
-  for arg in "$@"; do
-    if [ \( "_${arg#-sk}" != "_$arg" \) -a \( -z "$file" \) ]; then
-      sk=${arg#-sk}
-    elif [ \( "_${arg#-rt}" != "_$arg" \) -a \( -z "$file" \) ]; then
-      rt=${arg#-rt}
-    elif [ \( "_${arg#-kd}" != "_$arg" \) -a \( -z "$file" \) ]; then
-      kd=${arg#-kd}
-    elif [ \( "_${arg#-lp}" != "_$arg" \) -a \( -z "$file" \) ]; then
-      lp=${arg#-lp}
-    elif [ \( "_${arg#-ls}" != "_$arg" \) -a \( -z "$file" \) ]; then
-      ls=${arg#-ls}
-    elif [ \( "_${arg#-fn}" != "_$arg" \) -a \( -z "$file" \) -a \
-           -n "$(printf '%s\n' "${arg#-fn}" | grep '^[0-9]\{1,\}$')" ]; then
-      fn=${arg#-fn}
-      fn=$((fn+0))
-    elif [ \( "_$arg" = '_-li' \) -a \( -z "$file" \) ]; then
-      unoptli=''
-    elif [ \( "_$arg" = '_--xpath' \) -a \( -z "$file" \) ]; then
-      rt=''
-      kd='/'
-      lp='['
-      ls=']'
-      fn=1
-      unoptli=''
-    elif [ \( "_$arg" = '_-t' \) -a \( -z "$file" \) ]; then
-      optt='#'
-      unoptt=''
-    elif [ \( \( -f "$arg" \) -o \( -c "$arg" \) \) -a \( -z "$file" \) ]; then
-      file=$arg
-    elif [ \( "_$arg" = "_-" \) -a \( -z "$file" \) ]; then
-      file='-'
-    else
-      cat <<______USAGE 1>&2
+# === Usage printing function ========================================
+print_usage_and_exit () {
+  cat <<__USAGE 1>&2
 Usage   : ${0##*/} [JSON_file]                       ←JSONPath表現
         : ${0##*/} --xpath [JSON_file]               ←XPath表現
         : ${0##*/} [2letters_options...] [JSON_file] ←カスタム表現
@@ -107,46 +69,114 @@ Options : -sk<s> はキー名文字列内にあるスペースの置換文字列
         : -li    は配列行終了時に添字なしの配列フルパス行(値は空)を挿入する
         : --xpathは階層表現をXPathにする(-rt -kd/ -lp[ -ls] -fn1 -liと等価)
         : -t     は、値の型を区別する(文字列はダブルクォーテーションで囲む)
-______USAGE
-      exit 1
+        : -e     は、キー名に" ",".","[","]"を含む困ったJSONを扱う場合に指定
+Wed Sep 23 22:19:55 JST 2016
+__USAGE
+  exit 1
+}
+
+
+######################################################################
+# Parse Arguments
+######################################################################
+
+# === Print the usage when "--help" is put ===========================
+case "$# ${1:-}" in
+  '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
+esac
+
+# === Get the options and the filepath ===============================
+file=''
+sk='_'
+rt='$'
+kd='.'
+lp='['
+ls=']'
+fn=0
+unoptli='#'
+unopte='#'
+optt=''
+unoptt='#'
+case $# in [!0]*)
+  for arg in "$@"; do
+    if   [ "_${arg#-sk}" != "_$arg"    ] && [ -z "$file" ] ; then
+      sk=${arg#-sk}
+    elif [ "_${arg#-rt}" != "_$arg"    ] && [ -z "$file" ] ; then
+      rt=${arg#-rt}
+    elif [ "_${arg#-kd}" != "_$arg"    ] && [ -z "$file" ] ; then
+      kd=${arg#-kd}
+    elif [ "_${arg#-lp}" != "_$arg"    ] && [ -z "$file" ] ; then
+      lp=${arg#-lp}
+    elif [ "_${arg#-ls}" != "_$arg"    ] && [ -z "$file" ] ; then
+      ls=${arg#-ls}
+    elif [ "_${arg#-fn}" != "_$arg"    ] && [ -z "$file" ] &&
+      printf '%s\n' "$arg" | grep -Eq '^-fn[0-9]+$'        ; then
+      fn=${arg#-fn}
+      fn=$((fn+0))
+    elif [ "_$arg"        = '_-li'     ] && [ -z "$file" ] ; then
+      unoptli=''
+    elif [ "_$arg"        = '_--xpath' ] && [ -z "$file" ] ; then
+      unoptli=''; rt=''; kd='/'; lp='['; ls=']'; fn=1
+    elif [ \( "_$arg" = '_-t' \) -a \( -z "$file" \) ]; then
+      unoptt=''; optt='#'
+    elif [ \( "_$arg" = '_-e' \) -a \( -z "$file" \) ]; then
+      unopte=''
+    elif ([ -f "$arg" ] || [ -c "$arg" ]) && [ -z "$file" ]; then
+      file=$arg
+    elif [ "_$arg"        = "_-"       ] && [ -z "$file" ] ; then
+      file='-'
+    else
+      print_usage_and_exit
     fi
   done
   ;;
 esac
+[ -z "$file" ] && file='-'
+
+
+######################################################################
+# Prepare for the Main Routine
+######################################################################
+
+# === Define some chrs. to escape some special chrs. temporarily =====
+HT=$( printf '\t'   )              # Means TAB
+DQ=$( printf '\026' )              # Use to escape doublequotation temporarily
+LFs=$(printf '\\\n_');LFs=${LFs%_} # Use as a "\n" in s-command of sed
+
+# === Export the variables to use in the following last AWK script ===
 export sk
 export rt
 export kd
 export lp
 export ls
-[ -z "$file" ] && file='-'
 
 
-# === データの流し込み ================================================= #
+######################################################################
+# Main Routine (Convert and Generate)
+######################################################################
+
+# === Open the JSON file =================================================
 cat "$file"                                                              |
 #                                                                        #
-# === 値としてのダブルクォーテーション(DQ)をエスケープしつつ =========== #
-#     ダブルクォーテーションで囲まれた"～"区間を単独行にする             #
-tr -d '\n'  | # 1)元の改行を取り除き、                                   |
-tr '"' '\n' | #   代わりにDQを改行にする                                 |
-awk '         # 2)値としてのDQを検出してエスケープ                       #
+# === Escape DQs and put each string between DQs into a sigle line ===== #
+tr -d '\n'  | # 1)convert each DQ to new "\n" instead of original "\n"s  |
+tr '"' '\n' | #                                                          |
+awk '         # 2)discriminate DQ as just a letter from DQ as a segment  #
 BEGIN {                                                                  #
-  OFS=""; ORS=""; LF=sprintf("\n");                                      #
+  OFS=""; ORS="";                                                        #
   while (getline line) {                                                 #
     len = length(line);                                                  #
     if        (substr(line,len)!="\\"               ) {                  #
-      # a. 終端が"\"でないなら次行とは結合しない                         #
-      print line,LF;                                                     #
+      print line,"\n";                                                   #
     } else if (match(line,/^(\\\\)+$|[^\\](\\\\)+$/)) {                  #
-      # b. 終端に"\"が偶数個連続していても結合しない                     #
-      print line,LF;                                                     #
+      print line,"\n";                                                   #
     } else                                            {                  #
-      # c. 終端に"\"が奇数個連続しているなら次行と結合                   #
       print substr(line,1,len-1),"'$DQ'";                                #
     }                                                                    #
   }                                                                      #
 }'                                                                       |
-awk '         # 3)元々DQで囲まれていた行(交互に現れる)を復元する         #
-BEGIN {                                                                  #
+awk '         # 3)restore DQ to the head and tail of lines               #
+BEGIN {           which have DQs at head and tail originally             #
   OFS=""; even=0;                                                        #
   while (getline line)                   {                               #
     if (even==0) {print      line     ;}                                 #
@@ -155,15 +185,17 @@ BEGIN {                                                                  #
   }                                                                      #
 }'                                                                       |
 #                                                                        #
-# === DQ始まり以外の行の"{","}","[","]",":",","の前後に改行を挿入 ====== #
-sed "/^[^\"]/s/\([][{}:,]\)/$LF\1$LF/g"                                  |
+# === Insert "\n" into the head and the tail of the lines which are ==== #
+#     not as just a value string                                         #
+sed "/^[^\"]/s/\([][{}:,]\)/$LFs\1$LFs/g"                                |
 #                                                                        #
-# === 無駄な空行は予め取り除いておく =================================== #
-grep -v "$(printf '^[\t ]*$')"                                           |
+# === Cut the unnecessary spaces and tabs and "\n"s ==================== #
+sed 's/^[ '"$HT"']\{1,\}//'                                              |
+sed 's/[ '"$HT"']\{1,\}$//'                                              |
+grep -v '^[ '"$HT"']*$'                                                  |
 #                                                                        #
-# === 行頭の記号を見ながら状態遷移させて処理(*1,strict版*2) ============ #
-# (*1 エスケープしたDQもここで元に戻す)                                  #
-# (*2 JSONの厳密なチェックを省略するならもっと簡素で高速にできる)        #
+# === Generate the JSONPath-value with referring the head of the ======= #
+#     strings and thier order                                            #
 awk '                                                                    #
 BEGIN {                                                                  #
   # キー文字列内にあるスペースの置換文字列をシェル変数に基づいて定義     #
@@ -185,8 +217,6 @@ BEGIN {                                                                  #
   _assert_exit=0;                                                        #
   # 同期信号キャラクタ(事前にエスケープしていたDQを元に戻すため)         #
   DQ="'$DQ'";                                                            #
-  # 改行キャラクター                                                     #
-  LF =sprintf("\n");                                                     #
   # print文の自動フィールドセパレーター挿入と文末自動改行をなくす        #
   OFS="";                                                                #
   ORS="";                                                                #
@@ -250,7 +280,7 @@ BEGIN {                                                                  #
       if ((stack_depth==0)                   ||                          #
           (datacat_stack[stack_depth]=="l0") ||                          #
           (datacat_stack[stack_depth]=="l1") ||                          #
-          (datacat_stack[stack_depth]=="h3")  ) {                        #
+          (datacat_stack[stack_depth]=="h3")   ) {                       #
         stack_depth++;                                                   #
         datacat_stack[stack_depth]="l0";                                 #
         keyname_stack[stack_depth]='"$fn"';                              #
@@ -344,10 +374,20 @@ BEGIN {                                                                  #
       }                                                                  #
       # 2)DQ囲みになっている場合は予めそれを除去しておく                 #
       # 3)事前にエスケープしていたDQをここで元に戻す                     #
-      key=(match(line,/^".*"$/))?substr(line,2,RLENGTH-2):line;          #
-      gsub(DQ,"\\\"",key);                                               #
-      '"$optt"'value=key;                                                #
-      '"$unoptt"'value=line;                                             #
+      if (match(line,/^".*"$/)) {                                        #
+        gsub(DQ,"\\\"",line);                                            #
+        key=substr(line,2,length(line)-2);                               #
+        '"$optt"'value=key;                                              #
+        '"$unoptt"'value=line;                                           #
+      } else                    {                                        #
+        gsub(DQ,"\\\"",line);                                            #
+        key=line;                                                        #
+        value=line;                                                      #
+      }                                                                  #
+      '"$unopte"'gsub(/ / ,"\\u0020",key);                               #
+      '"$unopte"'gsub(/\./,"\\u002e",key);                               #
+      '"$unopte"'gsub(/\[/,"\\u005b",key);                               #
+      '"$unopte"'gsub(/\]/,"\\u005d",key);                               #
       # 4)データ種別スタック最上位値によって分岐                         #
       # 4a)"l0:配列(初期要素値待ち)"又は"l1:配列(値待ち)"の場合          #
       s=datacat_stack[stack_depth];                                      #
@@ -381,14 +421,14 @@ BEGIN {                                                                  #
 END {                                                                    #
   # 最終処理                                                             #
   if (_assert_exit) {                                                    #
-    print "Invalid JSON format", LF > "/dev/stderr";                     #
+    print "Invalid JSON format\n" > "/dev/stderr";                       #
     line1="keyname-stack:";                                              #
     line2="datacat-stack:";                                              #
     for (i=1;i<=stack_depth;i++) {                                       #
       line1=line1 sprintf("{%s}",keyname_stack[i]);                      #
       line2=line2 sprintf("{%s}",datacat_stack[i]);                      #
     }                                                                    #
-    print line1, LF, line2, LF > "/dev/stderr";                          #
+    print line1, "\n", line2, "\n" > "/dev/stderr";                      #
   }                                                                      #
   exit _assert_exit;                                                     #
 }                                                                        #
@@ -402,6 +442,6 @@ function print_keys_and_value(str) {                                     #
       print key_delimit, keyname_stack[i];                               #
     }                                                                    #
   }                                                                      #
-  print " ", str, LF;                                                    #
+  print " ", str, "\n";                                                  #
 }                                                                        #
 '
