@@ -2,10 +2,10 @@
 
 ######################################################################
 #
-# GETSTARTED.SH - The 1st Command Should Be Run To Get Your Access Token
+# GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/04
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/05
 #
 # This software is completely Public Domain (CC0).
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/}
-	Tue Oct  4 04:32:56 JST 2016
+	Wed Oct  5 17:38:56 JST 2016
 __USAGE
   exit 1
 }
@@ -60,7 +60,7 @@ fi
 
 
 ######################################################################
-# Parse the Arguments
+# Argument Parsing
 ######################################################################
 
 # === Print usage and exit if one of the help options is set =========
@@ -405,3 +405,10 @@ cat <<-MESSAGE
 	readonly MY_atoken='${my_atoken}'
 	readonly MY_atksec='${my_atksec}'
 MESSAGE
+
+
+######################################################################
+# Closing
+######################################################################
+
+exit 0
