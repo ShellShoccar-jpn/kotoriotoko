@@ -106,7 +106,8 @@ $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 「方法1」を選択したのなら次のようにしてBINディレクトリーの中のgetstared.shを実行して、指示に従え。"Enjoy now!"とメッセージが出るまで進めば完了だ。
 
 ```sh:
-$ BIN/getstarted.sh
+$ cd <適当なインストールディレクトリ>/kotoriotoko/BIN
+$ ./getstarted.sh
 ```
 
 「方法2」を選択していたり、getstarted.shで"Enjoy now!"ではなく"Almost Finish preparing"と表示されたのなら次の作業をしろ。
