@@ -397,17 +397,17 @@ my_scname=$(echo "$s" | sed -n '3p')
 
 # === Print the last message =========================================
 fMade=0
-while [ ! -s "$File_CONF" ]; then
+while [ ! -s "$File_CONF" ]; do
   export KOTORIOTOKO_apikey  KOTORIOTOKO_apisec
   export my_atoken export my_atksec my_scname
   cat "$File_CONF_SAMPLE" |
   awk '
-    /^readonly MY_scname=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_scname"] "\"");}
-    /^readonly MY_apikey=".*"$/{sub(/".*"$/,"\"" ENVIRON["KOTORIOTOKO_apikey"] "\"");}
-    /^readonly MY_apisec=".*"$/{sub(/".*"$/,"\"" ENVIRON["KOTORIOTOKO_apisec"] "\"");}
-    /^readonly MY_atoken=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_atoken"] "\"");}
-    /^readonly MY_atksec=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_atksec"] "\"");}
-    "EVERY_LINE"               {print;                                      }
+    /^readonly MY_scname='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_scname"] "'"'"'"         );}
+    /^readonly MY_apikey='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["KOTORIOTOKO_apikey"] "'"'"'");}
+    /^readonly MY_apisec='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["KOTORIOTOKO_apisec"] "'"'"'");}
+    /^readonly MY_atoken='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_atoken"] "'"'"'"         );}
+    /^readonly MY_atksec='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_atksec"] "'"'"'"         );}
+    "EVERY_LINE"               {print;                                                                     }
   ' > "$File_CONF"
   [ $? -eq 0 ] || break
   cat <<-__MESSAGE1
