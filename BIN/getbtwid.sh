@@ -9,7 +9,7 @@
 # [備考]
 # CONFIG.SHLIBに、MY_apikeyとMY_apisecを設定していなければならない。
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/05/30
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/09
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -42,7 +42,7 @@ print_usage_and_exit () {
 	        before execute this command.
 	        * MY_apikey
 	        * MY_apisec
-	Mon May 30 08:08:12 JST 2016
+	Sun Oct  9 01:45:59 JST 2016
 __USAGE
   exit 1
 }
@@ -79,6 +79,29 @@ case "${MY_apikey:-}" in '') error_exit 1 'MY_apikey is not set';; esac
 
 # === MY_apisec存在確認 ==============================================
 case "${MY_apisec:-}" in '') error_exit 1 'MY_apisec is not set';; esac
+
+# === 小鳥男（量産型）と同じだったら警告を出す =======================
+[ "${MY_apikey:-}" = "${KOTORIOTOKO_apikey:-}" ] &&
+[ "${MY_apisec:-}" = "${KOTORIOTOKO_apisec:-}" ] && {
+  cat <<-'__WARNING'
+	**********************************************************************
+	WARNING
+	**********************************************************************
+	${MY_apikey} and ${MY_apisec} which are written in your COMMON.SHLIB
+	are both same with ${KOTORIOTOKO_apikey} and ${KOTORIOTOKO_apisec}.
+	
+	The bearer token which will be generated soon is almost USELESS
+	because of a lot of user use the same one and scramble the access
+	limit of the token.
+
+	You strongly should get a pair of app-key for your personal use at
+	"Twitter Apps" (https://apps.twitter.com/).
+	And set it into ${MY_apikey} and ${MY_apisec}.
+	----------------------------------------------------------------------
+
+__WARNING
+  sleep 5
+}
 
 
 ######################################################################
@@ -132,7 +155,7 @@ parsrj.sh                                               |
 awk '$1=="$.access_token"{bearer =$2;}                  #
      END {                                              #
        if (bearer!="") {                                #
-         print "MY_bearer=\047" $2 "\047";              #
+         print "readonly MY_bearer=\047" $2 "\047";     #
          print "";                                      #
          print "Write the variable into COMMON.SHLIB."; #
          print "And you can use btw*.sh commands.";     #

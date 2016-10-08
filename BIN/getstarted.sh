@@ -5,7 +5,7 @@
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/05
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/09
 #
 # This software is completely Public Domain (CC0).
 #
@@ -33,7 +33,7 @@ export IFS LC_ALL=C LANG=C PATH
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/}
-	Sat Oct  8 23:41:16 DST 2016
+	Sun Oct  9 01:24:35 JST 2016
 __USAGE
   exit 1
 }
@@ -402,12 +402,12 @@ while [ ! -s "$File_CONF" ]; do
   export my_atoken export my_atksec my_scname
   cat "$File_CONF_SAMPLE" |
   awk '
-    /^readonly MY_scname='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_scname"] "'"'"'"         );}
-    /^readonly MY_apikey='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["KOTORIOTOKO_apikey"] "'"'"'");}
-    /^readonly MY_apisec='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["KOTORIOTOKO_apisec"] "'"'"'");}
-    /^readonly MY_atoken='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_atoken"] "'"'"'"         );}
-    /^readonly MY_atksec='"'"'.*'"'"'$/{sub(/'"'"'.*'"'"'$/,"'"'"'" ENVIRON["my_atksec"] "'"'"'"         );}
-    "EVERY_LINE"               {print;                                                                     }
+    /^readonly MY_scname=\047.*\047$/{sub(/\047.*\047$/,"\047" ENVIRON["my_scname"] "\047"         );}
+    /^readonly MY_apikey=\047.*\047$/{sub(/\047.*\047$/,"\047" ENVIRON["KOTORIOTOKO_apikey"] "\047");}
+    /^readonly MY_apisec=\047.*\047$/{sub(/\047.*\047$/,"\047" ENVIRON["KOTORIOTOKO_apisec"] "\047");}
+    /^readonly MY_atoken=\047.*\047$/{sub(/\047.*\047$/,"\047" ENVIRON["my_atoken"] "\047"         );}
+    /^readonly MY_atksec=\047.*\047$/{sub(/\047.*\047$/,"\047" ENVIRON["my_atksec"] "\047"         );}
+    "EVERY_LINE"               {print;                                                               }
   ' > "$File_CONF"
   [ $? -eq 0 ] || break
   cat <<-__MESSAGE1
