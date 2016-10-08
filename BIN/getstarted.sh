@@ -18,6 +18,9 @@
 
 # === Get the home directory of the application ======================
 Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+Dir_CONF="$Homedir/CONFIG"
+File_CONF="$Dir_CONF/COMMON.SHLIB"
+File_CONF_SAMPLE="$Dir_CONF/COMMON.SHLIB.SAMPLE"
 
 # === Initialize =====================================================
 set -u
@@ -26,14 +29,11 @@ PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
 IFS=$(printf ' \t\n_'); IFS=${IFS%_}
 export IFS LC_ALL=C LANG=C PATH
 
-# === Include the configurations of this application =================
-. "$Homedir/CONFIG/COMMON.SHLIB"
-
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
 	Usage : ${0##*/}
-	Wed Oct  5 17:38:56 JST 2016
+	Sat Oct  8 23:41:16 DST 2016
 __USAGE
   exit 1
 }
@@ -41,6 +41,15 @@ error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
   exit $1
 }
+
+# === Include the configurations of this application =================
+if   [ -s "$File_CONF"        ]; then
+  . "$File_CONF"
+elif [ -s "$File_CONF_SAMPLE" ]; then
+  . "$File_CONF_SAMPLE"
+else
+  error_exit 1 'No configuration file found'
+fi
 
 # === Confirm that the required commands exist =======================
 # --- 1.OpenSSL or LibreSSL
@@ -387,10 +396,38 @@ my_atksec=$(echo "$s" | sed -n '2p')
 my_scname=$(echo "$s" | sed -n '3p')
 
 # === Print the last message =========================================
-cat <<-MESSAGE
+fMade=0
+while [ ! -s "$File_CONF" ]; then
+  export KOTORIOTOKO_apikey  KOTORIOTOKO_apisec
+  export my_atoken export my_atksec my_scname
+  cat "$File_CONF_SAMPLE" |
+  awk '
+    /^readonly MY_scname=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_scname"] "\"");}
+    /^readonly MY_apikey=".*"$/{sub(/".*"$/,"\"" ENVIRON["KOTORIOTOKO_apikey"] "\"");}
+    /^readonly MY_apisec=".*"$/{sub(/".*"$/,"\"" ENVIRON["KOTORIOTOKO_apisec"] "\"");}
+    /^readonly MY_atoken=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_atoken"] "\"");}
+    /^readonly MY_atksec=".*"$/{sub(/".*"$/,"\"" ENVIRON["my_atksec"] "\"");}
+    "EVERY_LINE"               {print;                                      }
+  ' > "$File_CONF"
+  [ $? -eq 0 ] || break
+  cat <<-__MESSAGE1
 
 	***********************************************************************
-	Almost finish preparing.
+	Enjoy now!
+	***********************************************************************
+	Your configuration file "$Homedir/CONFIG/COMMON.SHLIB"
+	have been made.
+
+	You can use kotoriotoko now because of your access keys of Twitter service
+	are written into the file.
+__MESSAGE1
+  fMade=1
+break; done
+if [ $fMade -eq 0 ]; then
+  cat <<-__MESSAGE2
+
+	***********************************************************************
+	Almost finish preparing
 	***********************************************************************
 	Finally, write the following parameters into the following file.
 	"$Homedir/CONFIG/COMMON.SHLIB"
@@ -404,8 +441,8 @@ cat <<-MESSAGE
 	readonly MY_apisec='${KOTORIOTOKO_apisec}'
 	readonly MY_atoken='${my_atoken}'
 	readonly MY_atksec='${my_atksec}'
-MESSAGE
-
+__MESSAGE2
+fi
 
 ######################################################################
 # Closing
