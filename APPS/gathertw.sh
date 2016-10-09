@@ -5,7 +5,7 @@
 # gathertw.sh
 # Twitterで指定条件に該当するツイートを収集する
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/04
+# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/09
 #
 # このソフトウェアは Public Domain (CC0)であることを宣言する。
 #
@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Tue Oct  4 23:03:33 JST 2016
+	Sun Oct  9 14:45:19 DST 2016
 __USAGE
   exit 1
 }
@@ -482,18 +482,18 @@ while :; do
              since_dt=cur_dt; since_id=cur_id;               #
              while (1) {                                     #
                if (! get_datetime_id()) {break;}             #
-               if (cur_d>=last_d ) {                         #
-                 if (cur_t>last_t ) {                        #
-                   last_d  =cur_d ; last_t  =cur_t ;         #
-                   last_dt =cur_dt; last_id =cur_id;         #
-                 }                                           #
-               }                                             #
-               if (cur_d<=since_d) {                         #
-                 if (cur_t>since_t) {                        #
-                   since_d =cur_d ; since_t =cur_t ;         #
-                   since_dt=cur_dt; since_id=cur_id;         #
-                 }                                           #
-               }                                             #
+               if      (cur_d>last_d ) {f=1;}                #
+               else if (cur_d<last_d ) {f=0;}                #
+               else if (cur_t>last_t ) {f=1;}                #
+               else                    {f=0;}                #
+               if (f) {last_d  =cur_d ; last_t  =cur_t ;     #
+                       last_dt =cur_dt; last_id =cur_id;}    #
+               if      (cur_d<since_d) {f=1;}                #
+               else if (cur_d>since_d) {f=0;}                #
+               else if (cur_t<since_t) {f=1;}                #
+               else                    {f=0;}                #
+               if (f) {since_d =cur_d ; since_t =cur_t ;     #
+                       since_dt=cur_dt; since_id=cur_id;}    #
              }                                               #
              print last_dt,last_id,since_dt,since_id,NR/7;   #
            }                                                 #
