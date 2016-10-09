@@ -45,7 +45,7 @@ print_usage_and_exit () {
 	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
 	        -l <lang>                     |--lang=<lang>
 	        -o <locale>                   |--locale=<locale>
-	Sun Oct  9 14:45:19 DST 2016
+	Sun Oct  9 17:36:34 DST 2016
 __USAGE
   exit 1
 }
@@ -474,39 +474,45 @@ while :; do
   }
 
   # === 検索結果から最初と最後の日時・ツイートIDを求める =============
-  s=$(awk 'BEGIN {                                           #
-             get_datetime_id();                              #
-             last_d  =cur_d ; last_t  =cur_t ;               #
-             last_dt =cur_dt; last_id =cur_id;               #
-             since_d =cur_d ; since_t =cur_t ;               #
-             since_dt=cur_dt; since_id=cur_id;               #
-             while (1) {                                     #
-               if (! get_datetime_id()) {break;}             #
-               if      (cur_d>last_d ) {f=1;}                #
-               else if (cur_d<last_d ) {f=0;}                #
-               else if (cur_t>last_t ) {f=1;}                #
-               else                    {f=0;}                #
-               if (f) {last_d  =cur_d ; last_t  =cur_t ;     #
-                       last_dt =cur_dt; last_id =cur_id;}    #
-               if      (cur_d<since_d) {f=1;}                #
-               else if (cur_d>since_d) {f=0;}                #
-               else if (cur_t<since_t) {f=1;}                #
-               else                    {f=0;}                #
-               if (f) {since_d =cur_d ; since_t =cur_t ;     #
-                       since_dt=cur_dt; since_id=cur_id;}    #
-             }                                               #
-             print last_dt,last_id,since_dt,since_id,NR/7;   #
-           }                                                 #
-           function get_datetime_id( l1,l2,l3,l4,l5,l6,l7) { #
-             if (! getline l1) {return 0;}                   #
-             getline l2; getline l3; getline l4;             #
-             getline l5; getline l6; getline l7;             #
-             cur_d  =substr(l1, 1,10);gsub(/\//,"",cur_d);   #
-             cur_t  =substr(l1,12   );gsub(/:/ ,"",cur_d);   #
-             cur_dt =l1; gsub(/[\/:]/," ",cur_dt);           #
-             cur_id =l7;  sub(/^.*\//,"" ,cur_id);           #
-             return 1;                                       #
-           }' "$Tmp/res"                                     )
+  s=$(awk 'BEGIN {                                             #
+             get_datetime_id();                                #
+             last_i0 =cur_i0;last_i1 =cur_i1;last_i2 =cur_i2;  #
+             last_dt =cur_dt;last_id =cur_id;                  #
+             since_i0=cur_i0;since_i1=cur_i1;since_i2=cur_i2;  #
+             since_dt=cur_dt;since_id=cur_id;                  #
+             while (1) {                                       #
+               if (! get_datetime_id()) {break;}               #
+               if      (cur_i2>last_i2 ) {f=1;}                #
+               else if (cur_i2<last_i2 ) {f=0;}                #
+               else if (cur_i1>last_i1 ) {f=1;}                #
+               else if (cur_i1<last_i1 ) {f=0;}                #
+               else if (cur_i0>last_i0 ) {f=1;}                #
+               else                      {f=0;}                #
+               if (f) {last_d  =cur_d ; last_t  =cur_t ;       #
+                       last_dt =cur_dt; last_id =cur_id;}      #
+               if      (cur_i2<since_i2) {f=1;}                #
+               else if (cur_i2>since_i2) {f=0;}                #
+               else if (cur_i1<since_i1) {f=1;}                #
+               else if (cur_i1>since_i1) {f=0;}                #
+               else if (cur_i0<since_i0) {f=1;}                #
+               else                      {f=0;}                #
+               if (f) {since_d =cur_d ; since_t =cur_t ;       #
+                       since_dt=cur_dt; since_id=cur_id;}      #
+             }                                                 #
+             print last_dt,last_id,since_dt,since_id,NR/7;     #
+           }                                                   #
+           function get_datetime_id( l1,l2,l3,l4,l5,l6,l7,s) { #
+             if (! getline l1) {return 0;}                     #
+             getline l2; getline l3; getline l4;               #
+             getline l5; getline l6; getline l7;               #
+             cur_dt =l1; gsub(/[\/:]/," ",cur_dt);             #
+             cur_id =l7;  sub(/^.*\//,"" ,cur_id);             #
+             s=sprintf("%27s",cur_id);                         #
+             cur_i0=substr(s,19, 9); sub(/^ +$/,"0",cur_i0);   #
+             cur_i1=substr(s,10, 9); sub(/^ +$/,"0",cur_i1);   #
+             cur_i2=substr(s, 1, 9); sub(/^ +$/,"0",cur_i2);   #
+             return 1;                                         #
+           }' "$Tmp/res"                                       )
   set -- $s
   eY=$1; eM=$2; eD=$3   ; eh=$4   ; em=$5   ; es=$6   ; eID=$7
   sY=$8; sM=$9; sD=${10}; sh=${11}; sm=${12}; ss=${13}; sID=${14}
