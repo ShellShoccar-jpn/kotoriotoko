@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ######################################################################
 #
 # UNESCJ.SH
@@ -17,7 +19,7 @@
 # Usage: unescj.sh [-n] [JSONPath-value_textfile]
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-29
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -40,7 +42,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n] [JSONPath-value_textfile]
-	Version : 2017-01-29 16:08:12 JST
+	Version : 2017-02-07 02:01:03 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1

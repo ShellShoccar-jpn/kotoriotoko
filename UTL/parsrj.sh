@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ######################################################################
 #
 # PARSRJ.SH
@@ -45,7 +47,7 @@
 #         : -li     Inserts another JSONPath line which has no value
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-27
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -69,20 +71,20 @@ print_usage_and_exit () {
   cat <<USAGE 1>&2
 Usage   : ${0##*/} [options] [JSON_file]
 Options : -t      Quotes a value at converting when the value is a string
-        : -e      Escapes the following characters in impolite JSON key fields
+          -e      Escapes the following characters in impolite JSON key fields
                   (" ",".","[","]")
-        : --xpath Use XPath instead of JSONPath when converting
+          --xpath Use XPath instead of JSONPath when converting
                   It is equivalent to using the following options
                   (-rt -kd/ -lp'[' -ls']' -fn1 -li)
-        <<The following options are to arrange the JSONPath format>>
-        : -sk<s>  Replaces <0x20> chrs in key string with <s>
-        : -rt<s>  Replaces the root symbol "$" of JSONPath with <s>
-        : -kd<s>  Replaces the delimiter "." of JSONPath hierarchy with <s>
-        : -lp<s>  Replaces the prefix of array character "[" with <s>
-        : -ls<s>  Replaces the suffix of array character "]" with <s>
-        : -fn<n>  Redefines the start number of arrays with <n>
-        : -li     Inserts another JSONPath line which has no value
-Version : 2017-01-27 14:53:31 JST
+         <<The following options are to arrange the JSONPath format>>
+          -sk<s>  Replaces <0x20> chrs in key string with <s>
+          -rt<s>  Replaces the root symbol "$" of JSONPath with <s>
+          -kd<s>  Replaces the delimiter "." of JSONPath hierarchy with <s>
+          -lp<s>  Replaces the prefix of array character "[" with <s>
+          -ls<s>  Replaces the suffix of array character "]" with <s>
+          -fn<n>  Redefines the start number of arrays with <n>
+          -li     Inserts another JSONPath line which has no value
+Version : 2017-02-07 02:01:03 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1

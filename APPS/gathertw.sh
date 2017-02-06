@@ -1,8 +1,10 @@
+#!/bin/sh
+
 ######################################################################
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -41,7 +43,7 @@ print_usage_and_exit () {
 	          -g <lon,lat,radius>|--geocode=<lon,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-01-31 14:39:37 JST
+	Version : 2017-02-07 02:01:03 JST
 	USAGE
   exit 1
 }

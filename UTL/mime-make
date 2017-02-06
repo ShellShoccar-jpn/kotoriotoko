@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ######################################################################
 #
 # MIME-MAKE - MIME Multipart Formatted Data Maker
@@ -39,7 +41,7 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -94,7 +96,7 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : 2017-01-31 19:53:13 JST
+	Version : 2017-02-07 02:01:03 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1

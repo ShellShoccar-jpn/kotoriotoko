@@ -1,8 +1,10 @@
+#!/bin/sh
+
 ######################################################################
 #
 # BRETWER.SH : View Retweeted User List (with Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +32,7 @@ print_usage_and_exit () {
 	          -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-03 16:53:07 JST
+	Version : 2017-02-07 02:01:03 JST
 	USAGE
   exit 1
 }

@@ -1,8 +1,10 @@
+#!/bin/sh
+
 ######################################################################
 #
 # FAVTWS.SH : View The Favorite Tweets of A User
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -33,7 +35,7 @@ print_usage_and_exit () {
 	          -v           |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-05 00:58:31 DST
+	Version : 2017-02-07 02:01:03 JST
 	USAGE
   exit 1
 }
