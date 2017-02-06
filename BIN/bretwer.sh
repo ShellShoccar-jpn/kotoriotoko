@@ -2,7 +2,7 @@
 #
 # BRETWER.SH : View Retweeted User List (with Bearer Token Mode)
 #
-# Written by Rich Mikan (richmikan@richlab.org) on 2017-02-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-03
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.

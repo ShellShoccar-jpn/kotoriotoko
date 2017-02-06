@@ -2,7 +2,7 @@
 #
 # FAVTWS.SH : View The Favorite Tweets of A User
 #
-# Written by Rich Mikan(richmikan@richlab.org) on 2017-02-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-05
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
