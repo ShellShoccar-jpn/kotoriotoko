@@ -1,12 +1,13 @@
-#! /bin/sh
-
 ######################################################################
 #
 # FAVTWS.SH : View The Favorite Tweets of A User
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/05
+# Written by Rich Mikan(richmikan@richlab.org) on 2017-02-05
 #
-# This software is completely Public Domain (CC0).
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
@@ -15,38 +16,36 @@
 # Initial Configuration
 ######################################################################
 
-# === Get the home directory of the application ======================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-
-# === Initialize =====================================================
+# === Initialize shell environment ===================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
-
-# === Include the configurations of this application =================
-. "$Homedir/CONFIG/COMMON.SHLIB"
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] [loginname]
-	        OPTIONS:
-	        -m <max_ID>  |--maxid=<max_ID>
-	        -n <count>   |--count=<count>
-	        -s <since_ID>|--sinceid=<since_ID>
-	        -v           |--verbose
-	        --rawout=<filepath_for_writing_JSON_data>
-	        --timeout=<waiting_seconds_to_connect>
-	Wed Oct  5 18:57:36 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] [loginname]
+	          OPTIONS:
+	          -m <max_ID>  |--maxid=<max_ID>
+	          -n <count>   |--count=<count>
+	          -s <since_ID>|--sinceid=<since_ID>
+	          -v           |--verbose
+	          --rawout=<filepath_for_writing_JSON_data>
+	          --timeout=<waiting_seconds_to_connect>
+	Version : 2017-02-05 00:58:31 DST
+	USAGE
   exit 1
 }
 error_exit() {
   [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
   exit $1
 }
+
+# === Detect home directory of this app. and define more =============
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+. "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
 
 # === Confirm that the required commands exist =======================
 # --- 1.OpenSSL or LibreSSL
@@ -164,13 +163,12 @@ printf '%s\n' "$scname" | grep -Eq '^$|^[A-Za-z0-9_]+$' || {
 readonly API_endpt='https://api.twitter.com/1.1/favorites/list.json'
 readonly API_methd='GET'
 # (2)parameters
-API_param=$(cat <<______________PARAM      |
-              count=${count}
-              screen_name=@${scname}
-              max_id=${max_id}
-              since_id=${since_id}
-______________PARAM
-            sed 's/^ *//'                  |
+API_param=$(cat <<-PARAM                   |
+				count=${count}
+				screen_name=@${scname}
+				max_id=${max_id}
+				since_id=${since_id}
+				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
@@ -195,24 +193,23 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            self 2               )
 # --- 3.OAuth 1.0 parameters (generated with 1 and 2)
 #       (note: This string is also used for an HTTP header)
-oa_param=$(cat <<_____________OAUTHPARAM      |
-             oauth_version=1.0
-             oauth_signature_method=HMAC-SHA1
-             oauth_consumer_key=${MY_apikey}
-             oauth_token=${MY_atoken}
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-_____________OAUTHPARAM
-           sed 's/^ *//'                      )
+oa_param=$(cat <<-OAUTHPARAM
+			oauth_version=1.0
+			oauth_signature_method=HMAC-SHA1
+			oauth_consumer_key=${MY_apikey}
+			oauth_token=${MY_atoken}
+			oauth_timestamp=${nowutime}
+			oauth_nonce=${randmstr}
+			OAUTHPARAM
+                                            )
 # --- 4.generate pre-string of the signature
 #       (note: the API parameters and OAuth 1.0 parameters
 #        are formed a line like a CGI parameter of GET method)
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-              ${apip_enc}
-______________OAUTHPARAM
+sig_param=$(cat <<-OAUTHPARAM              |
+				${oa_param}
+				${apip_enc}
+				OAUTHPARAM
             grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
             sed 's/&$//'                   )
@@ -220,14 +217,13 @@ ______________OAUTHPARAM
 #       (note: URL-encode API-access-method -- GET or POST --, the endpoint,
 #        and the above No.4 string respectively at first. and transfer to
 #        HMAC-SHA1 with the key string which made of the access-keys)
-sig_strin=$(cat <<______________KEY_AND_DATA                     |
-              ${MY_apisec}
-              ${MY_atksec}
-              ${API_methd}
-              ${API_endpt}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                        |
+sig_strin=$(cat <<-KEY_AND_DATA                                  |
+				${MY_apisec}
+				${MY_atksec}
+				${API_methd}
+				${API_endpt}
+				${sig_param}
+				KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
             sed 's/ *$//'                                        |
@@ -291,12 +287,12 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 # --- 1.extract the required parameters from the response (written in JSON)   #
 echo "$apires"                                                                |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
-parsrj.sh 2>/dev/null                                                         |
+parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000'                                                                  |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
 awk '                                                                         #
-  "ALL"                   {k=$2;                                            } #
+  {                        k=$2;                                            } #
   sub(/^retweeted_status\./,"",k){rtwflg++;if(rtwflg==1){init_param(1);}    } #
   $2=="created_at"        {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
   $2=="id"                {id= substr($0,length($1 $2)+3);print_tw();  next;} #
@@ -371,7 +367,7 @@ awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
      /^[A-Z]/{t=$4; gsub(/:/,"",t);                                           #
               d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;   #
               printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);       next;}  #
-     "OTHERS"{print;                                                       }' |
+     {        print;                                                       }' |
 tr ' \t\034' '\006\025 '                                                      |
 awk 'BEGIN   {ORS="";             }                                           #
      /^[0-9]/{print "\n" $0; next;}                                           #
@@ -396,7 +392,7 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }             #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
               next;                                             }             #
-     "OTHERS"{print;}                                            '            |
+     {        print;}                                            '            |
 # --- 3.delete all the 7n+5,7n+6 lines if verbose option is not set           #
 case $verbose in                                                              #
   0) awk 'BEGIN{                                                              #
@@ -405,7 +401,7 @@ case $verbose in                                                              #
   1) cat                                                               ;;     #
 esac                                                                          |
 # --- 4.regard as an error if no line was outputed                            #
-awk '"ALL"{print;} END{exit 1-(NR>0);}'
+awk '{print;} END{exit 1-(NR>0);}'
 
 # === Print error message if some error occured ======================
 case $? in [!0]*)
@@ -421,7 +417,7 @@ case $? in [!0]*)
 
 
 ######################################################################
-# Closing
+# Finish
 ######################################################################
 
 exit 0

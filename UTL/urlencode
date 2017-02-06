@@ -1,5 +1,3 @@
-#! /bin/sh
- 
 ######################################################################
 #
 # URLENCODE - URL encoder on the basis of RFC 3986
@@ -9,7 +7,7 @@
 #                  replaced with "%20" instead of "+".
 #        --raw ... same as the "-r" option
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/28
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -17,26 +15,39 @@
 # the major licenses.
 #
 ######################################################################
- 
+
+
+######################################################################
+# Initial Configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -eu
+umask 0022
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+# === Define the functions for printing usage ========================
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-r|--raw] <file> ...
-	Version : Mon Mar 28 01:26:28 JST 2016
-__USAGE
+	Version : 2017-01-31 20:53:22 JST
+	          (POSIX Bourne Shell/POSIX commands)
+	USAGE
   exit 1
 }
 
-# --- initalization --------------------------------------------------
-set -u
-umask 0022
-PATH='/usr/bin:/bin'
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
 
-# --- print help message if required ---------------------------------
+######################################################################
+# Parse Options
+######################################################################
+
+# === Print help message if required =================================
 case "${1:-}" in
   --help|--version|-h) print_usage_and_exit;;
 esac
+
+# === Other options ==================================================
 instead_of_spc='+';
 case $# in [!0]*)
   for arg in "$@"; do
@@ -49,7 +60,11 @@ case $# in [!0]*)
   ;;
 esac
 
-# --- main -----------------------------------------------------------
+
+######################################################################
+# Main
+######################################################################
+
 case $# in
   0) cat -                    ;;
   *) for file in "$@"; do      #
@@ -65,7 +80,6 @@ esac |
 awk '
 BEGIN {
   # --- prepare
-  LF = sprintf("\n");
   OFS = "";
   ORS = "";
   # --- prepare encoding
@@ -80,7 +94,7 @@ BEGIN {
     for (i=1; i<=length(line); i++) {
       print c2p[substr(line,i,1)];
     }
-    print LF;
+    print "\n";
   }
 }' |
 awk '
@@ -89,9 +103,8 @@ BEGIN{
   OFS="";
   getline line;
   print line;
-  dlm=sprintf("\n");
   while (getline line) {
-    print dlm,line;
+    print "\n",line;
   }
 }
 '

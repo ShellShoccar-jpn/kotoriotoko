@@ -1,5 +1,3 @@
-#! /bin/sh
-
 ######################################################################
 #
 # MKTEMP - The "mktemp" Command Also Works On Just A POSIX Environment
@@ -19,7 +17,7 @@
 #                            in front of the filepath
 #        "--suffix=<suff>" . Add the suffix behind the filename
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,11 +28,12 @@
  
 # print the usage and exit
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [--by-myself] [options] [template [...]]
 	        : "-d" "-p [DIR]" "-q" "-u" "-t" "--suffix=<suff>"
-	Version : Tue Mar  8 02:01:49 JST 2016
-__USAGE
+	Version : 2017-01-31 16:35:12 JST
+	          (POSIX.1 Bourne Shell/POSIX.1 commands)
+	USAGE
   exit 1
 }
 
@@ -44,9 +43,8 @@ __USAGE
 # --- initialize -----------------------------------------------------
 set -u
 umask 0022
-PATH='/usr/bin:/bin'
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # --- set the temporary directory ------------------------------------
 Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');
@@ -59,7 +57,7 @@ esac
 # --- misc -----------------------------------------------------------
 chrs='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'
 max_retry_when_failed=10
-LF=$(printf '\\\n_');LF=${LF%_}
+LFs=$(printf '\\\n_');LFs=${LFs%_}
 
 # --- exec the mktemp command if exists ------------------------------
 case "${1:-}" in
@@ -151,7 +149,7 @@ random_string () {
   else
     hstr=$( (ps -Ao pid,etime,pcpu,vsz; date)         |
            od -t d4 -A n -v                           |
-           sed 's/[^0-9]\{1,\}/'"$LF"'/g'             |
+           sed 's/[^0-9]\{1,\}/'"$LFs"'/g'            |
            grep '[0-9]'                               |
            tail -n 42                                 |
            sed 's/.*\(.\{8\}\)$/\1/g'                 |
@@ -189,6 +187,10 @@ case $# in 0) optt=1; set -- 'tmp.XXXXXXXXXX';; esac
 err=0
 for arg in "$@"; do
 
+  # --- Make dir string for printing ---------------------------------
+  Dir_trg=${arg%/*}
+  case "$Dir_trg" in "$arg") Dir_trg='';; *) Dir_trg="$Dir_trg/";; esac
+
   n=$max_retry_when_failed
   while [ $n -ge 0 ]; do
 
@@ -196,7 +198,7 @@ for arg in "$@"; do
     #
     # replace the end of "XXX..." string to a random one
     Path_target=$arg
-    s=$(printf '%s' "$Path_target" | sed 's/X*$//')
+    s=$(printf '%s\n' "$Path_target" | sed 's/X*$//')
     i=$((${#Path_target}-${#s}))
     case $i in
       0) :                                    ;;
@@ -210,9 +212,9 @@ for arg in "$@"; do
     case $optt in 1) Path_target="${Dir_tmp}/${Path_target}";; esac
     #
     # normalize
-    Path_target=$(printf '%s' "$Path_target" |
-                  sed 's!//!/!g'             |
-                  sed 's!/./!/!g'            )
+    Path_target=$(printf '%s\n' "$Path_target" |
+                  sed 's!//!/!g'               |
+                  sed 's!/./!/!g'              )
     #
     # for security
     case "$Path_target" in
@@ -237,9 +239,9 @@ for arg in "$@"; do
     break
   done
 
-  # --- print error message when failed to make a file ---------------
+  # --- Print error message when failed to make a file ---------------
   case "${optq}${n}" in
-    '0-1') printf '%s\n' "${0##*/}: failed on $Path_target" 1>&2
+    '0-1') printf '%s\n' "${0##*/}: failed on $Dir_trg${Path_target##*/}" 1>&2
            err=1
            continue
            ;;
@@ -248,10 +250,10 @@ for arg in "$@"; do
            ;;
   esac
 
-  # --- print the path of the file -----------------------------------
-  printf '%s\n' "$Path_target"
+  # --- Print the path of the file -----------------------------------
+  printf '%s%s\n' "$Dir_trg" "${Path_target##*/}"
 
-  # --- remove the file if -u,--dry-run option is set ----------------
+  # --- Remove the file if -u,--dry-run option is set ----------------
   case $optu in 1) rm -rf "$Path_target";; esac
 
 done

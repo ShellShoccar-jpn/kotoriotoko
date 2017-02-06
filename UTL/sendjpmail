@@ -1,5 +1,3 @@
-#! /bin/sh
-
 ######################################################################
 #
 # SENDJPMAIL - Send A E-mail Which Has UTF-8 Characters
@@ -23,7 +21,7 @@
 #   * If the following headers is omitted, inserted by this function.
 #     "Content-Type:", "Content-Transfer-Encoding:", "MIME-Version:"
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,32 +30,51 @@
 #
 ######################################################################
 
-# print the usage and exit
+
+######################################################################
+# Initial configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+umask 0022
+export LC_ALL=C
+PATH="/usr/sbin:/sbin:/usr/local/sbin${PATH:+:}${PATH:-}"
+PATH="$(command -p getconf PATH):$PATH"
+export PATH
+
+# === Usage printing function ========================================
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <mailfile>
-	Version : Tue Mar  8 02:03:11 JST 2016
-	        : (POSIX.1 Bourne Shell/POSIX.1 commands/sendmail command/UTF-8)
-__USAGE
+	Version : 2017-01-31 21:11:51 DST
+	          (POSIX Bourne Shell/POSIX commands/sendmail command/UTF-8)
+	USAGE
   exit 1
 }
 
 
-# ===== FUNCTIONS ====================================================
+######################################################################
+# Prepare for the Main Routine
+######################################################################
 
-# --- which command also works on Just a POSIX environment -----------
+# === Define some chrs. to escape some special chrs. temporarily =====
+CR=$( printf '\r'   )
+LFs=$(printf '\\\n_'); LFs=${LFs%_}
+ACK=$(printf '\006' )
+NAK=$(printf '\025' )
+TAB=$(printf '\t'   )
+
+# === FUNC : which command also works on Just a POSIX env. ($1:command name)
 which which >/dev/null 2>&1 || {
-  which () {
-    (
-      ans=$(LANG=C LC_ALL=C type "$1" 2>/dev/null) || return $?
-      case "$1"   in */*) printf '%s\n' "$1"        ; return;; esac
-      case "$ans" in */*) printf '%s\n' "/${ans#*/}"; return;; esac
-      printf '%s\n' "$1"
-    )
+  which() {
+    command -v "$1" 2>/dev/null |
+    awk 'match($0,/^\//){print; ok=1;}
+         END {if(ok==0){print "which: not found" > "/dev/stderr"; exit 1}}'
   }
 }
 
-# --- UTF-8 string cutter within required bytes ----------------------
+# === FUNC : UTF-8 string cutter within required bytes ===============
 cutstr_by_bytes () {
   awk -v maxbytes=$1 '
     BEGIN {
@@ -88,13 +105,7 @@ cutstr_by_bytes () {
     }'
 }
 
-# --- prepare the required commands ----------------------------------
-PATH='/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:/usr/local/bin'
-CMD_SENDMAIL=$(which sendmail 2>/dev/null)
-case "$CMD_SENDMAIL" in
-  '') echo "${0##*/}: sendmail command is not found" 1>&2; exit 1;;
-esac
-PATH='/usr/bin:/bin:/usr/local/bin'
+# === FUNC : base64 command also works on Just a POSIX env. ==========
 if   CMD_BASE64=$(which base64 2>/dev/null)      ; then
   base64 () { "$CMD_BASE64" ${1:-}; }
 elif uuencode -m dummy </dev/null >/dev/null 2>&1; then
@@ -177,23 +188,16 @@ else
   }
 fi
 
-
-# ===== PREPARATION ==================================================
-
-# --- misc setting ---------------------------------------------------
-set -u
-umask 0022
-IFS=$(PATH=/usr/bin:/bin printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C
-export PATH='/usr/bin:/bin'
-CR=$( printf '\r'   )
-LF=$( printf '\\\n_'); LF=${LF%_}
-ACK=$(printf '\006' )
-NAK=$(printf '\025' )
-TAB=$(printf '\t'   )
+# === Make sure that sendmail command exists =========================
+CMD_SENDMAIL=$(which sendmail 2>/dev/null)
+case "$CMD_SENDMAIL" in
+  '') echo "${0##*/}: sendmail command is not found" 1>&2; exit 1;;
+esac
 
 
-# ===== OPTION PARSING ===============================================
+######################################################################
+# Parse Filename Given as an Argument
+######################################################################
 
 file=''
 case $# in
@@ -242,19 +246,16 @@ while read -r line; do                                                         #
       # 0) check whether converting is required or not                         #
       printf '%s\n' "$line" | grep "^[${TAB} -~]\\{1,\\}\$" && continue        #
       # 1) print the label of the header (header name)                         #
-      printf '%s' "$line"                          |                           #
+      printf '%s\n' "$line"                        |                           #
       sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                           #
       tr -d '\n'                                                               #
       # 2) convert and print header of the after part                          #
-      printf '%s' "$line"          |                                           #
+      printf '%s\n' "$line"        |                                           #
       sed "s/^[^$TAB ]*[$TAB ]*//" |                                           #
       cutstr_by_bytes 42           |                                           #
-      sed 's/^/_/'                 |                                           #
-      sed 's/$/_/'                 |                                           #
       while read -r str; do        #                                           #
-        printf '%s' "${str#_}" |   #                                           #
-        sed 's/_$//'           |   #                                           #
-        base64 --wrap=0        |   #                                           #
+        printf '%s' "${str}" |     #                                           #
+        base64 --wrap=0      |     #                                           #
         grep '^'                   #                                           #
       done                         |                                           #
       sed 's/.*/=?UTF-8?B?&?=/'    |                                           #
@@ -265,14 +266,14 @@ while read -r line; do                                                         #
       # 0) check whether converting is required or not                         #
       printf '%s\n' "$line" | grep "^[${TAB} -~]\\{1,\\}\$" && continue        #
       # 1) print the label of the header (header name)                         #
-      printf '%s' "$line"                          |                           #
+      printf '%s\n' "$line"                        |                           #
       sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                           #
       tr -d '\n'                                                               #
       # 2) convert and print header of the after part                          #
       firstloop1=1                                                             #
-      printf '%s' "$line"                                        |             #
+      printf '%s\n' "$line"                                      |             #
       sed "s/^[^$TAB ]*[$TAB ]*//"                               |             #
-      sed "s/\"/$LF\"$LF/g"                                      |             #
+      sed "s/\"/$LFs\"$LFs/g"                                    |             #
       awk 'BEGIN{attr = "RAW:";                               }  #             #
            /^"/ {attr = (attr=="RAW:") ? "ESC:" : "RAW:";next;}  #             #
                 {print attr $0;                               }' |             #
@@ -280,32 +281,29 @@ while read -r line; do                                                         #
       sed "/^ESC:/s/;/$NAK/g"                                    |             #
       sed 's/^....//'                                            |             #
       tr '\n' '"'                                                |             #
-      sed 's/"$//'                                               |             #
-      sed "s/\\([,;]\\)/\\1$LF/g"                                |             #
+      sed 's/"$//' 2>/dev/null                                   |             #
+      sed "s/\\([,;]\\)/\\1$LFs/g"                               |             #
       sed 's/^['"$TAB"' ]\{1,\}//'                               |             #
       grep -v '^$'                                               |             #
       tr "$ACK$NAK" ',;'                                         |             #
       while read -r str1; do                                                   #
         case "$firstloop1" in 1) firstloop1=0;; 0) printf '\t';; esac          #
-        printf '%s' "$str1" |                                                  #
+        printf '%s\n' "$str1" |                                                #
         grep -E "^[$TAB ]*<?[!-?A-~]+@[A-Za-z0-9][A-Za-z0-9.-]+[A-Za-z0-9]>?[$TAB ]*,?[$TAB ]*$" &&
         continue                                                               #
-        printf '%s' "$str1"                              |                     #
+        printf '%s\n' "$str1"                            |                     #
         sed "s/[$TAB ]*<\\{0,1\\}[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>\\{0,1\\}[$TAB ]*,\\{0,1\\}[$TAB ]*\$//" |
         sed 's/^[^'"$TAB"' ]*"\(.*\)"[^'"$TAB"' ]*$/\1/' |                     #
         cutstr_by_bytes 30                               |                     #
-        sed 's/^/_/'                                     |                     #
-        sed 's/$/_/'                                     |                     #
         while read -r str2; do                           #                     #
-          printf '%s' "${str2#_}" |                      #                     #
-          sed 's/_$//'            |                      #                     #
-          base64 --wrap=0         |                      #                     #
+          printf '%s' "${str2}" |                        #                     #
+          base64 --wrap=0       |                        #                     #
           grep ^                                         #                     #
         done                                             |                     #
         sed 's/.*/=?UTF-8?B?&?=/'                        |                     #
         sed '1!s/^/'"$TAB"'/'                            |                     #
         tr '\n' "$ACK"                                   |                     #
-        sed "s/$ACK\$//"                                 |                     #
+        sed "s/$ACK\$//" 2>/dev/null                     |                     #
         tr -d '\n'                                       |                     #
         tr "$ACK" '\n'                                                         #
         printf '%s\n' "$str1" |                                                #
@@ -333,9 +331,9 @@ while read -r line; do                                                         #
       echo                                                                     #
       # 3) print the body part                                                 #
       case "$((cte+ct_m))" in                                                  #
-        0) cat                       | # For the mailbody text,                #
-           sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>            #
-           sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line              #
+        0) cat                              | # For the mailbody text,         #
+           sed "/^\$/s/\$/$CR/" 2>/dev/null | # it must be always put <CR>     #
+           sed "/[^$CR]\$/s/\$/$CR/"        | # on the end of every line       #
            base64 --wrap=76         ;;                                         #
         *) cat                      ;;                                         #
       esac                                                                     #

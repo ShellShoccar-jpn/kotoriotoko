@@ -1,59 +1,57 @@
-#! /bin/sh
-
 ######################################################################
 #
-# bretwer.sh
-# 指定ツイートをリツイートしたユーザー一覧を見る（ベアラトークンモード）
+# BRETWER.SH : View Retweeted User List (with Bearer Token Mode)
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
+# Written by Rich Mikan (richmikan@richlab.org) on 2017-02-03
 #
-# このソフトウェアは Public Domain (CC0)であることを宣言する。
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
 
 ######################################################################
-# 初期設定
+# Initial Configuration
 ######################################################################
 
-# === このシステム(kotoriotoko)のホームディレクトリー ================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-
-# === 初期化 =========================================================
+# === Initialize shell environment ===================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
-# === 共通設定読み込み ===============================================
-. "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
-
-# === エラー終了関数定義 =============================================
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] <tweet_id>
-	        OPTIONS:
-	        -n <count>|--count=<count>
-	        --rawout=<filepath_for_writing_JSON_data>
-	        --timeout=<waiting_seconds_to_connect>
-	Sun Sep  4 00:49:05 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] <tweet_id>
+	          OPTIONS:
+	          -n <count>|--count=<count>
+	          --rawout=<filepath_for_writing_JSON_data>
+	          --timeout=<waiting_seconds_to_connect>
+	Version : 2017-02-03 16:53:07 JST
+	USAGE
   exit 1
 }
 error_exit() {
-  [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
+  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
   exit $1
 }
 
-# === 必要なプログラムの存在を確認する ===============================
-# --- 1.符号化コマンド（OpenSSL）
+# === Detect home directory of this app. and define more =============
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+. "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
+
+# === Confirm that the required commands exist =======================
+# --- 1.OpenSSL or LibreSSL
 if   type openssl >/dev/null 2>&1; then
   CMD_OSSL='openssl'
 else
   error_exit 1 'OpenSSL command is not found.'
 fi
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl）
+# --- 2.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -64,21 +62,21 @@ fi
 
 
 ######################################################################
-# 引数解釈
+# Argument Parsing
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === Print usage and exit if one of the help options is set =========
 case "$# ${1:-}" in
   '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
-# === 変数初期化 =====================================================
+# === Initialize parameters ==========================================
 tweetid=''
 count=''
 rawoutputfile=''
 timeout=''
 
-# === オプション読取 =================================================
+# === Initialize parameters ==========================================
 while :; do
   case "${1:-}" in
     --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
@@ -113,7 +111,7 @@ printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid -n option'
 }
 
-# === ツイートIDを取得 ===============================================
+# === Get the target tweet ID ========================================
 case $# in
   1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
   *) print_usage_and_exit                    ;;
@@ -124,41 +122,39 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 
 ######################################################################
-# メイン
+# Main Routine
 ######################################################################
 
-# === Twitter API関連（エンドポイント固有） ==========================
-# (1)基本情報
+# === Set parameters of Twitter API endpoint =========================
+# (1)endpoint
 API_endpt="https://api.twitter.com/1.1/statuses/retweets/$tweetid.json"
 API_methd='GET'
-# (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-API_param=$(cat <<______________PARAM      |
-              count=${count}
-______________PARAM
-            sed 's/^ *//'                  |
+# (2)parameters
+API_param=$(cat <<-PARAM                   |
+			count=${count}
+			PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
-# === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
-#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+# === Pack the parameters for the API ================================
+# --- 1.URL-encode only the right side of "="
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
-# --- 2.各行を"&"で結合する 註)APIにGETメソッドで渡す文字列
+# --- 2.joint all lines with "&" (note: string for giving to the API)
 apip_get=$(printf '%s' "${apip_enc}" |
            tr '\n' '&'               |
            sed 's/^./?&/'            )
 
-# === OAuth1.0署名の作成 =============================================
+# === Generate the signature string of OAuth 1.0 =====================
 case "${MY_bearer:-}" in '')
   error_exit 1 'No bearer token is set (you must set it into $MY_bearer)'
   ;;
 esac
 
-# === API通信 ========================================================
-# --- 1.APIコール
+# === Access to the endpoint =========================================
+# --- 1.connect and get a response
 apires=$(echo "Authorization: Bearer $MY_bearer"            |
          while read -r oa_hdr; do                           #
            if   [ -n "${CMD_WGET:-}" ]; then                #
@@ -190,14 +186,14 @@ apires=$(echo "Authorization: Bearer $MY_bearer"            |
          else                                               #
            cat                                              #
          fi                                                 )
-# --- 2.結果判定
+# --- 2.exit immediately if it failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
-# === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                       #
+# === Parse the response =============================================
+# --- 1.extract the required parameters from the response (written in JSON)    #
 echo "$apires"                                                                 |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi            |
-parsrj.sh 2>/dev/null                                                          |
+parsrj.sh    2>/dev/null                                                       |
 unescj.sh -n 2>/dev/null                                                       |
 tr -d '\000'                                                                   |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\.user\.\([^ .]*\)/ \1 \2/'                       |
@@ -216,10 +212,10 @@ awk '                                                                          #
                            if (sn=="") {return;}                               #
                            printf("%-18s %s (@%s)%s\n",id,nm,sn,vf);           #
                            init_param(2);                                   }' |
-# --- 2.所定のデータが1行も無かった場合はエラー扱いにする                      #
-awk '"ALL"{print;} END{exit 1-(NR>0);}'
+# --- 2.regard as an error if no line was outputed                             #
+awk '{print;} END{exit 1-(NR>0);}'
 
-# === 異常時のメッセージ出力 =========================================
+# === Print error message if some error occured ======================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
@@ -233,7 +229,7 @@ case $? in [!0]*)
 
 
 ######################################################################
-# 終了
+# Finish
 ######################################################################
 
 exit 0

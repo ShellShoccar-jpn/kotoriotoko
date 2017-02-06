@@ -1,5 +1,3 @@
-#! /bin/sh
-
 ######################################################################
 #
 # MIME-MAKE - MIME Multipart Formatted Data Maker
@@ -41,7 +39,7 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Rich Mikan (richmikan[at]richlab.org) at 2016/03/08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -50,10 +48,19 @@
 #
 ######################################################################
 
-# --- functions ------------------------------------------------------
-# print the usage and exit
+
+######################################################################
+# Initial configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+# === Usage printing function ========================================
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	USAGE: ${0##*/} <-m|--generatemimeboundary>
 	       ${0##*/} [options] <arg_group#1> [<arg_group#2> ...]
 
@@ -87,23 +94,37 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : Tue Mar  8 02:01:24 JST 2016
-	        : (POSIX.1 Bourne Shell/POSIX.1 commands/UTF-8)
-__USAGE
+	Version : 2017-01-31 19:53:13 JST
+	          (POSIX Bourne Shell/POSIX commands)
+	USAGE
   exit 1
 }
-# which command also works on Just a POSIX environment ($1:command name)
+
+
+######################################################################
+# Prepare for the Main Routine
+######################################################################
+
+# === Define some chrs. to escape some special chrs. temporarily =====
+TAB=$(printf '\t' )
+CR=$( printf '\r_'); CR=${CR%_}
+LFs=$(printf '\n_'); LFs=${LFs%_} # Use as a "\n" in s-command of sed
+
+
+######################################################################
+# Register Functions
+######################################################################
+
+# === which command also works on Just a POSIX environment ($1:command name)
 which which >/dev/null 2>&1 || {
-  which () {
-    (
-      ans=$(LANG=C LC_ALL=C type "$1" 2>/dev/null) || return $?
-      case "$1"   in */*) printf '%s\n' "$1"        ; return;; esac
-      case "$ans" in */*) printf '%s\n' "/${ans#*/}"; return;; esac
-      printf '%s\n' "$1"
-    )
+  which() {
+    command -v "$1" 2>/dev/null |
+    awk 'match($0,/^\//){print; ok=1;}
+         END {if(ok==0){print "which: not found" > "/dev/stderr"; exit 1}}'
   }
 }
-# Random string generator ($1: number of digits)
+
+# === Random string generator ($1: number of digits) =================
 randstr() {
   #local chrs nw hstr
   #
@@ -123,7 +144,7 @@ randstr() {
   else
     hstr=$( (ps -Ao pid,etime,pcpu,vsz; date)         |
            od -t d4 -A n -v                           |
-           sed 's/[^0-9]\{1,\}/'"$LF"'/g'             |
+           sed 's/[^0-9]\{1,\}/'"$LFs"'/g'            |
            grep '[0-9]'                               |
            tail -n 42                                 |
            sed 's/.*\(.\{8\}\)$/\1/g'                 |
@@ -151,7 +172,8 @@ randstr() {
               /[0-9]/{print c[$0*1];           }'     |
          tail -c $1                                   )
 }
-# escape the string in header if necessary ($1:string for in-header)
+
+# === Escape the string in header if necessary ($1:string for in-header)
 escape_for_header_string() {
   printf '%s\n' "$1"                  |
   awk 'index($0,"=?")>0    {exit 1;}  # # when contain "=?"
@@ -187,12 +209,9 @@ escape_for_header_string() {
              print "\n";                                                  #
            }                                                              #
          }'                                                               |
-       sed 's/^/_/'                                                       |
-       sed 's/$/_/'                                                       |
-       while read -r line; do                                             #
-         printf '%s' "${line#_}" |                                        #
-         sed 's/_$//'            |                                        #
-         base64 --wrap=0         |                                        #
+       while IFS= read -r line; do                                        #
+         printf '%s' "$line" |                                            #
+         base64 --wrap=0     |                                            #
          grep '^'                                                         #
        done                                                               |
        sed 's/.*/=?UTF-8?B?&?=/'                                          |
@@ -200,8 +219,8 @@ escape_for_header_string() {
        sed '$!s/$/'"$CR"'/'                                               ;;
   esac
 }
-# Base64 Encoder ($1:width a line)
-PATH='/usr/bin:/bin:/usr/local/bin'
+
+# === Base64 Encoder ($1:width a line) ===============================
 if   CMD_BASE64=$(which base64 2>/dev/null)      ; then
   base64 () { "$CMD_BASE64" ${1:-}; }
 elif uuencode -m dummy </dev/null >/dev/null 2>&1; then
@@ -283,7 +302,8 @@ else
          END  {if(NR>0){printf("%s\n",substr("===",1,(4-(NR%4))%4));}     }'
   }
 fi
-# decide "type" from the file extention
+
+# === Decide "type" from the file extention ==========================
 decide_type() {
   printf '%s\n' "$1" | awk '
   BEGIN{
@@ -1098,18 +1118,7 @@ decide_type() {
   }'
 }
 
-
-# --- initalization --------------------------------------------------
-set -u
-umask 0022
-PATH='/usr/bin:/bin'
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LANG=C LC_ALL=C PATH
-#
-TAB=$(printf '\t')
-CR=$(printf '\r_'); CR=${CR%_}
-LF=$(printf '\n_'); LF=${LF%_}
-#
+# === Validate and exit if the file is invalid =======================
 use_stdin=0
 validate_file() {
   case $1 in
@@ -1124,7 +1133,7 @@ validate_file() {
       esac
       ;;
     *)
-      [ \( -f "$1" \) -o \( -c "$1" \) -o \( -p "$1" \) ] || {
+      [ -f "$1" ] || [ -c "$1" ] || [ -p "$1" ] || {
         printf '%s: Invalid file: %s\n' "${0##*/}" "$1" 1>&2
         exit 1
       }
@@ -1133,21 +1142,24 @@ validate_file() {
 }
 
 
-# --- parse options --------------------------------------------------
-# parse the -m option and only generate a mime boundary string if exists
+######################################################################
+# Parse Arguments
+######################################################################
+
+# === Parse the -m option and only generate a mime boundary string if exists
 case "${1:-}" in
   '-m'|'--generatemimeboundary') echo "MimeBoundary-$(randstr 61)"; exit 0;;
 esac
-#
-# decide that line-feed default whether --crlf or --lf
+
+# === Decide that line-feed default whether --crlf or --lf ===========
 s=$(printf '%s\n' "$*" | awk 'match($0,/-[TFMA]/){print substr($0,RSTART+1,1)}')
 case "$s" in
   [TF]) cr=$CR; mpart_subtype='form-data';;
   [MA]) cr='' ; mpart_subtype='mixed'    ;;
      *) print_usage_and_exit             ;;
 esac
-#
-# parse and validate the some kinds of options
+
+# === Parse and validate the some kinds of options ===================
 header=0
 base64=0
 mime_b_is_set=0
@@ -1166,7 +1178,11 @@ while :; do
 done
 case $mime_b_is_set in 0) mime_b="MimeBoundary-$(randstr 61)";; esac
 
-# --- main loop ------------------------------------------------------
+
+######################################################################
+# Main Loop
+######################################################################
+
 case $header in 1)
   printf 'Content-Type: multipart/%s; boundary="%s"%s\n%s\n' \
          "$mpart_subtype" "$mime_b" "$cr" "$cr"

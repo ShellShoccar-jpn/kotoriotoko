@@ -1,24 +1,21 @@
-#! /bin/sh
-
 # designed by Nobuaki Tounaka
-# written by 321516
+# written by Shell-Shoccar Japan (@shellshoccarjpn)
 
 # print the usage and exit
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [+<n>h] [-r] <f1> <f2> ... <file>
-	        : ${0##*/} -d[r] <string>
-	Version : Thu Jun 25 04:51:08 JST 2015
-	        : Open usp Tukubai (POSIX.1 Bourne Shell/POSIX.1 commands)
-__USAGE
+	          ${0##*/} -d[r] <string>
+	Version : 2017-02-06 18:52:51 JST
+	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands)
+	USAGE
   exit 1
 }
 
 # initialize
 set -u
-PATH='/usr/bin:/bin'
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LANG=C LC_ALL=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 directmode=0
 directstr=''
 awkc0=''
@@ -38,24 +35,24 @@ for arg in "$@"; do
   i=$((i+1))
   fldnum=''
   # direct mode processing
-  if   [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-d'        \) ]; then
+  if   [ $opt_part -ne 0 ] && [ "_$arg" = '_-d'        ]; then
     directmode=1
     continue
-  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-dr'       \) ]; then
-    directmode=1
-    ropt_ena='#'
-    ropt_dis=''
-    continue
-  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-rd'       \) ]; then
+  elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-dr'       ]; then
     directmode=1
     ropt_ena='#'
     ropt_dis=''
     continue
-  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" = '_-r'        \) ]; then
+  elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-rd'       ]; then
+    directmode=1
     ropt_ena='#'
     ropt_dis=''
     continue
-  elif [ \( $opt_part -ne 0 \) -a \( "_$arg" != "_${arg#+}" \) ]; then
+  elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-r'        ]; then
+    ropt_ena='#'
+    ropt_dis=''
+    continue
+  elif [ $opt_part -ne 0 ] && [ "_$arg" != "_${arg#+}" ]; then
     s=$(printf '%s\n' "$arg" | sed 's/^+\([0-9]*\)h$/\1/')
     [ "_$s" != "_$arg" ] || print_usage_and_exit
     [ -z "$s"          ] && { hopt=1; continue; }
@@ -63,16 +60,14 @@ for arg in "$@"; do
     continue
   fi
   opt_part=0
-  if [ \( $i -eq $# \) -a \( $directmode -ne 0 \) ]; then
+  if [ $i -eq $# ] && [ $directmode -ne 0 ]; then
     directstr=$arg
     break
   fi
   # separate arg to arg1, arg2
   arg1=${arg%%/*}
   arg2=${arg##*/}
-  if [ \( "_${arg1}/${arg2}" = "_$arg"   \) -a \
-       \( -n "$arg1" \) -a \( -n "$arg2" \)    ]
-  then
+  if [ "_${arg1}/${arg2}" = "_$arg" ] && [ -n "$arg1" ] && [ -n "$arg2" ]; then
     :
   else
     arg1=$arg
@@ -90,7 +85,7 @@ for arg in "$@"; do
       j=$((j+1))
     fi
   done
-  if [ \( $j -eq 2 \) -o \( \( $j -eq 1 \) -a \( -z "$arg2" \) \) ]; then
+  if [ $j -eq 2 ] || ([ $j -eq 1 ] && [ -z "$arg2" ]); then
     fldnums="$fldnums $arg"
     continue
   fi
@@ -108,20 +103,18 @@ if [ $directmode -ne 0 ]; then
   file=''
 else
   [ -n "$file" ] || file='-'
-  if [ \( "_$file" = '_-'               \) -o \
-       \( "_$file" = '_/dev/stdin'      \) -o \
-       \( "_$file" = '_/dev/fd/0'       \) -o \
-       \( "_$file" = '_/proc/self/fd/0' \)    ]
-  then
+  if [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
     use_stdin=$((use_stdin+1))
   fi
-  if [ \( ! -f "$file"     \) -a \
-       \( ! -c "$file"     \) -a \
-       \( ! -p "$file"     \) -a \
-       \( "_$file" != '_-' \)    ]
-  then
+  if [ ! -f "$file"     ] &&
+     [ ! -c "$file"     ] &&
+     [ ! -p "$file"     ] &&
+     [ "_$file" != '_-' ]  ; then
     print_usage_and_exit
-  elif [ \( ! -r "$file" \) -a \( "_$file" != '_-' \) ]; then
+  elif [ ! -r "$file" ] && [ "_$file" != '_-' ]; then
     printf '%s\n' "${0##*/}: Cannot open the file" 1>&2
     exit 1
   fi
@@ -367,7 +360,7 @@ function YYYYMMDDhhmmss2unixtime(YYYYMMDDhhmmss, Y,M,D,h,m,s,l) {
 '
 
 # main
-if [ $directmode -ne 0 ]; then
+if   [ $directmode -ne 0 ]; then
        printf '%s' "$directstr"         |
        awk -v hdr_skip=$hopt "$awkcode"
 else

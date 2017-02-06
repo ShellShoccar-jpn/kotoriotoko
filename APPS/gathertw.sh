@@ -1,52 +1,48 @@
-#! /bin/sh
-
 ######################################################################
 #
-# gathertw.sh
-# Twitterで指定条件に該当するツイートを収集する
+# GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-01-31
 #
-# このソフトウェアは Public Domain (CC0)であることを宣言する。
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
 
 ######################################################################
-# 初期設定
+# Initialization
 ######################################################################
 
-# === 小鳥男(kotoriotoko)のホームディレクトリー ======================
-Dir_kotori=$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)
-
-# === 初期化 =========================================================
+# === Initialize =====================================================
 set -u
 umask 0022
-PATH="/usr/bin:/bin:/usr/local/bin:$PATH"
-PATH="$Dir_kotori/UTL:$Dir_kotori/TOOL:$Dir_kotori/BIN:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH
+export LC_ALL='C'
 
-# === エラー終了関数定義 =============================================
+# === Define error functions =========================================
 print_usage_and_exit () {
   cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] [keyword ...]
-	        OPTIONS:
-	        -d <data_directory>      |--datadir=<data_directory>
-	        -M <max_id>              |--maxid=<max_id>
-	        -u <until_date>          |--until=<until_date>
-	        -S <since_id>            |--sinceid=<lang>
-	        -s <since_date[ant_time]>|--sincedt=<since_date[ant_time]>
-	        -c                       |--continuously
-	        -p[n](n=1,2,3)           |--peek[n](n=1,2,3)
-	                                  --noraw
-	                                  --nores
-	        and
-	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
-	        -l <lang>                     |--lang=<lang>
-	        -o <locale>                   |--locale=<locale>
-	Sun Oct  9 17:36:34 DST 2016
-__USAGE
+	Usage   : ${0##*/} [options] [keyword ...]
+	Options : -d <data_directory>      |--datadir=<data_directory>
+	          -M <max_id>              |--maxid=<max_id>
+	          -u <until_date>          |--until=<until_date>
+	          -S <since_id>            |--sinceid=<lang>
+	          -s <since_date[ant_time]>|--sincedt=<since_date[ant_time]>
+	          -c                       |--continuously
+	          -p[n](n=1,2,3)           |--peek[n](n=1,2,3)
+	                                    --noraw
+	                                    --nores
+	                                    --noanl
+	          and
+	          -g <lon,lat,radius>|--geocode=<lon,lat,radius>
+	          -l <lang>          |--lang=<lang>
+	          -o <locale>        |--locale=<locale>
+	Version : 2017-01-31 14:39:37 JST
+	USAGE
   exit 1
 }
 exit_trap() {
@@ -60,11 +56,15 @@ error_exit() {
   exit_trap ${1:-0}
 }
 
-# === コマンド存在チェック ===========================================
+# === Set kotoriotoko home dir and set additional pathes =============
+Dir_kotori=$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)
+PATH="$Dir_kotori/UTL:$Dir_kotori/TOOL:$Dir_kotori/BIN:$PATH"
+
+# === Make sure that all of the required commands exist ==============
 sleep 0.001 2>/dev/null || {
   error_exit 1 'A sleep command can sleep at <1 is required'
 }
-[ -x "$Dir_kotori/BIN/btwsrch.sh" ] || error_exit 1 'Kotoriotoko not found'
+type btwsrch.sh >/dev/null 2>&1 || error_exit 1 'Kotoriotoko not found'
 if   type bc >/dev/null 2>&1                                      ; then
   CMD_CALC='bc'
 elif [ "$(expr 9223372036854775806 + 1)" = '9223372036854775807' ]; then
@@ -75,15 +75,15 @@ fi
 
 
 ######################################################################
-# 引数解釈
+# Parsing arguments
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === Print the usage if one of the help options is given ============
 case "$# ${1:-}" in
   '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
-# === 変数初期化 =====================================================
+# === Initialize variables ===========================================
 unset datadir
 sinceid=''
 sincedt=''
@@ -96,10 +96,11 @@ continuously=0
 peek=0
 noraw=0
 nores=0
+noanl=0
 opts=''
 queries=''
 
-# === オプション取得 =================================================
+# === Parse options ==================================================
 while [ $# -gt 0 ]; do
   case "${1:-}" in
     --datadir=*)       datadir=$(printf '%s' "${1#--datadir=}" | tr -d '\n')
@@ -179,6 +180,7 @@ while [ $# -gt 0 ]; do
                        ;;
     --noraw)           noraw=1; shift;;
     --nores)           nores=1; shift;;
+    --noanl)           noanl=1; shift;;
     --)                shift
                        break
                        ;;
@@ -218,7 +220,7 @@ printf '%s\n' "$locale" | grep -Eq '^$|^[A-Za-z0-9]+$' || {
   error_exit 1 'Invalid -o option'
 }
 
-# === 検索文字列を取得 ===============================================
+# === Get searching keywords =========================================
 case $# in
   0) :
      ;;
@@ -239,14 +241,14 @@ case "$locale"  in '') :;; *) opts="$opts -o $locale" ;; esac
 
 
 ######################################################################
-# メインループの事前設定
+# Preparation for the main loop
 ######################################################################
 
-# === データ格納ディレクトリーを決め、準備する =======================
-${datadir+:} false || {                    # 変数$datadirが未定義
-  s=${0##*/}                               # （="-d"オプション未指定）
-  datadir="$s$(date '+%Y%m%d%H%M%S').data" # ならば
-}                                          # デフォルト名を設定する
+# === Decide the date directory ======================================
+${datadir+:} false || {                    # If $datadir is undefined,
+  s=${0##*/}                               # (= option "-d" is not set)
+  datadir="$s$(date '+%Y%m%d%H%M%S').data" # set the default default
+}                                          # directory
 case "$datadir" in
   '')  Dir_DATA=$(pwd)
        ;;
@@ -265,24 +267,25 @@ case "$datadir" in
 esac
 mkdir -p "${Dir_DATA}" || error_exit 1 "Can't mkdir \"${Dir_DATA}\""
 
-# === サブディレクトリー・ファイル・一時ファイル用ディレクトリー定義 =
+# === Set misc files and directories =================================
 File_lastid="${Dir_DATA%/}/LAST_TWID.txt"
 File_sinceid="${Dir_DATA%/}/SINCE_TWID.txt"
 File_numtweets="${Dir_DATA%/}/NUM_OF_TWEETS.txt"
 export Dir_RAW="${Dir_DATA%/}/RAW"
 export Dir_RES="${Dir_DATA%/}/RES"
+export Dir_ANL="${Dir_DATA%/}/ANL"
 Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXXX"` || {
   error_exit 1 "Can't make a temporary directory"
 }
 
-# === その他定義 =====================================================
-interval_ok=2    # btwsrch.sh(API)最小呼出し間隔
-intervals_ng="$interval_ok 10 20 40 80 160 240" # エラーの時リトライ間隔
-count=100     # 1度のクエリーで取得する最大ツイート数(100まで設定可)
-maxretry_ok=1 # 正常（検索結果0）だった場合のリトライ回数
-maxretry_ng=4 # 異常（コマンドエラー）だった場合のリトライ回数
+# === Set misc parameters ============================================
+interval_ok=2    # min. interval (sec) to call btwsrch.sh(API)
+intervals_ng="$interval_ok 10 20 40 80 160 240" # retry intervals when error
+count=100     # max tweets which could be gathered at once (up tp 100)
+maxretry_ok=1 # retry times when no tweet has gotten normally
+maxretry_ng=4 # retry times when something error has been happened
 
-# === 検索範囲（最古ツイート）指定 ===================================
+# === Set the oldest tweet ID ========================================
 since=''
 s=''
 [ -f "$File_lastid" ] && s=$(cat "$File_lastid" | tr -Cd 0123456789)
@@ -298,14 +301,14 @@ case "$sinceid-$s" in
  #     fi                                                            ;;
 esac
 
-# === これまでの検索済累積ツイート数ファイルがあれば取り込む =========
+# === Get the number of tweets gathered already when exists ==========
 n_total=0
 [ -s "$File_numtweets" ] && {
   s=$(cat "$File_numtweets" | head -n 1 | grep -E '^[0-9]+$')
   case "$s" in [0-9]*) n_total=$s;; esac
 }
 
-# === 初回の検索範囲（最終ツイート）指定 =============================
+# === Set the last tweet ID ==========================================
 last=''
 case "$until" in
   '') :                                                    ;;
@@ -319,12 +322,12 @@ case "$maxid" in
 esac
 last=${last# }
 
-# === 初回ループのUNIX時間初期値（初回は現在UNIX時間-1にする） =======
+# === Set the current UNIX time ======================================
 ut_last=$(date +%Y%m%d%H%M%S | calclock 1 | awk '{print $2-1}')
 
 
 ######################################################################
-# メインループ
+# Main loop
 ######################################################################
 
 retry_ok=$((maxretry_ok+1))
@@ -332,7 +335,7 @@ retry_ng=$((maxretry_ng+1))
 interval=$interval_ok
 lastTIME=''
 while :; do
-  # === API呼び出し間隔が$interval秒未満ならcontinue =================
+  # === Kill time to avoid the Twitter API limitter ==================
   ut_curr=$(date +%Y%m%d%H%M%S | calclock 1 | awk '{print $2}')
   echo $ut_last $ut_curr                            |
   awk -v n=$interval '{exit (($2-$1)>=n) ? 0 : 1;}' || {
@@ -341,7 +344,7 @@ while :; do
   }
   ut_last=$ut_curr
 
-  # === 検索実行 =====================================================
+  # === Search with Twitter API ======================================
   case $noraw in 0) rawout="--rawout=$Tmp/raw";; *) rawout='-v';; esac
   btwsrch.sh -v                        \
              "$rawout"                 \
@@ -371,9 +374,9 @@ while :; do
     retry_ok=$((retry_ok-1))
     case "$continuously $retry_ok" in
       '0 0') echo "No tweet found ... finish gathering"             1>&2;break;;
-      '1 0') next_utc_local=$(date -u '+%Y%m%d000000' | # 現在日時から次に訪れる
-                              TZ= calclock 1          | # UTCの0時をlocal時間の
-                              awk '{print $2+86400}'  | # YMDhmsで表現したもの
+      '1 0') next_utc_local=$(date -u '+%Y%m%d000000' | # expressed in 
+                              TZ= calclock 1          | # YYYYMMDDhhmmss
+                              awk '{print $2+86400}'  |
                               calclock -r 1           |
                               awk '{print $2};'       )
              bContFromLast=1
@@ -473,7 +476,7 @@ while :; do
     break
   }
 
-  # === 検索結果から最初と最後の日時・ツイートIDを求める =============
+  # === Get the newest and oldest time from the gathered tweets ======
   s=$(awk 'BEGIN {                                             #
              get_datetime_id();                                #
              last_i0 =cur_i0;last_i1 =cur_i1;last_i2 =cur_i2;  #
@@ -522,11 +525,11 @@ while :; do
   s="$s gathered $n tweet(s) (tot.$n_total)"
   echo "$s" 1>&2
 
-  # === 検索済累積ツイート数ファイルを更新 ===========================
+  # === Update the file has the number of tweets =====================
   #[ -s "$File_numtweets" ] && mv "$File_numtweets" "$File_numtweets.bak"
   echo $n_total > "$File_numtweets"
 
-  # === 最新ツイートIDが、記録されているものより新しければ更新 =======
+  # === Exit the loop if the gathered newest tweet is newer than set ID
   overwrite=0
   while :; do
     [ -s "$File_lastid" ]                       || { overwrite=1; break; }
@@ -542,7 +545,7 @@ while :; do
     ;;
   esac
 
-  # === 最古ツイートIDが、記録されているものより古ければ更新 =========
+  # === Exit the loop if the gathered oldest tweet is older than set ID
   overwrite=0
   while :; do
     [ -s "$File_sinceid" ]                      || { overwrite=1; break; }
@@ -557,8 +560,8 @@ while :; do
     ;;
   esac
 
-  # === 仕分けをする =================================================
-  # --- 1) RAWデータを格納 -------------------------------------------
+  # === Save the tweet data ==========================================
+  # --- 1) save RAW data ---------------------------------------------
   case $noraw in 0)
     File="$Dir_RAW/$eY$eM$eD/$eh/$eY$eM${eD}_$eh$em$es.json"
     mkdir -p "${File%/*}" || {
@@ -567,36 +570,84 @@ while :; do
     cat $Tmp/raw >> "$File"
     ;;
   esac
-  # --- 2) RESデータを格納 -------------------------------------------
-  case $nores in 0)
-    awk '
+  # --- 2) save RES/ANL data -----------------------------------------
+  case "$nores$noanl" in *0*)
+    awk -v nores=$nores -v noanl=$noanl '
       BEGIN {
-        OFS="\n";
         Dir_RES = ENVIRON["Dir_RES"];
+        Dir_ANL = ENVIRON["Dir_ANL"];
         if (length(Dir_RES)==0) {Dir_RES=".";}
-        Dir_last  = "";
-        File_last = "";
+        if (length(Dir_ANL)==0) {Dir_ANL=".";}
+        Dir_Rlast  = ""; File_Rlast = "";
+        Dir_Alast  = ""; File_Alast = "";
+        Fmt_RES = "%s\n%s\n%s\n%s\n%s\n%s\n%s\n";
         while (1) {
-          if (! getline l1) {break;}
-          if (! getline l2) {break;}
-          if (! getline l3) {break;}
-          if (! getline l4) {break;}
-          if (! getline l5) {break;}
-          if (! getline l6) {break;}
-          if (! getline l7) {break;}
+          if (! getline l1) {break;} # l1:DateTime
+          if (! getline l2) {break;} # l2:name "(@"sc_name")"
+          if (! getline l3) {break;} # l3:tweet
+          if (! getline l4) {break;} # l4:"ret":n "fav":n
+          if (! getline l5) {break;} # l5:location
+          if (! getline l6) {break;} # l6:AppName "("AppURL")"
+          if (! getline l7) {break;} # l7:tweet URL
           s = l1; gsub(/[\/:]/," ",s); split(s, dt);
-          Dir_curr  = Dir_RES  "/" dt[1] dt[2] dt[3] "/" dt[4];
-          File_curr = Dir_curr "/" dt[4] dt[5] dt[6] ".txt";
-          if (Dir_curr != Dir_last) {
-            ret = system("mkdir -p \"" Dir_curr "\"");
-            if (ret>0) {exit ret;}
+          if (nores == 0) {
+            Dir_Rcurr  = Dir_RES   "/" dt[1] dt[2] dt[3] "/" dt[4];
+            File_Rcurr = Dir_Rcurr "/" dt[4] dt[5] dt[6] ".txt";
+            if (Dir_Rcurr != Dir_Rlast) {
+              ret = system("mkdir -p \"" Dir_Rcurr "\"");
+              if (ret>0) {exit ret;}
+            }
+            if ((length(File_Rlast)>0) && (File_Rlast != File_Rcurr)) {
+              close(File_Rlast);
+            }
+            printf(Fmt_RES,l1,l2,l3,l4,l5,l6,l7) >> File_Rcurr;
+            Dir_Rlast  = Dir_Rcurr; File_Rlast = File_Rcurr;
           }
-          if ((length(File_last)>0) && (File_last != File_curr)) {
-            close(File_last);
+          if (noanl == 0) {
+            Dir_Acurr  = Dir_ANL   "/" dt[1] dt[2] dt[3] "/" dt[4];
+            File_Acurr = Dir_Acurr "/" dt[4] dt[5] dt[6] ".txt";
+            if (Dir_Acurr != Dir_Alast) {
+              ret = system("mkdir -p \"" Dir_Acurr "\"");
+              if (ret>0) {exit ret;}
+            }
+            if ((length(File_Alast)>0) && (File_Alast != File_Acurr)) {
+              close(File_Alast);
+            }
+            # f1:DateTime f2:name     f3:sc_name f4:verified"v" f5:retweeted"RT"
+            # f6:tweet    f7:retweets f8:likes   f9:loc_name    fA:coordinates
+            # fB:app_name fC:app_url  fD:tweet_url
+            f1=l1; sub(/ /,"-",f1);
+            match(l2,/ [^ ]+$/);
+            f2=substr(l2,3,RSTART-3);
+               gsub(/_/,"\\_",f2);gsub(/ /,"_",f2);gsub(/\t/,"\\t",f2);
+            f3=substr(l2,RSTART+2,RLENGTH-3);
+            f4=(sub(/[)][[]v$/,"",f3))?"v":"-";
+            f6=substr(l3,3);
+               gsub(/_/,"\\_",f6);gsub(/ /,"_",f6);gsub(/\t/,"\\t",f6);
+            f5=(sub(/^_RT_/,"",f6))?"RT":"-";
+            s=substr(l4,7);
+            f7=s ; sub(/ .+$/,"",f7);
+            f8=s ; sub(/^.+:/,"",f8);
+            s=substr(l5,3);
+            if      (s=="-"                 ) {f9="-"; fA="-";}
+            else if (! match(s,/ [(][^ ]+$/)) {
+              f9=s;
+                 gsub(/_/,"\\_",f9);gsub(/ /,"_",f9);gsub(/\t/,"\\t",f9);
+              fA="-";
+            }
+            else                           {
+              f9=substr(s,1,RSTART-1);
+                 gsub(/_/,"\\_",f9);gsub(/ /,"_",f9);gsub(/\t/,"\\t",f9);
+              fA=substr(s,RSTART+2,RLENGTH-3);
+            }
+            match(l6,/ [^ ]+$/);
+            fB=substr(l6,3,RSTART-3);
+               gsub(/_/,"\\_",fB);gsub(/ /,"_",fB);gsub(/\t/,"\\t",fB);
+            fC=substr(l6,RSTART+2,RLENGTH-3);
+            fD=substr(l7,3)
+            print f1,f2,f3,f4,f5,f6,f7,f8,f9,fA,fB,fC,fD >> File_Acurr;
+            Dir_Alast  = Dir_Acurr; File_Alast = File_Acurr;
           }
-          print l1,l2,l3,l4,l5,l6,l7 >> File_curr;;
-          Dir_last  = Dir_curr;
-          File_last = File_curr;
         }
       }
     ' $Tmp/res
@@ -606,14 +657,14 @@ while :; do
     echo "ERROR: can't mkdir for RES ... abort searching" 1>&2; break
   }
 
-  # === ツイートが最古設定したものよりも古ければ終了 =================
+  # === Exit the loop if the gathered oldest tweet is older than set time
   if [ -n "${sincedt:-}" ]; then
     echo "$sY$sM$sD$sh$sm$ss - $sincedt" | $CMD_CALC | grep -q '^-' && {
       echo "Arrived at the since date and time ... finish searching" 1>&2; break
     }
   fi
 
-  # === ループ =======================================================
+  # === Prepare the next lap =========================================
   last="--maxid=$(echo $sID - 1 | $CMD_CALC)"
   retry_ok=$((maxretry_ok+1))
   retry_ng=$((maxretry_ng+1))
@@ -622,7 +673,7 @@ done
 
 
 ######################################################################
-# 終了
+# Closing
 ######################################################################
 
 [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
