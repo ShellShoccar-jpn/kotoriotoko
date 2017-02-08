@@ -4,7 +4,7 @@
 #
 # FAVTWS.SH : View The Favorite Tweets of A User
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -28,14 +28,13 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [loginname]
-	          OPTIONS:
-	          -m <max_ID>  |--maxid=<max_ID>
+	Options : -m <max_ID>  |--maxid=<max_ID>
 	          -n <count>   |--count=<count>
 	          -s <since_ID>|--sinceid=<since_ID>
 	          -v           |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-07 02:01:03 JST
+	Version : 2017-02-09 02:22:17  JST
 	USAGE
   exit 1
 }
@@ -151,7 +150,7 @@ case $# in
      [ -z "$scname" ] && scname=$MY_scname      ;;
   *) print_usage_and_exit                       ;;
 esac
-printf '%s\n' "$scname" | grep -Eq '^$|^[A-Za-z0-9_]+$' || {
+printf '%s\n' "$scname" | grep -Eq '^[A-Za-z0-9_]*$' || {
   print_usage_and_exit
 }
 
@@ -175,16 +174,16 @@ API_param=$(cat <<-PARAM                   |
 readonly API_param
 
 # === Pack the parameters for the API ================================
-# --- 1.URL-encode only the right side
+# --- 1.URL-encode only the right side of "="
 #       (note: This string is also used to generate OAuth 1.0 signature)
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
 # --- 2.joint all lines with "&" (note: string for giving to the API)
-apip_get=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               |
-           sed 's/^./?&/'            )
+apip_get=$(printf '%s' "${apip_enc}"      |
+           tr '\n' '&'                    |
+           sed 's/^./?&/' 2>/dev/null || :)
 
 # === Generate the signature string of OAuth 1.0 =====================
 # --- 1.a random string
@@ -214,7 +213,7 @@ sig_param=$(cat <<-OAUTHPARAM              |
             grep -v '^ *$'                 |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
-            sed 's/&$//'                   )
+            sed 's/&$//' 2>/dev/null || :  )
 # --- 5.generate the signature string
 #       (note: URL-encode API-access-method -- GET or POST --, the endpoint,
 #        and the above No.4 string respectively at first. and transfer to
@@ -228,7 +227,7 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
 				KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
-            sed 's/ *$//'                                        |
+            sed 's/ *$//' 2>/dev/null                            |
             grep ^                                               |
             # 1:API-key 2:APIsec 3:method                        #
             # 4:API-endpoint 5:API-parameter                     #
@@ -248,7 +247,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//'                                      |
+         sed 's/^,*//' 2>/dev/null                          |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
          grep ^                                             |
@@ -278,7 +277,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )

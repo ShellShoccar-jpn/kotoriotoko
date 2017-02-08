@@ -1,36 +1,88 @@
 #!/bin/sh
 
-# designed by Nobuaki Tounaka
-# written by Shell-Shoccar Japan (@shellshoccarjpn)
+######################################################################
+#
+# CALCLOCK - Time Format Converter Between YYYYMMDDhhmmss and UNIX time
+#
+# USAGE: calclock [+<n>h] [-r] <f1> <f2> ... <file>
+#        calclock -d[r] <string>
+#
+#        <fn> .... Time field number you want to convert
+#        <file> .. Text file which contains some time field to convert
+#        <string>  It will be explained in -d option
+#        -d ...... Direct Mode :
+#                  It make this command regard the last argument (<string>)
+#                  as a field formatted string instead of <file>
+#        +<n>h ... Regards the top <n> lines as comment and Print without
+#                  converting
+#        -r ...... Converts from UNIX time to YYYYMMDDhhmmss instead of
+#                  from YYYYMMDDhhmmss to YYYYMMDDhhmmss
+#
+# Designed originally by Nobuaki Tounaka
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-08
+#
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
+#
+######################################################################
 
-# print the usage and exit
+
+######################################################################
+# Initial Configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+umask 0022
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [+<n>h] [-r] <f1> <f2> ... <file>
 	          ${0##*/} -d[r] <string>
-	Version : 2017-02-07 02:01:03 JST
+	Args    : <fn> .... Time field number you want to convert
+	          <file> .. Text file which contains some time field to convert
+	          <string>  It will be explained in -d option
+	Options : -d ...... Direct Mode :
+	                    It make this command regard the last argument (<string>)
+	                    as a field formatted string instead of <file>
+	          +<n>h ... Regards the top <n> lines as comment and Print without
+	                    converting
+	          -r ...... Converts from UNIX time to YYYYMMDDhhmmss instead of
+	                    from YYYYMMDDhhmmss to YYYYMMDDhhmmss
+	Version : 2017-02-08 19:35:59 JST
 	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
 }
+error_exit() {
+  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
+  exit $1
+}
 
-# initialize
-set -u
-export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+######################################################################
+# Parse Arguments
+######################################################################
+
+# === Get the options and the filepath ===============================
+# --- initialize option parameters -----------------------------------
 directmode=0
 directstr=''
-awkc0=''
 file=''
 fldnums=''
 all_fields=0
-use_stdin=0
 opt_part=1
-ropt_ena=''
-ropt_dis='#'
-hopt=0
-
-# parse the arguments
+optr_ena=''
+optr_dis='#'
+opth=0
+awkc0=''
+#
+# --- get them -------------------------------------------------------
 case $# in 0) print_usage_and_exit;; esac
 i=0
 for arg in "$@"; do
@@ -42,23 +94,23 @@ for arg in "$@"; do
     continue
   elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-dr'       ]; then
     directmode=1
-    ropt_ena='#'
-    ropt_dis=''
+    optr_ena='#'
+    optr_dis=''
     continue
   elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-rd'       ]; then
     directmode=1
-    ropt_ena='#'
-    ropt_dis=''
+    optr_ena='#'
+    optr_dis=''
     continue
   elif [ $opt_part -ne 0 ] && [ "_$arg" = '_-r'        ]; then
-    ropt_ena='#'
-    ropt_dis=''
+    optr_ena='#'
+    optr_dis=''
     continue
   elif [ $opt_part -ne 0 ] && [ "_$arg" != "_${arg#+}" ]; then
     s=$(printf '%s\n' "$arg" | sed 's/^+\([0-9]*\)h$/\1/')
     [ "_$s" != "_$arg" ] || print_usage_and_exit
-    [ -z "$s"          ] && { hopt=1; continue; }
-    hopt=$(expr $s + 0)
+    [ -z "$s"          ] && { opth=1; continue; }
+    opth=$(expr $s + 0)
     continue
   fi
   opt_part=0
@@ -99,6 +151,9 @@ for arg in "$@"; do
   # otherwise, it is a invalid argument
   print_usage_and_exit
 done
+
+# === Validate the arguments =========================================
+use_stdin=0
 case "$fldnums" in '') print_usage_and_exit;; esac
 if [ $directmode -ne 0 ]; then
   [ -n "$directstr" ] || print_usage_and_exit
@@ -117,13 +172,17 @@ else
      [ "_$file" != '_-' ]  ; then
     print_usage_and_exit
   elif [ ! -r "$file" ] && [ "_$file" != '_-' ]; then
-    printf '%s\n' "${0##*/}: Cannot open the file" 1>&2
-    exit 1
+    error_exit 1 'Cannot open the file'
   fi
 fi
 case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
-# make the part of the awk code
+
+######################################################################
+# Prepare for the Main Routine
+######################################################################
+
+# === Generate the partial code for AWK ==============================
 if [ $all_fields -eq 0 ]; then
   awkc0=$(echo "$fldnums"                           |
           sed 's/^0\{1,\}\([0-9]\)/\1/'             |
@@ -256,7 +315,7 @@ else
   awkc0b=''
 fi
 
-# make awk code
+# === Generate the AWK code for calclock operation ===================
 awkcode='
 BEGIN {
   YYYYMMDDhhmmss2unixtime_prep("LOCALTIME"); # initialize with localtime mode
@@ -274,8 +333,8 @@ BEGIN {
 }
 function convert_marked_flds( fld) {
   for (fld in mark) {
-    '$ropt_ena'$fld = $fld OFS YYYYMMDDhhmmss2unixtime($fld);
-    '$ropt_dis'$fld = $fld OFS unixtime2YYYYMMDDhhmmss($fld);
+    '$optr_ena'$fld = $fld OFS YYYYMMDDhhmmss2unixtime($fld);
+    '$optr_dis'$fld = $fld OFS unixtime2YYYYMMDDhhmmss($fld);
   }
 }
 function YYYYMMDDhhmmss2unixtime_prep(localtime_flag, gm,lo) {
@@ -361,10 +420,15 @@ function YYYYMMDDhhmmss2unixtime(YYYYMMDDhhmmss, Y,M,D,h,m,s,l) {
 }
 '
 
-# main
-if   [ $directmode -ne 0 ]; then
-       printf '%s' "$directstr"         |
-       awk -v hdr_skip=$hopt "$awkcode"
-else
-  exec awk -v hdr_skip=$hopt "$awkcode" "$file"
-fi
+
+######################################################################
+# Main Routine
+######################################################################
+
+case $directmode in
+  0) exec awk -v hdr_skip=$opth "$awkcode" "$file"
+     ;;
+  *) printf '%s' "$directstr" | awk -v hdr_skip=$opth "$awkcode"
+     exit $?
+     ;;
+esac

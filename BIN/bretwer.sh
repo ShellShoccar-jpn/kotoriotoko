@@ -4,7 +4,7 @@
 #
 # BRETWER.SH : View Retweeted User List (with Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -28,11 +28,10 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] <tweet_id>
-	          OPTIONS:
-	          -n <count>|--count=<count>
+	Options : -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-07 02:01:03 JST
+	Version : 2017-02-09 02:45:30 JST
 	USAGE
   exit 1
 }
@@ -47,13 +46,7 @@ PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
 . "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
 
 # === Confirm that the required commands exist =======================
-# --- 1.OpenSSL or LibreSSL
-if   type openssl >/dev/null 2>&1; then
-  CMD_OSSL='openssl'
-else
-  error_exit 1 'OpenSSL command is not found.'
-fi
-# --- 2.cURL or Wget
+# --- 1..cURL or Wget
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -145,9 +138,9 @@ apip_enc=$(printf '%s\n' "${API_param}" |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
 # --- 2.joint all lines with "&" (note: string for giving to the API)
-apip_get=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               |
-           sed 's/^./?&/'            )
+apip_get=$(printf '%s' "${apip_enc}"      |
+           tr '\n' '&'                    |
+           sed 's/^./?&/' 2>/dev/null || :)
 
 # === Generate the signature string of OAuth 1.0 =====================
 case "${MY_bearer:-}" in '')
@@ -184,7 +177,7 @@ apires=$(echo "Authorization: Bearer $MY_bearer"            |
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )

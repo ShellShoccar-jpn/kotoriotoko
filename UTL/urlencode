@@ -9,7 +9,7 @@
 #                  replaced with "%20" instead of "+".
 #        --raw ... same as the "-r" option
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -33,7 +33,10 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-r|--raw] <file> ...
-	Version : 2017-02-07 02:01:03 JST
+	Args    : <file> ...... Text file for URL encoding
+	Options : -r, --raw ... RAW MODE :
+	                        " " will not be converted into "+" but "%20"
+	Version : 2017-02-09 00:56:27 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1

@@ -1,29 +1,77 @@
 #!/bin/sh
 
-# designed by Nobuaki Tounaka
-# written by Shell-Shoccar Japan (@shellshoccarjpn)
+######################################################################
+#
+# SELF - "SELecting Field" : This Makes AWK "print $n" Simpler to write
+#
+# USAGE: self <f1> <f2> ... <file>
+#        self -d <f1> <f2> ... <string>
+#
+#        <fn> .... Field number you want to get
+#        <file> .. Text file which fileds are separated "[[:blank:]]+"
+#                  (It is called "Unicage Field Format")
+#        <string>  It will be explained in -d option
+#        -d ...... Direct Mode :
+#                  It make this command regard the last argument (<string>)
+#                  as a field formatted string instead of <file>
+#
+# Designed originally by Nobuaki Tounaka
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-08
+#
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
+#
+######################################################################
 
-# print the usage and exit
+
+######################################################################
+# Initial Configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+umask 0022
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <f1> <f2> ... <file>
 	          ${0##*/} -d <f1> <f2> ... <string>
-	Version : 2017-02-07 02:01:03 JST
+	Args    : <fn> .... Field number you want to get
+	          <file> .. Text file which fileds are separated "[[:blank:]]+"
+	                    (It is called "Unicage Field Format")
+	          <string>  It will be explained in -d option
+	Options : -d ...... Direct Mode :
+	          It make this command regard the last argument (<string>)
+	          as a field formatted string instead of <file>
+	Version : 2017-02-08 19:17:21 JST
 	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands/UTF-8)
 	USAGE
   exit 1
 }
+error_exit() {
+  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
+  exit $1
+}
 
+
+######################################################################
+# Parse Arguments
+######################################################################
+
+# === Get the options and the filepath ===============================
+# --- initialize option parameters -----------------------------------
 # initialize
-set -u
-export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 directmode=0
 directstr=''
-awkprstr=''
+awkprstr=''    # partial code for AWK, which contains field variables for print
 file=''
-
-# parse the arguments
+#
+# --- get them -------------------------------------------------------
 case $# in 0) print_usage_and_exit;; esac
 i=0
 dlm=''
@@ -199,6 +247,8 @@ for arg in "$@"; do
   arg=''
   dlm=','
 done
+
+# === Validate the arguments =========================================
 if [ -z "$awkprstr" ]; then
   print_usage_and_exit
 fi
@@ -220,12 +270,16 @@ fi
 if [ $directmode -ne 0 ]; then
   file=''
 elif [ ! -r "$file" ] && [ "_$file" != '_-' ]; then
-  printf '%s\n' "${0##*/}: Cannot open the file" 1>&2
-  exit 1
+  error_exit 1 'Cannot open the file'
 fi
 case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
-# select fields
+
+######################################################################
+# Prepare for the Main Routine
+######################################################################
+
+# === Generate the AWK code for "self" operation =====================
 awkcode='
 BEGIN {
   _assert_exit = 0;
@@ -368,8 +422,16 @@ function getfldclstr2(fldnum1, fldnum2, stpos, len  ,i,str) {
   return str;
 }
 '
-if   [ $directmode -ne 0 ]; then
-  printf '%s' "$directstr" | awk "$awkcode"
-else
-  exec awk "$awkcode" "$file"
-fi
+
+
+######################################################################
+# Main Routine
+######################################################################
+
+case $directmode in
+  0) exec awk "$awkcode" "$file"
+     ;;
+  *) printf '%s' "$directstr" | awk "$awkcode"
+     exit $?
+     ;;
+esac

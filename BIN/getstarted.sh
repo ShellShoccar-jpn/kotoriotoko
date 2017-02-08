@@ -1,13 +1,16 @@
-#! /bin/sh
+#!/bin/sh
 
 ######################################################################
 #
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/10/09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
-# This software is completely Public Domain (CC0).
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
@@ -16,25 +19,18 @@
 # Initial Configuration
 ######################################################################
 
-# === Get the home directory of the application ======================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-Dir_CONF="$Homedir/CONFIG"
-File_CONF="$Dir_CONF/COMMON.SHLIB"
-File_CONF_SAMPLE="$Dir_CONF/COMMON.SHLIB.SAMPLE"
-
-# === Initialize =====================================================
+# === Initialize shell environment ===================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/}
-	Sun Oct  9 01:24:35 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/}
+	Version : 2017-02-09 04:54:04 JST
+	USAGE
   exit 1
 }
 error_exit() {
@@ -42,13 +38,19 @@ error_exit() {
   exit $1
 }
 
-# === Include the configurations of this application =================
-if   [ -s "$File_CONF"        ]; then
-  . "$File_CONF"
-elif [ -s "$File_CONF_SAMPLE" ]; then
-  . "$File_CONF_SAMPLE"
-else
-  error_exit 1 'No configuration file found'
+# === Detect home directory of this app. and define more =============
+#
+# --- Detect home directory ------------------------------------------
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+#
+# --- Define the additonal file and directory pathes -----------------
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+Dir_CONF="$Homedir/CONFIG"
+File_CONF="$Dir_CONF/COMMON.SHLIB"
+File_CONF_SAMPLE="$Dir_CONF/COMMON.SHLIB.SAMPLE"
+if   [ -s "$File_CONF"        ]; then . "$File_CONF"
+elif [ -s "$File_CONF_SAMPLE" ]; then . "$File_CONF_SAMPLE"
+else error_exit 1 'No configuration file found'
 fi
 
 # === Confirm that the required commands exist =======================
@@ -126,37 +128,34 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
 # --- 3. OAuth1.0 parameters (made with 1 and 2)
-oa_param=$(cat <<_____________APIDATA                 |
-             oauth_callback=
-             oauth_consumer_key=${KOTORIOTOKO_apikey}
-             oauth_signature_method=HMAC-SHA1
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-             oauth_version=1.0
-_____________APIDATA
-           sed 's/^ *//'                              |
+oa_param=$(cat <<-APIDATA                             |
+			oauth_callback=
+			oauth_consumer_key=${KOTORIOTOKO_apikey}
+			oauth_signature_method=HMAC-SHA1
+			oauth_timestamp=${nowutime}
+			oauth_nonce=${randmstr}
+			oauth_version=1.0
+			APIDATA
            urlencode -r                               |
            sed 's/%3[Dd]/=/'                          )
 # --- 4. data string for signature string
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-______________OAUTHPARAM
+sig_param=$(cat <<-OAUTHPARAM              |
+				${oa_param}
+				OAUTHPARAM
             grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
-            sed 's/&$//'                   )
+            sed 's/&$//' 2>/dev/null || :  )
 # --- 5. signature string
-sig_strin=$(cat <<______________KEY_AND_DATA                 |
-              ${KOTORIOTOKO_apisec}
-              ${API_methd1}
-              ${API_endpt1}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                    |
+sig_strin=$(cat <<-KEY_AND_DATA                              |
+				${KOTORIOTOKO_apisec}
+				${API_methd1}
+				${API_endpt1}
+				${sig_param}
+				KEY_AND_DATA
             urlencode -r                                     |
             tr '\n' ' '                                      |
-            sed 's/ *$//'                                    |
+            sed 's/ *$//' 2>/dev/null                        |
             grep ^                                           |
             # 1:APIkey 2:request-method                      #
             # 3:API-endpoint 4:API-parameter                 #
@@ -175,7 +174,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//'                                      |
+         sed 's/^,*//' 2>/dev/null                          |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
          grep ^                                             |
@@ -201,7 +200,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )
@@ -280,38 +279,35 @@ nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
 # --- 3. OAuth1.0 parameters (made with 1 and 2)
-oa_param=$(cat <<_____________APIDATA                 |
-             oauth_consumer_key=${KOTORIOTOKO_apikey}
-             oauth_token=${oa_token}
-             oauth_verifier=${pincode}
-             oauth_signature_method=HMAC-SHA1
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-             oauth_version=1.0
-_____________APIDATA
-           sed 's/^ *//'                              |
+oa_param=$(cat <<-APIDATA                             |
+			oauth_consumer_key=${KOTORIOTOKO_apikey}
+			oauth_token=${oa_token}
+			oauth_verifier=${pincode}
+			oauth_signature_method=HMAC-SHA1
+			oauth_timestamp=${nowutime}
+			oauth_nonce=${randmstr}
+			oauth_version=1.0
+			APIDATA
            urlencode -r                               |
            sed 's/%3[Dd]/=/'                          )
 # --- 4. data string for signature string
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-______________OAUTHPARAM
+sig_param=$(cat <<-OAUTHPARAM              |
+				${oa_param}
+				OAUTHPARAM
             grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
-            sed 's/&$//'                   )
+            sed 's/&$//' 2>/dev/null || :  )
 # --- 5. signature string
-sig_strin=$(cat <<______________KEY_AND_DATA                 |
-              ${KOTORIOTOKO_apisec}
-              ${API_methd2}
-              ${API_endpt2}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                    |
+sig_strin=$(cat <<-KEY_AND_DATA                              |
+				${KOTORIOTOKO_apisec}
+				${API_methd2}
+				${API_endpt2}
+				${sig_param}
+				KEY_AND_DATA
             urlencode -r                                     |
             tr '\n' ' '                                      |
-            sed 's/ *$//'                                    |
+            sed 's/ *$//' 2>/dev/null                        |
             grep ^                                           |
             # 1:APIkey 2:request-method                      #
             # 3:API-endpoint 4:API-parameter                 #
@@ -330,7 +326,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//'                                      |
+         sed 's/^,*//' 2>/dev/null                          |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
          grep ^                                             |
@@ -356,7 +352,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )
@@ -410,7 +406,7 @@ while [ ! -s "$File_CONF" ]; do
     "EVERY_LINE"               {print;                                                               }
   ' > "$File_CONF"
   [ $? -eq 0 ] || break
-  cat <<-__MESSAGE1
+  cat <<-MESSAGE1
 
 	***********************************************************************
 	Enjoy now!
@@ -420,11 +416,11 @@ while [ ! -s "$File_CONF" ]; do
 
 	You can use kotoriotoko now because of your access keys of Twitter service
 	are written into the file.
-__MESSAGE1
+	MESSAGE1
   fMade=1
 break; done
 if [ $fMade -eq 0 ]; then
-  cat <<-__MESSAGE2
+  cat <<-MESSAGE2
 
 	***********************************************************************
 	Almost finish preparing
@@ -441,11 +437,11 @@ if [ $fMade -eq 0 ]; then
 	readonly MY_apisec='${KOTORIOTOKO_apisec}'
 	readonly MY_atoken='${my_atoken}'
 	readonly MY_atksec='${my_atksec}'
-__MESSAGE2
+	MESSAGE2
 fi
 
 ######################################################################
-# Closing
+# Finish
 ######################################################################
 
 exit 0

@@ -18,7 +18,7 @@
 #                       from wrapping.
 #        -i ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -27,22 +27,45 @@
 #
 ######################################################################
 
-# print the usage and exit
+
+######################################################################
+# Initial Configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+umask 0022
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [--by-myself] [-w <COLS>] <file>
 	          ${0##*/} [--by-myself] -d [-i] <file>
-	Version : 2017-02-07 02:01:03 JST
+	Arg&Opts: Almost compatible with GNU base64
+	          The following options are available and compatible with it
+	            -d, -w <COLS>, -i
+	          But --by-myself is the only original option, it prevent
+	          from use the built-in same name command even if available
+	Version : 2017-02-09 01:14:03 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	            * Although the bult-in base64, uuencode and uudecode command or
 	              GNU AWK produces better performance than the POSIX commands set
 	USAGE
   exit 1
 }
+error_exit() {
+  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
+  exit $1
+}
 
-# ===== PREPARATION ==================================================
 
-# --- which command also works on Just a POSIX environment -----------
+######################################################################
+# Prepare for Main Routine
+######################################################################
+
+# === FUNC: which command also works on Just a POSIX environment =====
 which which >/dev/null 2>&1 || {
   which() {
     command -v "$1" 2>/dev/null |
@@ -51,15 +74,11 @@ which which >/dev/null 2>&1 || {
   }
 }
 
-# --- misc setting #1 ------------------------------------------------
-set -u
-umask 0022
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
-
+# === Decide which AWK I should use ==================================
 # --- want to use "bult-in" base64, or not? --------------------------
 by_myself=0
 case "${1:-}" in '--by-myself') shift; by_myself=1;; esac
-
+#
 # --- use "bult-in" base64 if available and wanted -------------------
 if   [ $by_myself -eq 0 ] && printf 1 | base64 -w 0 >/dev/null 2>&1; then
   exec base64 "$@"
@@ -68,7 +87,7 @@ elif [ $by_myself -eq 0 ] && printf 1 | base64 -b 0 >/dev/null 2>&1; then
   # If Mac OS X version exists, I will use it after option parsing
   CMD_BASE64_MAC=$(which base64)
 fi
-
+#
 # --- check whether this host has a "binarable" AWK command or not ---
 binarable_awk=1
 while :; do
@@ -79,16 +98,19 @@ while :; do
   binarable_awk=0; break
 done
 
-# --- misc setting #2 ------------------------------------------------
-export LC_ALL=C
 
+######################################################################
+# Parse Arguments
+######################################################################
 
-# ===== OPTION PARSING ===============================================
-
+# === Get the options and the filepath ===============================
+# --- initialize option parameters -----------------------------------
 file=''
 mode='e'
 width=76
 opti=0
+#
+# --- get them -------------------------------------------------------
 optmode=''
 while :; do
   case $# in 0) break;; esac
@@ -156,15 +178,15 @@ while :; do
   esac
   case "$optmode" in
     w) printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-         printf '%s\n' "${0##*/}: Invalid value of -w,--wrap option" 1>&2
-         exit 1
+         error_exit 1 'Invalid value of -w,--wrap option'
        }
        width=$s
        optmode=''
        shift
        continue
        ;;
-    *) echo 'ERROR' 1>&2; exit 1;
+    *) error_exit 1 'ERROR'
+       ;;
   esac
   break
 done
@@ -181,9 +203,11 @@ case "$file" in
 esac
 
 
-# ===== ENCODING / DECODING ==========================================
+######################################################################
+# Main Routine
+######################################################################
 
-# --- If Mac OS X version base64 was requested, call it here ---------
+# === If Mac OS X version base64 was requested, call it here =========
 case "$by_myself${CMD_BASE64_MAC:-}" in 0/*)
   opts=''
   case $mode in d) opts="$opts -d";; esac
@@ -193,7 +217,7 @@ case "$by_myself${CMD_BASE64_MAC:-}" in 0/*)
   ;;
 esac
 
-# --- use uu*code command if available and wanted --------------------
+# === Use uu*code command if available and wanted ====================
 if [ $by_myself -eq 0 ] && uuencode -m dummy </dev/null >/dev/null 2>&1; then
   case "$mode" in
     d) [ -w /dev/stdout ] && {
@@ -215,7 +239,7 @@ if [ $by_myself -eq 0 ] && uuencode -m dummy </dev/null >/dev/null 2>&1; then
   esac
 fi
 
-# --- coding by myself -----------------------------------------------
+# === Encode/Decode by myself ========================================
 case $mode$binarable_awk in
   e*) cat "$file"                                                              |
       od -A n -t x1 -v                                                         |
