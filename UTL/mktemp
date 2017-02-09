@@ -19,7 +19,7 @@
 #                          in front of the filepath
 #        --suffix=<suff> . Adds the suffix behind the filename
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -48,7 +48,7 @@ print_usage_and_exit () {
 	            -d, -p <DIR>, -q, -u, -t, --suffix=<suff>
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-02-09 00:10:43 JST
+	Version : 2017-02-10 01:04:43 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -59,10 +59,17 @@ error_exit() {
 }
 
 # === Exec the built-in mktemp command if OK and exists ==============
-case "${1:-}" in
-  --by-myself) shift                                                        ;;
-  *)           type mktemp >/dev/null 2>&1 && { exec mktemp "$@"; exit 1; } ;;
+by_myself=0
+case "${1:-}" in 
+  '--by-myself')
+     shift; by_myself=1
+     ;;
+  *) case "$(d=${0%/*}/;[ "_$d" = "_$0/" ]||cd "$d";echo "$(pwd)/${0##*/}")" in
+       "$(command -v mktemp)") by_myself=1;;
+     esac
+     ;;
 esac
+case $by_myself) in 0) exec mktemp "$@"; exit 1;; esac
 
 # === Investigate the temporary directory if set =====================
 Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');

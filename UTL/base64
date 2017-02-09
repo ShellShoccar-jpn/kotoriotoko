@@ -18,7 +18,7 @@
 #                       from wrapping.
 #        -i ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -48,7 +48,7 @@ print_usage_and_exit () {
 	            -d, -w <COLS>, -i
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-02-09 01:14:03 JST
+	Version : 2017-02-10 00:49:30 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	            * Although the bult-in base64, uuencode and uudecode command or
 	              GNU AWK produces better performance than the POSIX commands set
@@ -75,9 +75,17 @@ which which >/dev/null 2>&1 || {
 }
 
 # === Decide which AWK I should use ==================================
-# --- want to use "bult-in" base64, or not? --------------------------
+# --- may I leave the task to the built-in version, or must not? -----
 by_myself=0
-case "${1:-}" in '--by-myself') shift; by_myself=1;; esac
+case "${1:-}" in 
+  '--by-myself')
+     shift; by_myself=1
+     ;;
+  *) case "$(d=${0%/*}/;[ "_$d" = "_$0/" ]||cd "$d";echo "$(pwd)/${0##*/}")" in
+       "$(command -v base64)") by_myself=1;;
+     esac
+     ;;
+esac
 #
 # --- use "bult-in" base64 if available and wanted -------------------
 if   [ $by_myself -eq 0 ] && printf 1 | base64 -w 0 >/dev/null 2>&1; then
