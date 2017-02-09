@@ -69,7 +69,7 @@ case "${1:-}" in
      esac
      ;;
 esac
-case $by_myself) in 0) exec mktemp "$@"; exit 1;; esac
+case $by_myself in 0) exec mktemp "$@"; exit 1;; esac
 
 # === Investigate the temporary directory if set =====================
 Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');
