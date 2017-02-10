@@ -1,43 +1,37 @@
-#! /bin/sh
+#!/bin/sh
 
 ######################################################################
 #
-# dmtwview.sh
-# Twitterで指定したダイレクトメッセージを表示する
+# DMTWVIEW.SH : View A Direct Message Which Are Request By Tweet-IDs
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
 #
-# このソフトウェアは Public Domain (CC0)であることを宣言する。
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
 
 ######################################################################
-# 初期設定
+# Initial Configuration
 ######################################################################
 
-# === このシステム(kotoriotoko)のホームディレクトリー ================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-
-# === 初期化 =========================================================
+# === Initialize shell environment ===================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
-# === 共通設定読み込み ===============================================
-. "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
-
-# === エラー終了関数定義 =============================================
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] <tweet_id>
-	        OPTIONS:
-	        --rawout=<filepath_for_writing_JSON_data>
-	        --timeout=<waiting_seconds_to_connect>
-	Sun Sep  4 00:49:05 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] <tweet_id>
+	Options : --rawout=<filepath_for_writing_JSON_data>
+	          --timeout=<waiting_seconds_to_connect>
+	Version : 2017-02-10 20:41:45 JST
+	USAGE
   exit 1
 }
 error_exit() {
@@ -45,14 +39,19 @@ error_exit() {
   exit $1
 }
 
-# === 必要なプログラムの存在を確認する ===============================
-# --- 1.符号化コマンド（OpenSSL）
+# === Detect home directory of this app. and define more =============
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+. "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
+
+# === Confirm that the required commands exist =======================
+# --- 1.OpenSSL or LibreSSL
 if   type openssl >/dev/null 2>&1; then
   CMD_OSSL='openssl'
 else
   error_exit 1 'OpenSSL command is not found.'
 fi
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl）
+# --- 2.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -63,20 +62,20 @@ fi
 
 
 ######################################################################
-# 引数解釈
+# Argument Parsing
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === Print usage and exit if one of the help options is set =========
 case "$# ${1:-}" in
   '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
-# === 変数初期化 =====================================================
+# === Initialize parameters ==========================================
 tweetid=''
 rawoutputfile=''
 timeout=''
 
-# === オプション読取 =================================================
+# === Read options ===================================================
 while :; do
   case "${1:-}" in
     --rawout=*)  # for debug
@@ -101,7 +100,7 @@ while :; do
   esac
 done
 
-# === ツイートIDを取得 ===============================================
+# === Get a tweet-ID =================================================
 case $# in
   1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
   *) print_usage_and_exit                    ;;
@@ -112,89 +111,86 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 
 ######################################################################
-# メイン
+# Main Routine
 ######################################################################
 
-# === Twitter API関連（エンドポイント固有） ==========================
-# (1)基本情報
+# === Set parameters of Twitter API endpoint =========================
+# (1)endpoint
 API_endpt='https://api.twitter.com/1.1/direct_messages/show.json'
 API_methd='GET'
-# (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-API_param=$(cat <<______________PARAM      |
-              id=$tweetid
-______________PARAM
-            sed 's/^ *//'                  |
+# (2)parameters
+API_param=$(cat <<-PARAM                   |
+				id=$tweetid
+				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
-# === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
-#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+# === Pack the parameters for the API ================================
+# --- 1.URL-encode only the right side of "="
+#       (note: This string is also used to generate OAuth 1.0 signature)
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
-# --- 2.各行を"&"で結合する 註)APIにGETメソッドで渡す文字列
-apip_get=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               |
-           sed 's/^./?&/'            )
+# --- 2.joint all lines with "&" (note: string for giving to the API)
+apip_get=$(printf '%s' "${apip_enc}"      |
+           tr '\n' '&'                    |
+           sed 's/^./?&/' 2>/dev/null || :)
 
-# === OAuth1.0署名の作成 =============================================
-# --- 1.ランダム文字列
+# === Generate the signature string of OAuth 1.0 =====================
+# --- 1.a random string
 randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
-# --- 2.現在のUNIX時間
+# --- 2.the current UNIX time
 nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
-# --- 3.OAuth1.0パラメーター（1,2を利用して作成）
-#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
-oa_param=$(cat <<_____________OAUTHPARAM      |
-             oauth_version=1.0
-             oauth_signature_method=HMAC-SHA1
-             oauth_consumer_key=${MY_apikey}
-             oauth_token=${MY_atoken}
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-_____________OAUTHPARAM
-           sed 's/^ *//'                      )
-# --- 4.署名用の材料となる文字列の作成
-#       註)APIパラメーターとOAuth1.0パラメーターを、
-#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-              ${apip_enc}
-______________OAUTHPARAM
+# --- 3.OAuth 1.0 parameters (generated with 1 and 2)
+#       (note: This string is also used for an HTTP header)
+oa_param=$(cat <<-OAUTHPARAM
+			oauth_version=1.0
+			oauth_signature_method=HMAC-SHA1
+			oauth_consumer_key=${MY_apikey}
+			oauth_token=${MY_atoken}
+			oauth_timestamp=${nowutime}
+			oauth_nonce=${randmstr}
+			OAUTHPARAM
+                                            )
+# --- 4.generate pre-string of the signature
+#       (note: the API parameters and OAuth 1.0 parameters
+#        are formed a line like a CGI parameter of GET method)
+sig_param=$(cat <<-OAUTHPARAM |
+				${oa_param}
+				${apip_enc}
+				OAUTHPARAM
             grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
-            sed 's/&$//'                   )
-# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
-#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
-#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
-#          キー文字列として、HMAC-SHA1符号化
-sig_strin=$(cat <<______________KEY_AND_DATA                     |
-              ${MY_apisec}
-              ${MY_atksec}
-              ${API_methd}
-              ${API_endpt}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                        |
+            sed 's/&$//' 2>/dev/null || :  )
+# --- 5.generate the signature string
+#       (note: URL-encode API-access-method -- GET or POST --, the endpoint,
+#        and the above No.4 string respectively at first. and transfer to
+#        HMAC-SHA1 with the key string which made of the access-keys)
+sig_strin=$(cat <<-KEY_AND_DATA                                  |
+				${MY_apisec}
+				${MY_atksec}
+				${API_methd}
+				${API_endpt}
+				${sig_param}
+				KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
-            sed 's/ *$//'                                        |
+            sed 's/ *$//' 2>/dev/null                            |
             grep ^                                               |
-            # 1:APIkey 2:APIsec 3:リクエストメソッド             #
-            # 4:APIエンドポイント 5:APIパラメーター              #
+            # 1:API-key 2:APIsec 3:method                        #
+            # 4:API-endpoint 5:API-parameter                     #
             while read key sec mth ept par; do                   #
               printf '%s&%s&%s' $mth $ept $par                 | #
               "$CMD_OSSL" dgst -sha1 -hmac "$key&$sec" -binary | #
               "$CMD_OSSL" enc -e -base64                         #
             done                                                 )
 
-# === API通信 ========================================================
-# --- 1.APIコール
+# === Access to the endpoint =========================================
+# --- 1.connect and get a response
 apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
                 "${oa_param}"                               \
                 "${sig_strin}"                              \
@@ -203,7 +199,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//'                                      |
+         sed 's/^,*//' 2>/dev/null                          |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
          grep ^                                             |
@@ -233,18 +229,18 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )
-# --- 2.結果判定
+# --- 2.exit immediately if it failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
-# === レスポンス解析 =================================================
-# --- 1.レスポンスパース                                                      #
+# === Parse the response =============================================
+# --- 1.extract the required parameters from the response (written in JSON)   #
 echo "$apires"                                                                |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
-parsrj.sh 2>/dev/null                                                         |
+parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000'                                                                  |
 sed 's/^\$\.//'                                                               |
@@ -297,39 +293,40 @@ awk '                                                                         #
       tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                   #
     }                                                                         #
     tx = tx tx0;                                                           }' |
-# --- 2.日時フォーマット変換                                                  #
+# --- 2.convert date string into "YYYY/MM/DD hh:mm:ss"                        #
 awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
             m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";       #
             m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";    }  #
      /^[A-Z]/{t=$4; gsub(/:/,"",t);                                           #
               d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;   #
               printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d); next;      }  #
-     "OTHERS"{print;                                                       }' |
+     {        print;                                                       }' |
 tr ' \t\034' '\006\025 '                                                      |
 awk 'BEGIN   {ORS="";             }                                           #
      /^[0-9]/{print "\n" $0; next;}                                           #
              {print "",  $0; next;}                                           #
      END     {print "\n"   ;      }'                                          |
 tail -n +2                                                                    |
-# 1:UTC日時14桁 2:UTCとの差 3:送信者 4:受信者 5:ツイート 6:ID                 #
+# 1:UTC-time(14dgt) 2:delta(local-UTC) 3:screenname 4:recipient 5:tweet 6:DMID#
 TZ=UTC+0 calclock 1                                                           |
-# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:送信者 5:受信者 6:ツイート 7:ID      #
+# 1:UTC-time(14dgt) 2:UNIX-time 3:delta(local-UTC) 4:sender 5:recipient       #
+# 6:tweet 7:DMID                                                              #
 awk '{print $2-$3,$4,$5,$6,$7;}'                                              |
-# 1:UNIX時間（補正後） 2:送信者 3:受信者 4:ツイート 5:ID                      #
+# 1:UNIX-time(adjusted) 2:sender 3:recipient 4:tweet 5:DMID                   #
 calclock -r 1                                                                 |
-# 1:UNIX時間（補正後） 2:現地日時 3:送信者 4:受信者 5:ツイート 6:ID           #
+# 1:UNIX-time(adjusted) 2:localtime 3:sender 4:recipient 5:tweet 6:DMID       #
 self 2/6                                                                      |
-# 1:現地時間 2:送信者 3:受信者 4:ツイート 5:ID                                #
+# 1:localtime 2:sender 3:recipient 4:tweet 5:DMID                             #
 tr ' \006\025' '\n \t'                                                        |
 awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }            #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
               next;                                              }            #
-     "OTHERS"{print;}                                             '           |
-# --- 3.所定のデータが1行も無かった場合はエラー扱いにする                     #
-awk '"ALL"{print;} END{exit 1-(NR>0);}'
+     {        print;}                                             '           |
+# --- 3.regard as an error if no line was outputed                            #
+awk '{print;} END{exit 1-(NR>0);}'
 
-# === 異常時のメッセージ出力 =========================================
+# === Print error message if some error occured ======================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
@@ -343,7 +340,7 @@ case $? in [!0]*)
 
 
 ######################################################################
-# 終了
+# Finish
 ######################################################################
 
 exit 0

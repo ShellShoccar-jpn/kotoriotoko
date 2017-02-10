@@ -98,7 +98,7 @@ while :; do
   esac
 done
 
-# === Get tweet ID to like ===========================================
+# === Get a tweet ID to like =========================================
 case $# in
   1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
   *) print_usage_and_exit                    ;;

@@ -27,7 +27,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options] <tweet_id>
+	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
 	Version : 2017-02-10 01:43:58 JST
@@ -100,7 +100,7 @@ while :; do
   esac
 done
 
-# === Get Tweet-IDs ==================================================
+# === Get tweet-IDs ==================================================
 tweetids=$(printf '%s\n' "$*"                    |
            tr ' \t' ',,'                         |
            sed 's/,,*/,/g' 2>/dev/null           |
