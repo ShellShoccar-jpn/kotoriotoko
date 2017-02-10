@@ -1,58 +1,73 @@
-#! /bin/sh
+#!/bin/sh
 
 ######################################################################
 #
-# stwsrch.sh
-# Twitterで指定条件に該当するツイートを検索する（Streaming APIモード）
+# STWSRCH.SH : Search Twitters Which Match With Given Keywords
+#              (on Streaming API Mode)
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/10
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
 #
-# このソフトウェアは Public Domain (CC0)であることを宣言する。
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
 
 ######################################################################
-# 初期設定
+# Initial Configuration
 ######################################################################
 
-# === このシステム(kotoriotoko)のホームディレクトリー ================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-
-# === 初期化 #1 ======================================================
-set -um # "-m"はfgコマンドを利用可能にするために付けている
+# === Initialize shell environment ===================================
+set -um # "-m" is required to use "fg" command
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
-webcmdpid=-1 # Web APIアクセス用バックグラウンドプロセスのID
-             # (a)負値 …バックグラウンドにプロセスはいない、或いは終了した。
-             #           →killせずに終了してよい
-             # (b)空 ……バックグラウンドプロセスができつつある。
-             #           →暫く待って生成pidを調べよ
-             # (c)0以上…バックグラウンドプロセスのIDはそれである。
-             #           →終了する前にkillせよ
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
-# === 共通設定読み込み ===============================================
-. "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
-
-# === Usage表示終了関数 ==============================================
+# === Define the functions for printing usage and exiting ============
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] <keyword> [keyword ...]
-	        OPTIONS:
-	        -u <user_ID>[,user_ID...]|--follow=<user_ID>[,user_ID...]
-	        -l <lat>,<long>[,<...>]  |--locations=<lat>,<long>[,<...>]
-	        -v                       |--verbose
-	        --rawout=<filepath_for_writing_JSON_data>
-	        --rawonly
-	        --timeout=<waiting_seconds_to_connect>
-	Sat Sep 10 20:31:45 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] <keyword> [keyword ...]
+	Options :
+	          -u <user_ID>[,user_ID...]|--follow=<user_ID>[,user_ID...]
+	          -l <lat>,<long>[,<...>]  |--locations=<lat>,<long>[,<...>]
+	          -v                       |--verbose
+	          --rawout=<filepath_for_writing_JSON_data>
+	          --rawonly
+	          --timeout=<waiting_seconds_to_connect>
+	Version : 2017-02-10 02:57:49 JST
+	USAGE
   exit 1
 }
+exit_trap() {
+  trap - EXIT HUP INT QUIT PIPE ALRM TERM
+  [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
+  case "$webcmdpid" in '') sleep 1; set_webcmdpid;; esac
+  case "$webcmdpid" in
+    '-'*) :                                 ;;
+       *) echo 'Flush buffered data...' 1>&3
+          kill $webcmdpid 2>/dev/null && fg
+          webcmdpid=-1
+          exec 1>&3 2>&4 3>&- 4>&-          ;;
+  esac
+  exit ${1:-0}
+}
+error_exit() {
+  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
+  exit_trap $1
+}
 
-# === 自分が呼んだ cURL or Wget のPIDを調べる関数 ====================
+# === Define one more special function for exiting politely ==========
+# --- a variable for the function ------------------------------------
+webcmdpid=-1 # PID which the command accesing Twitter API is using
+             # <0 .... No process exists now or finished already.
+             #           >>> So you may exit immediately.
+             # null .. Process will be created soon.
+             #           >>> You must wait for being set a PID to $webcmdpid
+             # >=0 ... The process accessing Twitter API now is $webcmdpid
+             #           >>> You must kill it before exiting
+# --- FUNC : Investigate and set PID of cURL/Wget command called by itself
 set_webcmdpid() {
   webcmdpid=`case $(uname) in                                             #
                CYGWIN*) ps -af                                      |     #
@@ -63,12 +78,12 @@ set_webcmdpid() {
              sort -k 1n,1 -k 2n,2                                         |
              awk 'BEGIN    {ppid0="" ;         }                          #
                   ppid0!=$1{print "-";         }                          #
-                  "EVERY"  {print    ;ppid0=$1;}'                         |
+                  {         print    ;ppid0=$1;}'                         |
              awk '$1=="-"{                                                #
                     count=1;                                              #
                     next;                                                 #
                   }                                                       #
-                  "EVERY"{                                                #
+                  {                                                       #
                     pid2comm[$2]      =$3;                                #
                     ppid2pid[$1,count]=$2;                                #
                     count++;                                              #
@@ -87,39 +102,19 @@ set_webcmdpid() {
                   }'                                                      `
 }
 
-# === 終了前処理関数 =================================================
-exit_trap() {
-  trap - EXIT HUP INT QUIT PIPE ALRM TERM
-  [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
-  case "$webcmdpid" in '') sleep 1; set_webcmdpid;; esac
-  case "$webcmdpid" in
-    '-'*) :                                 ;;
-       *) echo 'Flush buffered data...' 1>&3
-          kill $webcmdpid 2>/dev/null && fg
-          webcmdpid=-1
-          exec 1>&3 2>&4 3>&- 4>&-          ;;
-  esac
-  exit ${1:-0}
-}
+# === Detect home directory of this app. and define more =============
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+. "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
 
-# === エラー終了関数 =================================================
-error_exit() {
-  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
-  exit_trap $1
-}
-
-# === 終了時後始末関数有効化 =========================================
-trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
-Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
-
-# === 必要なプログラムの存在を確認する ===============================
-# --- 1.符号化コマンド（OpenSSL）
+# === Confirm that the required commands exist =======================
+# --- 1.OpenSSL or LibreSSL
 if   type openssl >/dev/null 2>&1; then
   CMD_OSSL='openssl'
 else
   error_exit 1 'OpenSSL command is not found.'
 fi
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl）
+# --- 2.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -128,17 +123,21 @@ else
   error_exit 1 'No HTTP-GET/POST command found.'
 fi
 
+# === Create a temporary file to write down the responce =============
+trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
+Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
+
 
 ######################################################################
-# 引数解釈
+# Argument Parsing
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === Print usage and exit if one of the help options is set =========
 case "$# ${1:-}" in
   '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
-# === 変数初期化 =====================================================
+# === Initialize parameters ==========================================
 follow=''
 locations=''
 queries=''
@@ -147,7 +146,7 @@ verbose=0
 timeout=''
 rawonly=0
 
-# === オプション取得 =================================================
+# === Read options ===================================================
 while [ $# -gt 0 ]; do
   case "${1:-}" in
     --follow=*)    follow=$(printf '%s' "${1#--follow=}" | tr -d '\n')
@@ -204,7 +203,7 @@ case "$rawoutputfile" in
    *) apires_file=$rawoutputfile;;
 esac
 
-# === 検索文字列を取得 ===============================================
+# === Get the searching keywords =====================================
 case $# in
   0) :
      ;;
@@ -222,92 +221,89 @@ esac
 
 
 ######################################################################
-# メイン
+# Main Routine
 ######################################################################
 
-# === Twitter API関連（エンドポイント固有） ==========================
-# (1)基本情報
+# === Set parameters of Twitter API endpoint =========================
+# (1)endpoint
 readonly API_endpt='https://stream.twitter.com/1.1/statuses/filter.json'
 readonly API_methd='POST'
-# (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-API_param=$(cat <<______________PARAM         |
-              follow=$follow
-              locations=$locations
-              track=$queries
-______________PARAM
-            sed 's/^ *//'                     |
-            grep -v '^[A-Za-z0-9_]\{1,\}=$'   )
+# (2)parameters
+API_param=$(cat <<-PARAM                   |
+				follow=$follow
+				locations=$locations
+				track=$queries
+				PARAM
+            grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
-# === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
-#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+# === Pack the parameters for the API ================================
+# --- 1.URL-encode only the right side of "="
+#       (note: This string is also used to generate OAuth 1.0 signature)
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
-# --- 2.各行を"&"で結合する 註)APIにPOSTメソッドで渡す文字列
+# --- 2.joint all lines with "&" (note: string for giving to the API)
 apip_pos=$(printf '%s' "${apip_enc}" |
            tr '\n' '&'               )
 
-# === OAuth1.0署名の作成 =============================================
-# --- 1.ランダム文字列
+# === Generate the signature string of OAuth 1.0 =====================
+# --- 1.a random string
 randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
-# --- 2.現在のUNIX時間
+# --- 2.the current UNIX time
 nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
            self 2               )
-# --- 3.OAuth1.0パラメーター（1,2を利用して作成）
-#       註)このデータは、直後の署名の材料としての他、HTTPヘッダーにも必要
-oa_param=$(cat <<_____________OAUTHPARAM      |
-             oauth_version=1.0
-             oauth_signature_method=HMAC-SHA1
-             oauth_consumer_key=${MY_apikey}
-             oauth_token=${MY_atoken}
-             oauth_timestamp=${nowutime}
-             oauth_nonce=${randmstr}
-_____________OAUTHPARAM
-           sed 's/^ *//'                      )
-# --- 4.署名用の材料となる文字列の作成
-#       註)APIパラメーターとOAuth1.0パラメーターを、
-#          GETメソッドのCGI変数のように1行に並べる。（ただし変数名順に）
-sig_param=$(cat <<______________OAUTHPARAM |
-              ${oa_param}
-              ${apip_enc}
-______________OAUTHPARAM
+# --- 3.OAuth 1.0 parameters (generated with 1 and 2)
+#       (note: This string is also used for an HTTP header)
+oa_param=$(cat <<-OAUTHPARAM
+			oauth_version=1.0
+			oauth_signature_method=HMAC-SHA1
+			oauth_consumer_key=${MY_apikey}
+			oauth_token=${MY_atoken}
+			oauth_timestamp=${nowutime}
+			oauth_nonce=${randmstr}
+			OAUTHPARAM
+                                            )
+# --- 4.generate pre-string of the signature
+#       (note: the API parameters and OAuth 1.0 parameters
+#        are formed a line like a CGI parameter of GET method)
+sig_param=$(cat <<-OAUTHPARAM              |
+				${oa_param}
+				${apip_enc}
+				OAUTHPARAM
             grep -v '^ *$'                 |
-            sed 's/^ *//'                  |
             sort -k 1,1 -t '='             |
             tr '\n' '&'                    |
-            sed 's/&$//'                   )
-# --- 5.署名文字列を作成（各種API設定値と1を利用して作成）
-#       註)APIアクセスメソッド("GET"か"POST")+APIのURL+上記4 の文字列を
-#          URLエンコードし、アクセスキー2種(をURLエンコードし結合したもの)を
-#          キー文字列として、HMAC-SHA1符号化
-sig_strin=$(cat <<______________KEY_AND_DATA                     |
-              ${MY_apisec}
-              ${MY_atksec}
-              ${API_methd}
-              ${API_endpt}
-              ${sig_param}
-______________KEY_AND_DATA
-            sed 's/^ *//'                                        |
+            sed 's/&$//' 2>/dev/null || :  )
+# --- 5.generate the signature string
+#       (note: URL-encode API-access-method -- GET or POST --, the endpoint,
+#        and the above No.4 string respectively at first. and transfer to
+#        HMAC-SHA1 with the key string which made of the access-keys)
+sig_strin=$(cat <<-KEY_AND_DATA                                  |
+				${MY_apisec}
+				${MY_atksec}
+				${API_methd}
+				${API_endpt}
+				${sig_param}
+				KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
-            sed 's/ *$//'                                        |
+            sed 's/ *$//' 2>/dev/null                            |
             grep ^                                               |
-            # 1:APIkey 2:APIsec 3:リクエストメソッド             #
-            # 4:APIエンドポイント 5:APIパラメーター              #
+            # 1:API-key 2:APIsec 3:method                        #
+            # 4:API-endpoint 5:API-parameter                     #
             while read key sec mth ept par; do                   #
               printf '%s&%s&%s' $mth $ept $par                 | #
               "$CMD_OSSL" dgst -sha1 -hmac "$key&$sec" -binary | #
               "$CMD_OSSL" enc -e -base64                         #
             done                                                 )
 
-# === 検索処理 =======================================================
+# === Access and print searched tweets continuously (in a sub-shell) =
 webcmdpid=''
 {
-  # --- 1.APIコール
+  # --- 1.connect the API
   printf '%s\noauth_signature=%s\n%s\n'                                        \
          "${oa_param}"                                                         \
          "${sig_strin}"                                                        \
@@ -350,8 +346,8 @@ webcmdpid=''
     fi                                                                         #
   done                                                                         |
   #                                                                            #
-  # --- 2.ファイルへの書き落とし                                               #
-  # エラー検出の為、1行目だけ一時fileにも書き出し、以降はcat/teeでスルーする。 #
+  # --- 2.write the 1st line of response down into a file for error detecting  #
+  #      (the 2nd line and after is just passed through with cat/tee command)  #
   while read -r line; do                                                       #
     echo 'The 1st response has arrived...' 1>&3                                #
     case "$rawoutputfile" in                                                   #
@@ -361,15 +357,15 @@ webcmdpid=''
   done                                                                         |
   #                                                                            #
   case $rawonly in                                                             #
-    0) # --- 3a-1.JSONデータのパース                                           #
+    0) # --- 3a-1.parse JSON data                                              #
        tr -d '\r'                                                              |
-       parsrj.sh 2>/dev/null                                                   |
+       parsrj.sh    2>/dev/null                                                |
        unescj.sh -n 2>/dev/null                                                |
        tr -d '\000'                                                            |
        sed 's/^[^.]*.//'                                                       |
        grep -v '^\$'                                                           |
        awk '                                                                   #
-         "ALL"                   {k=$1;                                      } #
+         {                        k=$1;                                      } #
          sub(/^retweeted_status\./,"",k){rtwflg++;                             #
                                          if(rtwflg==1){init_param(1);}       } #
          $1=="created_at"     {init_param(2);tm=substr($0,length($1)+2);next;} #
@@ -440,7 +436,7 @@ webcmdpid=''
              tx0 =   substr(tx0,RSTART+RLENGTH)  ;                             #
            }                                                                   #
            tx = tx tx0;                                                     }' |
-       # --- 3a-2.日時フォーマット変換                                         #
+       # --- 3a-2.convert date string into "YYYY/MM/DD hh:mm:ss"               #
        awk 'BEGIN {                                                            #
               m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";      #
               m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";      #
@@ -451,33 +447,33 @@ webcmdpid=''
                      d*=1;                                                     #
                      printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);         #
                      next;                                                  }  #
-            "OTHERS"{print;                                                 }' |
+            {        print;                                                 }' |
        tr ' \t\034' '\006\025 '                                                |
        awk 'BEGIN   {ORS="";             }                                     #
             /^[0-9]/{print "\n" $0; next;}                                     #
                     {print "",  $0; next;}                                     #
             END     {print "\n"   ;      }'                                    |
        tail -n +2                                                              |
-       # 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等      #
-       # 6:場所 7:App名 8:URL                                                  #
+       # 1:UTC-time(14dgt) 2:delta(local-UTC) 3:screenname 4:tweet 5:ret&fav   #
+       # 6:place 7:App-name 8:URL                                              #
        TZ=UTC+0 calclock 1                                                     |
-       # 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート          #
-       # 6:リツイート等 7:場所 8:App名 9:URL                                   #
+       # 1:UTC-time(14dgt) 2:UNIX-time 3:delta(local-UTC) 4:screenname 5:tweet #
+       # 6:ret&fav 7:place 8:App-name 9:URL                                    #
        awk '{print $2-$3,$4,$5,$6,$7,$8,$9;}'                                  |
-       # 1:UNIX時間(補正後) 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL#
-       # 7:App名                                                               #
+       # 1:UNIX-time(adjusted) 2:screenname 3:tweet 4:ret&fav 5:place 6:URL    #
+       # 7:App-name                                                            #
        calclock -r 1                                                           |
-       # 1:UNIX時間(補正後) 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等  #
-       # 6:場所 7:URL 8:App名                                                  #
+       # 1:UNIX-time(adjusted) 2:localtime 3:screenname 4:tweet 5:ret&fav      #
+       # 6:place 7:URL 8:App-name                                              #
        self 2/8                                                                |
-       # 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名#
+       # 1:local-time 2:screenname 3:tweet 4:ret&fav 5:place 6:URL 7:App-name  #
        tr ' \006\025' '\n \t'                                                  |
        awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }       #
             /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);        #
                      printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                #
                      next;                                             }       #
-            "OTHERS"{print;}                                            '      |
-       # --- 3a-3.verbose指定でない場合は(7n+5,7n+6行目をトル)                 #
+            {        print;}                                            '      |
+       # --- 3a-3.delete all the 7n+5,7n+6 lines if verbose option is not set  #
        case $verbose in                                                        #
          0) awk 'BEGIN{                                                        #
               while(getline l){n=NR%7;if(n==5||n==6){continue;}else{print l;}} #
@@ -485,24 +481,24 @@ webcmdpid=''
          1) cat                                                             ;; #
        esac                                                                    #
        ;;                                                                      #
-    *) # --- 3b.JSONデータをパースせず流しだす                                 #
+    *) # --- 3b.write out JSON data without parsing                            #
        case "$rawoutputfile" in                                                #
          '') cat           ;;                                                  #
           *) cat >/dev/null;;                                                  #
        esac                                                                    #
        ;;                                                                      #
   esac
-} 3>&2 2>/dev/null &
-exec 3>&1 4>&2 >/dev/null 2>&1 # "set -m"の副作用で生成されるjob完了通知を無視
+} 3>&2 2>/dev/null &           # Ignore job exiting message
+exec 3>&1 4>&2 >/dev/null 2>&1 #<generated by side effects of "set -m"
+                               
+# === Wait for the searching sub-shell finishing =====================
+sleep 1 || exit_trap 0   #<On FreeBSD and in case of "set -m" is enabled,
+set_webcmdpid            # when [CTRL]+[C] are pressed, shell will not jump to
+wait                     # trapped routine immediately but run the next line.
+webcmdpid=-1             # (What a strange specification!)
+exec 1>&3 2>&4 3>&- 4>&- # It had no choice but jump to exit_trap by itself.
 
-# === 検索サブシェルの終了待機 =======================================
-sleep 1 || exit_trap 0   #<FreeBSDでは"set -m"有効時、このsleep中に[CTRL]+[C]で
-set_webcmdpid            # 強制終了すると、即座にtrapで定義した処理に飛ばず、
-wait                     # 次の処理を続行しようとする。（これはバグなんじゃ？）
-webcmdpid=-1             # 仕方が無いので、sleep中断と判断された時は
-exec 1>&3 2>&4 3>&- 4>&- # 自力でexit_trapに飛ぶようにした。
-
-# === 異常時のメッセージ出力 =========================================
+# === Print error message if some error occured ======================
 if [ -s "$apires_file" ]; then
   err=$(head -n 1 "$apires_file"                                 |
         sed -n '/<title>/{s/^.*<title>\(.*\)<\/title>.*$/\1/;p;}')
@@ -524,7 +520,7 @@ fi
 
 
 ######################################################################
-# 終了
+# Finish
 ######################################################################
 
 [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"

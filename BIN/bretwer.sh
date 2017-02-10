@@ -2,7 +2,7 @@
 
 ######################################################################
 #
-# BRETWER.SH : View Retweeted User List (with Bearer Token Mode)
+# BRETWER.SH : View Retweeted User List (on Bearer Token Mode)
 #
 # Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #

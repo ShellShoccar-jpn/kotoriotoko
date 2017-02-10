@@ -1,51 +1,46 @@
-#! /bin/sh
+#!/bin/sh
 
 ######################################################################
 #
-# btwsrch.sh
-# Twitterで指定条件に該当するツイートを検索する（ベアラトークンモード）
+# BTWSRCH.SH : Search Twitters Which Match With Given Keywords
+#              (on Bearer Token Mode)
 #
-# Written by Rich Mikan(richmikan@richlab.org) at 2016/09/04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
 #
-# このソフトウェアは Public Domain (CC0)であることを宣言する。
+# This is a public-domain software (CC0). It measns that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, I am fed up the side effects which are broght about by
+# the major licenses.
 #
 ######################################################################
 
 
 ######################################################################
-# 初期設定
+# Initial Configuration
 ######################################################################
 
-# === このシステム(kotoriotoko)のホームディレクトリー ================
-Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
-
-# === 初期化 =========================================================
+# === Initialize shell environment ===================================
 set -u
 umask 0022
-PATH="$Homedir/UTL:$Homedir/TOOL:/usr/bin/:/bin:/usr/local/bin:$PATH"
-IFS=$(printf ' \t\n_'); IFS=${IFS%_}
-export IFS LC_ALL=C LANG=C PATH
+export LC_ALL=C
+export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
-# === 共通設定読み込み ===============================================
-. "$Homedir/CONFIG/COMMON.SHLIB" # アカウント情報など
-
-# === エラー終了関数定義 =============================================
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} [options] [keyword ...]
-	        OPTIONS:
-	        -g <longitude,latitude,radius>|--geocode=<longitude,latitude,radius>
-	        -l <lang>                     |--lang=<lang>
-	        -m <max_ID>                   |--maxid=<max_ID>
-	        -n <count>                    |--count=<count>
-	        -o <locale>                   |--locale=<locale>
-	        -s <since_ID>                 |--sinceid=<since_ID>
-	        -u <YYYY-MM-DD>               |--until=<YYYY-MM-DD>
-	        -v                            |--verbose
-	        --rawout=<filepath_for_writing_JSON_data>
-	        --timeout=<waiting_seconds_to_connect>
-	Sun Sep  4 00:49:04 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] [keyword ...]
+	Options : -g <lon,lat,radius>|--geocode=<lon,lat,radius>
+	          -l <lang>          |--lang=<lang>
+	          -m <max_ID>        |--maxid=<max_ID>
+	          -n <count>         |--count=<count>
+	          -o <locale>        |--locale=<locale>
+	          -s <since_ID>      |--sinceid=<since_ID>
+	          -u <YYYY-MM-DD>    |--until=<YYYY-MM-DD>
+	          -v                 |--verbose
+	          --rawout=<filepath_for_writing_JSON_data>
+	          --timeout=<waiting_seconds_to_connect>
+	Version : 2017-02-10 02:42:59 DST
+	USAGE
   exit 1
 }
 error_exit() {
@@ -53,8 +48,13 @@ error_exit() {
   exit $1
 }
 
-# === 必要なプログラムの存在を確認する ===============================
-# --- 1.HTTPアクセスコマンド（wgetまたはcurl）
+# === Detect home directory of this app. and define more =============
+Homedir="$(d=${0%/*}/; [ "_$d" = "_$0/" ] && d='./'; cd "$d.."; pwd)"
+PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
+. "$Homedir/CONFIG/COMMON.SHLIB"        # account infomation
+
+# === Confirm that the required commands exist =======================
+# --- 1.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
   CMD_CURL='curl'
 elif type wget    >/dev/null 2>&1; then
@@ -65,15 +65,15 @@ fi
 
 
 ######################################################################
-# 引数解釈
+# Argument Parsing
 ######################################################################
 
-# === ヘルプ表示指定がある場合は表示して終了 =========================
+# === Print usage and exit if one of the help options is set =========
 case "$# ${1:-}" in
   '1 -h'|'1 --help'|'1 --version') print_usage_and_exit;;
 esac
 
-# === 変数初期化 =====================================================
+# === Initialize parameters ==========================================
 queries=''
 count=''
 geocode=''
@@ -86,7 +86,7 @@ rawoutputfile=''
 timeout=''
 verbose=0
 
-# === オプション取得 =================================================
+# === Read options ===================================================
 while [ $# -gt 0 ]; do
   case "${1:-}" in
     --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
@@ -187,7 +187,7 @@ printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
   error_exit 1 'Invalid --timeout option'
 }
 
-# === 検索文字列を取得 ===============================================
+# === Get the searching keywords =====================================
 case $# in
   0) :
      ;;
@@ -207,48 +207,47 @@ esac
 
 
 ######################################################################
-# メイン
+# Main Routine
 ######################################################################
 
-# === Twitter API関連（エンドポイント固有） ==========================
-# (1)基本情報
+# === Set parameters of Twitter API endpoint =========================
+# (1)endpoint
 API_endpt='https://api.twitter.com/1.1/search/tweets.json'
 API_methd='GET'
-# (2)パラメーター 註)HTTPヘッダーに用いられる他、署名の材料としても用いられる。
-API_param=$(cat <<______________PARAM      |
-              count=${count}
-              geocode=${geocode}
-              lang=${lang}
-              locale=${locale}
-              max_id=${max_id}
-              since_id=${since_id}
-              until=${until}
-              q=${queries}
-______________PARAM
-            sed 's/^ *//'                  |
+# (2)parameters
+API_param=$(cat <<-PARAM                   |
+				count=${count}
+				geocode=${geocode}
+				lang=${lang}
+				locale=${locale}
+				max_id=${max_id}
+				since_id=${since_id}
+				until=${until}
+				q=${queries}
+				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
 
-# === パラメーターをAPIに向けて送信するために加工 ====================
-# --- 1.各行をURLencode（右辺のみなので、"="は元に戻す）
-#       註)この段階のデータはOAuth1.0の署名の材料としても必要になる
+# === Pack the parameters for the API ================================
+# --- 1.URL-encode only the right side of "="
+#       (note: This string is also used to generate OAuth 1.0 signature)
 apip_enc=$(printf '%s\n' "${API_param}" |
            grep -v '^$'                 |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
-# --- 2.各行を"&"で結合する 註)APIにGETメソッドで渡す文字列
-apip_get=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               |
-           sed 's/^./?&/'            )
+# --- 2.joint all lines with "&" (note: string for giving to the API)
+apip_get=$(printf '%s' "${apip_enc}"      |
+           tr '\n' '&'                    |
+           sed 's/^./?&/' 2>/dev/null || :)
 
-# === OAuth1.0署名の作成 =============================================
+# === Generate the signature string of OAuth 1.0 =====================
 case "${MY_bearer:-}" in '')
   error_exit 1 'No bearer token is set (you must set it into $MY_bearer)'
   ;;
 esac
 
-# === API通信 ========================================================
-# --- 1.APIコール
+# === Access to the endpoint =========================================
+# --- 1.connect and get a response
 apires=$(echo "Authorization: Bearer $MY_bearer"            |
          while read -r oa_hdr; do                           #
            if   [ -n "${CMD_WGET:-}" ]; then                #
@@ -276,24 +275,24 @@ apires=$(echo "Authorization: Bearer $MY_bearer"            |
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g'                                #
+           sed 's/\\/\\\\/g' 2>/dev/null || :               #
          else                                               #
            cat                                              #
          fi                                                 )
-# --- 2.結果判定
+# --- 2.exit immediately if it failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
-# === レスポンス出力 =================================================
-# --- 1.レスポンスパース                                                      #
+# === Parse the response =============================================
+# --- 1.extract the required parameters from the response (written in JSON)   #
 echo "$apires"                                                                |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
-parsrj.sh 2>/dev/null                                                         |
+parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000'                                                                  |
 sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                               |
 grep -v '^\$'                                                                 |
 awk '                                                                         #
-  "ALL"                   {k=$2;                                            } #
+  {                        k=$2;                                            } #
   sub(/^retweeted_status\./,"",k){rtwflg++;if(rtwflg==1){init_param(1);}    } #
   $2=="created_at"        {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
   $2=="id"                {id= substr($0,length($1 $2)+3);print_tw();  next;} #
@@ -361,50 +360,50 @@ awk '                                                                         #
       tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                   #
     }                                                                         #
     tx = tx tx0;                                                           }' |
-# --- 2.日時フォーマット変換                                                  #
+# --- 2.convert date string into "YYYY/MM/DD hh:mm:ss"                        #
 awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
             m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";       #
             m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";    }  #
      /^[A-Z]/{t=$4; gsub(/:/,"",t);                                           #
               d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;   #
               printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);       next;}  #
-     "OTHERS"{print;                                                       }' |
+     {        print;                                                       }' |
 tr ' \t\034' '\006\025 '                                                      |
 awk 'BEGIN   {ORS="";             }                                           #
      /^[0-9]/{print "\n" $0; next;}                                           #
              {print "",  $0; next;}                                           #
      END     {print "\n"   ;      }'                                          |
 tail -n +2                                                                    |
-# 1:UTC日時14桁 2:UTCとの差 3:ユーザー名 4:ツイート 5:リツイート等 6:場所     #
-# 7:App名 8:URL                                                               #
+# 1:UTC-time(14dgt) 2:delta(local-UTC) 3:screenname 4:tweet 5:ret&fav 6:place #
+# 7:App-name 8:URL                                                            #
 TZ=UTC+0 calclock 1                                                           |
-# 1:UTC日時14桁 2:UNIX時間 3:UTCとの差 4:ユーザー名 5:ツイート 6:リツイート等 #
-# 7:場所 8:App名 9:URL                                                        #
+# 1:UTC-time(14dgt) 2:UNIX-time 3:delta(local-UTC) 4:screenname 5:tweet       #
+# 6:ret&fav 7:place 8:App-name 9:URL                                          #
 awk '{print $2-$3,$4,$5,$6,$7,$8,$9;}'                                        |
-# 1:UNIX時間（補正後） 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL    #
-# 7:App名                                                                     #
+# 1:UNIX-time(adjusted) 2:screenname 3:tweet 4:ret&fav 5:place 6:URL          #
+# 7:App-name                                                                  #
 calclock -r 1                                                                 |
-# 1:UNIX時間（補正後） 2:現地日時 3:ユーザー名 4:ツイート 5:リツイート等      #
-# 6:場所 7:URL 8:App名                                                        #
+# 1:UNIX-time(adjusted) 2:localtime 3:screenname 4:tweet 5:ret&fav 6:place    #
+# 7:URL 8:App-name                                                            #
 self 2/8                                                                      |
-# 1:現地時間 2:ユーザー名 3:ツイート 4:リツイート等 5:場所 6:URL 7:App名      #
+# 1:local-time 2:screenname 3:tweet 4:ret&fav 5:place 6:URL 7:App-name        #
 tr ' \006\025' '\n \t'                                                        |
 awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }             #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
               next;                                             }             #
-     "OTHERS"{print;}                                            '            |
-# --- 3.verbose指定でない場合は(7n+5,7n+6行目をトル)                          #
+     {        print;}                                            '            |
+# --- 3.delete all the 7n+5,7n+6 lines if verbose option is not set           #
 case $verbose in                                                              #
   0) awk 'BEGIN{                                                              #
        while(getline l){n=NR%7;if(n==5||n==6){continue;}else{print l;}}       #
      }'                                                                ;;     #
   1) cat                                                               ;;     #
 esac                                                                          |
-# --- 4.所定のデータが1行も無かった場合はエラー扱いにする                     #
-awk '"ALL"{print;} END{exit 1-(NR>0);}'
+# --- 4.regard as an error if no line was outputed                            #
+awk '{print;} END{exit 1-(NR>0);}'
 
-# === 異常時のメッセージ出力 =========================================
+# === Print error message if some error occured ======================
 case $? in [!0]*)
   err=$(echo "$apires"                                              |
         parsrj.sh 2>/dev/null                                       |
@@ -418,7 +417,7 @@ case $? in [!0]*)
 
 
 ######################################################################
-# 終了
+# Finish
 ######################################################################
 
 exit 0

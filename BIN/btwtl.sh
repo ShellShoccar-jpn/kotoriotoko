@@ -2,7 +2,7 @@
 
 ######################################################################
 #
-# BTWTL.SH : View The Twitter Timeline of A User (with Bearer Token Mode)
+# BTWTL.SH : View The Twitter Timeline of A User (on Bearer Token Mode)
 #
 # Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
 #
