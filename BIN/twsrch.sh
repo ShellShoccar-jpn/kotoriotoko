@@ -28,14 +28,14 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [keyword ...]
-	Options : -g <lon,lat,radius>|--geocode=<lon,lat,radius>
-	          -l <lang>          |--lang=<lang>
-	          -m <max_ID>        |--maxid=<max_ID>
-	          -n <count>         |--count=<count>
-	          -o <locale>        |--locale=<locale>
-	          -s <since_ID>      |--sinceid=<since_ID>
-	          -u <YYYY-MM-DD>    |--until=<YYYY-MM-DD>
-	          -v                 |--verbose
+	Options : -g <long,lat,radius>|--geocode=<long,lat,radius>
+	          -l <lang>           |--lang=<lang>
+	          -m <max_ID>         |--maxid=<max_ID>
+	          -n <count>          |--count=<count>
+	          -o <locale>         |--locale=<locale>
+	          -s <since_ID>       |--sinceid=<since_ID>
+	          -u <YYYY-MM-DD>     |--until=<YYYY-MM-DD>
+	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
 	Version : 2017-02-10 01:20:47 JST

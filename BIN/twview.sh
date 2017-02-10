@@ -346,7 +346,7 @@ awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }             #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
               next;                                             }             #
      {        print;}                                            '            |
-# --- 3.delete all the 7n+5,7n+6 lines if verbose option is not set           #
+# --- 3.regard as an error if no line was outputed                            #
 awk '{print;} END{exit 1-(NR>0);}'
 
 # === Print error message if some error occured ======================
