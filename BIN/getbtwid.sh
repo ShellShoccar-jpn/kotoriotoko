@@ -6,7 +6,7 @@
 #               (It is requiered by btw*.sh commands, which are to get
 #                tweets in shorter interval)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-11
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -34,7 +34,7 @@ print_usage_and_exit () {
 	              before execute this command.
 	              * MY_apikey
 	              * MY_apisec
-	Version     : 2017-02-09 17:30:40 JST
+	Version     : 2017-02-11 22:19:54 JST
 	USAGE
   exit 1
 }
@@ -131,7 +131,7 @@ if   [ -n "${CMD_WGET:-}" ]; then
              cat                                              #
            fi                                                 )
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=$("$CMD_CURL" ${no_cert_curl:-} -s                   \
+  apires=$("$CMD_CURL" ${no_cert_curl:-} -s --compressed      \
                        -H "$HDR_auth"                         \
                        -H "$HDR_ctype"                        \
                        -d "$POS_gtype"                        \

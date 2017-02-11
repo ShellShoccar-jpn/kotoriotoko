@@ -29,7 +29,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/}
-	Version : 2017-02-11 19:53:53 JST
+	Version : 2017-02-11 22:25:47 JST
 	USAGE
   exit 1
 }
@@ -192,7 +192,8 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
                          --header="$oa_hdr"                 \
                          --post-data=''                     \
                          $timeout "$comp"                   \
-                         "$API_endpt1"                      #
+                         "$API_endpt1"                    | #
+             if [ -n "$comp" ]; then gunzip; else cat; fi   #
            elif [ -n "${CMD_CURL:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout $timeout"         #
@@ -340,11 +341,17 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout=$timeout"         #
              }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
              "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
                          --header="$oa_hdr"                 \
                          --post-data=''                     \
                          $timeout "$comp"                   \
-                         "$API_endpt2"                      #
+                         "$API_endpt2"                    | #
+             if [ -n "$comp" ]; then gunzip; else cat; fi   #
            elif [ -n "${CMD_CURL:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout $timeout"         #
