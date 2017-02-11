@@ -5,7 +5,7 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-11
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-10 02:57:49 JST
+	Version : 2017-02-11 11:56:19 JST
 	USAGE
   exit 1
 }
@@ -64,7 +64,8 @@ webcmdpid=-1 # PID which the command accesing Twitter API is using
              # <0 .... No process exists now or finished already.
              #           >>> So you may exit immediately.
              # null .. Process will be created soon.
-             #           >>> You must wait for being set a PID to $webcmdpid
+             #           >>> You must call set_webcmdpid and retry to refer
+             #               $webcmdpid before exiting
              # >=0 ... The process accessing Twitter API now is $webcmdpid
              #           >>> You must kill it before exiting
 # --- FUNC : Investigate and set PID of cURL/Wget command called by itself
