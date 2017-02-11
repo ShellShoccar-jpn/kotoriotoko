@@ -4,7 +4,7 @@
 #
 # TWVIDEOUP.SH : Upload A Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-11
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -28,7 +28,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2017-02-09 14:44:37 JST 2016
+	Version : 2017-02-11 19:56:49 JST 2016
 	USAGE
   exit 1
 }
@@ -234,6 +234,11 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout=$timeout"         #
              }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
              "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
                          --header="$oa_hdr"                 \
                          --post-data="$apip_pos"            \

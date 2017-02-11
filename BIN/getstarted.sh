@@ -5,7 +5,7 @@
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-11
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,7 +29,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/}
-	Version : 2017-02-09 04:54:04 JST
+	Version : 2017-02-11 19:53:53 JST
 	USAGE
   exit 1
 }
@@ -183,6 +183,11 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout=$timeout"         #
              }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
              "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
                          --header="$oa_hdr"                 \
                          --post-data=''                     \
