@@ -5,7 +5,7 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-11
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-14
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,14 +36,14 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-11 11:56:19 JST
+	Version : 2017-02-14 09:41:23 JST
 	USAGE
   exit 1
 }
 exit_trap() {
   trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
-  case "$webcmdpid" in '') sleep 1; set_webcmdpid;; esac
+  case "$webcmdpid" in '') sleep 1; webcmdpid=$(get_webcmdpid);; esac
   case "$webcmdpid" in
     '-'*) :                                 ;;
        *) echo 'Flush buffered data...' 1>&3
@@ -69,38 +69,38 @@ webcmdpid=-1 # PID which the command accesing Twitter API is using
              # >=0 ... The process accessing Twitter API now is $webcmdpid
              #           >>> You must kill it before exiting
 # --- FUNC : Investigate and set PID of cURL/Wget command called by itself
-set_webcmdpid() {
-  webcmdpid=`case $(uname) in                                             #
-               CYGWIN*) ps -af                                      |     #
-                        awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
-                     *) ps -Ao ppid,pid,comm                        ;;    #
-             esac                                                         |
-             grep -v '^[^0-9]*PPID'                                       |
-             sort -k 1n,1 -k 2n,2                                         |
-             awk 'BEGIN    {ppid0="" ;         }                          #
-                  ppid0!=$1{print "-";         }                          #
-                  {         print    ;ppid0=$1;}'                         |
-             awk '$1=="-"{                                                #
-                    count=1;                                              #
-                    next;                                                 #
-                  }                                                       #
-                  {                                                       #
-                    pid2comm[$2]      =$3;                                #
-                    ppid2pid[$1,count]=$2;                                #
-                    count++;                                              #
-                  }                                                       #
-                  END    {                                                #
-                    print does_myCurlWget_exist_in('"$$"');               #
-                  }                                                       #
-                  function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
-                    comm = pid2comm[mypid];                               #
-                    if ((comm=="curl") || (comm=="wget")) {return mypid;} #
-                    for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
-                      ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
-                      if (ret >= 0) {return ret;}                         #
-                    }                                                     #
-                    return -1;                                            #
-                  }'                                                      `
+get_webcmdpid() {
+  case $(uname) in                                             #
+    CYGWIN*) ps -af                                      |     #
+             awk '{c=$6;sub(/^.*\//,"",c);print $3,$2,c}';;    #
+          *) ps -Ao ppid,pid,comm                        ;;    #
+  esac                                                         |
+  grep -v '^[^0-9]*PPID'                                       |
+  sort -k 1n,1 -k 2n,2                                         |
+  awk 'BEGIN    {ppid0="" ;         }                          #
+       ppid0!=$1{print "-";         }                          #
+       {         print    ;ppid0=$1;}'                         |
+  awk '$1=="-"{                                                #
+         count=1;                                              #
+         next;                                                 #
+       }                                                       #
+       {                                                       #
+         pid2comm[$2]      =$3;                                #
+         ppid2pid[$1,count]=$2;                                #
+         count++;                                              #
+       }                                                       #
+       END    {                                                #
+         print does_myCurlWget_exist_in('"$$"');               #
+       }                                                       #
+       function does_myCurlWget_exist_in(mypid ,comm,i,ret) {  #
+         comm = pid2comm[mypid];                               #
+         if ((comm=="curl") || (comm=="wget")) {return mypid;} #
+         for (i=1; ((mypid SUBSEP i) in ppid2pid); i++) {      #
+           ret = does_myCurlWget_exist_in(ppid2pid[mypid,i]);  #
+           if (ret >= 0) {return ret;}                         #
+         }                                                     #
+         return -1;                                            #
+       }'
 }
 
 # === Detect home directory of this app. and define more =============
@@ -493,11 +493,11 @@ webcmdpid=''
 exec 3>&1 4>&2 >/dev/null 2>&1 #<generated by side effects of "set -m"
                                
 # === Wait for the searching sub-shell finishing =====================
-sleep 1 || exit_trap 0   #<On FreeBSD and in case of "set -m" is enabled,
-set_webcmdpid            # when [CTRL]+[C] are pressed, shell will not jump to
-wait                     # trapped routine immediately but run the next line.
-webcmdpid=-1             # (What a strange specification!)
-exec 1>&3 2>&4 3>&- 4>&- # It had no choice but jump to exit_trap by itself.
+sleep 1 || exit_trap 0     #<On FreeBSD and in case of "set -m" is enabled,
+webcmdpid=$(get_webcmdpid) # when [CTRL]+[C] are pressed, shell will not jump to
+wait                       # trapped routine immediately but run the next line.
+webcmdpid=-1               # (What a strange specification!)
+exec 1>&3 2>&4 3>&- 4>&-   # It had no choice but jump to exit_trap by itself.
 
 # === Print error message if some error occured ======================
 if [ -s "$apires_file" ]; then
