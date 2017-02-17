@@ -4,7 +4,7 @@
 #
 # TWMEDIUP.SH : Upload A Image or Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-17
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -26,10 +26,10 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # === Define the functions for printing usage and exiting ============
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
-	Usage : ${0##*/} <file>
-	Tue Jun 21 03:05:06 JST 2016
-__USAGE
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} <file>
+	Version : 2017-02-17 22:20:47 JST
+	USAGE
   exit 1
 }
 exit_trap() {

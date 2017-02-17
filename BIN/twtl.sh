@@ -4,7 +4,7 @@
 #
 # TWTL.SH : View The Twitter Timeline of A User
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-17
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -26,7 +26,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [loginname]
 	Options : -m <max_ID>  |--maxid=<max_ID>
 	          -n <count>   |--count=<count>
@@ -34,8 +34,8 @@ print_usage_and_exit () {
 	          -v           |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-07 02:20:57 JST
-__USAGE
+	Version : 2017-02-17 22:18:59 JST
+	USAGE
   exit 1
 }
 error_exit() {

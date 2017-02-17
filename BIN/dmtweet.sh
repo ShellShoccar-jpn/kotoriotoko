@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-17
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -26,7 +26,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] <tweet_message>
 	          echo <tweet_message> | ${0##*/} [options]
 	Options : * Always Required
@@ -36,8 +36,8 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-02-10 21:34:18 JST
-__USAGE
+	Version : 2017-02-17 22:22:40 JST
+	USAGE
   exit 1
 }
 error_exit() {
