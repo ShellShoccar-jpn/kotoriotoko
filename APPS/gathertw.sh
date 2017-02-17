@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-17
 #
 # This is a public-domain software (CC0). It measns that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -27,7 +27,7 @@ export LC_ALL='C'
 
 # === Define error functions =========================================
 print_usage_and_exit () {
-  cat <<-__USAGE 1>&2
+  cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [keyword ...]
 	Options : -d <data_directory>      |--datadir=<data_directory>
 	          -M <max_id>              |--maxid=<max_id>
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	          -g <lon,lat,radius>|--geocode=<lon,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-02-07 02:01:03 JST
+	Version : 2017-02-17 18:16:30 JST
 	USAGE
   exit 1
 }
