@@ -1,282 +1,250 @@
-# シェルスクリプト製Twitter怪人「恐怖！小鳥男」
+# KOTORIOTOKO -- The Ultimate ShellScript Twitter Tools
 
-## お前は何者だ？
+## What is This?
 
-POSIX原理主義に基づき、シェルスクリプトで組まれたTwitterクライアント怪人だ。
+Kotoriotoko is a command set to operating [Twitter](https://twitter.com/). This makes it possible to operating Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
 
-* 投稿系
-  * 投稿（画像・動画付も可）、リツイート、それらの取消
-  * お気に入り登録、取消
-* ツイート閲覧系
-  * タイムライン表示
-  * 検索
-  * ストリーミング検索
-* フォロー系
-  * フォロー、解除、フォロー先・フォロワー表示
-* ダイレクトメッセージ系
-  * 送信、一覧表示、詳細表示、削除
+And Kotoriotoko commands provide a lot of the following functions.
 
-と、一通り、いやそれ以上のことができる。
+* Posting
+  * Tweet (*you can also add up to 4 image files or 1 video file*)
+  * Retweet
+  * Cancel a tweet
+  * Like / Unlike
+* Tweets Viewing
+  * View Somebody's timeline
+  * Search tweets by keywords (you can also search with [**Streaming API**](https://dev.twitter.com/streaming/overview))
+* Following
+  * Follow somebody
+  * Unfollow somebody
+  * List users who you following or you are followed
+* Direct Messagge Managing
+  * Send
+  * Receive
+  * Delete
+  * List
+* Other functions
+  * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
 
-POSIX原理主義集団「秘密結社シェルショッカー」は、これをもってTwitterにはびこる人間どもを洗脳し、世界征服を果たすのだ。ワッハッハ！
+Moreover, Kotoriotoko has more the following two strong points.
 
-## 動かすのに必要なものその１（ホスト）
+### (1) Works Anywhare
 
-* WebアクセスできるUNIXホスト（これがなくては話にならん）
-* 一部の符号化演算コマンドとして次のうちのどちらか
-  * [OpenSSL](https://www.openssl.org/)
-  * [LibreSSL](http://www.libressl.org/)
-* HTTPアクセスコマンドとして次のうちのどちらか
-  * [cURL](http://curl.haxx.se/)
-  * [GNU Wget](http://www.gnu.org/software/wget/)
+Kotoriotoko works on various OSs. Not usign OS-specialized codes basically, but works on Windows, Mac, of course Un*x. I made sure of working on the following OSs.
 
-レンタルサーバーなら、大抵のところが要件を満たしているはずだ。
+* Windows 10 ([version 1607](https://blogs.windows.com/windowsexperience/2016/08/02/how-to-get-the-windows-10-anniversary-update/#4gLdGvDumEFzl82c.97) and over, Windows Subsystem for Linux, which is available on developer mode)
+* Cygwin and gnupack
+* macOS (also Mac OS X, OS X)
+* Linux (CentOS5,6,7, Ubuntu12,14)
+* Raspbian (wheezy and jessie, which work on Raspberry Pi series)
+* FreeBSD (6,7,9,10,11)
+* OpenBSD (6.0)
+* Solaris (11.3)
+* AIX (7.1)
 
-### ※なに、「それのどこがPOSIX原理主義なのか」だと？
+### (2) Easy to Install
 
-HTTPアクセスコマンドのみならず、2014年にHeartbleedという**巨大なセキュリティーホールをもたらしたOpenSSLにまで手を出して、もはやそれのどこがPOSIX原理主義なのか、**と言いたいわけだなお前たちは。えぇい、黙れ黙れ！
+Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing this. *On almost of all system, what you have to do on installing is just to execute git command once* because most of all OSs already have the two extra commands.
 
-確かにしょっちゅう脆弱性の見つかるソフトウェアに依存しているようではメンテナンス地獄から解放されず、POSIX原理主義の素晴らしさは発揮できん。だが、cURLコマンドやsendmailコマンドに手を出す時に言ったはずだ。
 
-> 「同等の機能を備えた代替品がすぐに見つかる」、「すぐに乗り換えられる」という状態を担保すべく、利用するにしても基本的な部分だけにとどめるのだ。
+## How to Install
 
-と。幸いにしてOpenSSLは、Heartbleed事件の反省から、LibreSSLという同等機能の別実装が登場し、しかも"openssl"という名前まで一緒のコマンドまで用意されているのだ。つまり、**片方の実装に何か問題が起こったらもう片方の実装に簡単に乗り換えられることを担保しておる。**
+It consist of two (or three) steps.
 
-それにだ！今回の侵略で利用する**Twitter API 1.1やOAuth1.0aがそもそも10年、20年の長きに渡って使えるとも思えん。** だから、Twitterに関してはこれくらいの担保があれば十分なのだよ！
+### Step 0. Make sure the requirements
 
-## 動かすのに必要なものその２（Twitterアカウント）
+You have to have the following stuff.
 
-さてホストの用意の次は、アカウント登録だ。Twitterに投稿もするのだからTwitterアカウントが必要なのは言うまでも無かろう。持っていないのなら[ユーザー登録](https://twitter.com/signup)をするのだ。
+1. A Twitter account
+2. A Unix host
+3. Two additional software
+  1. [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/) If you install neither, you have to install one of them by source-compiling or package-management-system in advance. But you don't have to configure them anything at all.
+  2. [cURL](https://curl.haxx.se/) or [Wget](https://www.gnu.org/software/wget/) If you install neither, you have to install one of them by source-compiling or package-management-system in advance.
 
-そして、そのアカウントに紐づいたアクセスキー（4種類）
+Most of all rental host service and/or Unix compatible OSs probably have the above software.
 
-* Consumer Key (API Key)
-* Consumer Secret (API Secret)
-* Access Token
-* Access Token Secret
+### Step 1. Install Kotoriotoko
 
-を手に入れ、小鳥男に設定してやらねばならん。そうしなければ小鳥男はお前のアカウントとしてツイートをすることができんからだ。
-
-これらアクセスキーを手に入れる方法は2通りある。次のどちらかを選んで実行し、発行されたアクセスキーをメモしておけ。
-
-### 方法1. getstarted.shコマンドを使う（簡単）
-
-こっちは簡単だ。後で説明する getstarted.sh コマンドを実行し、指示に従うだけだ。ただ、途中でWebブラウザーを使ってこの怪人がお前のアカウントを操作することを承認する作業が必要になるがな。
-
-コマンドが正常終了すれば4種のアクセスキーが発行され、小鳥男の設定ファイルへの書き足しまで済まされる（できない場合は書き方が表示される）。至れり尽くせりだろう。
-
-こっちの方法で済ませたいのなら小鳥男のプログラムをダウンロードするまで何もせんでよい。さっさと次へ進むがよい。
-
-### 方法2. Twitterアプリケーション登録をする（btw*.shコマンドも使いたい場合）
-
-1つ目の方法だと、すべてのツイートメッセージは"Kotoriotoko (production model)"というアプリがしたという扱いなる。また、アクセス頻度制限を緩和するbtw*.shコマンドも使えない（実質役に立たない）。それがいやなら自分で[Twitterアプリケーション登録](https://apps.twitter.com/)をして自力でアクセスキーを発行することだな。
-
-ただ2015年あたりから審査が厳しくなりおった。実在証明のためにSMSを受信できる携帯電話が必要だから気を付けることだ。我々のような秘密結社を阻止しようということかもしれんが……、小癪な真似をしおって。そんなもの我々には無力だ！
-
-## ハウ・トゥ・インストール
-
-では、怪人を起動するまでの方法（インストール）を教えてやろう。
-
-### 0) cURL,Wgetや*SSLがなければインストール
-
-先程言ったように、この小鳥男（プログラム）を動かすには、cURLまたはWget、そしてOpenSSLまたはLibreSSLが必要だ。もし、無いならインストールし、コマンドにパスを通しておくのだ。パッケージだろうとソースからmakeだろうと構わんし、設定もデフォルトのままで構わん。
-
-### 1) GitHubからgit clone
-
-そうしたらまずは、このリポジトリーをgit cloneせよ。「まずは」というかそれでインストールはおしまいだ！あとは設定のみ。
+Type the following commands. That's all!
 
 ```sh:
-$ cd <適当なインストールディレクトリー>
+$ cd <AN_APPROPRIATE_DIRECTORY>
 $ git clone https://github.com/ShellShoccar-jpn/kotoriotoko.git
 ```
 
-もしgitコマンドが使えない場合は、このリポジトリーの[zipファイル](https://github.com/ShellShoccar-jpn/kotoriotoko/archive/master.zip)をダウンロード、展開し、その中の"BIN"と"TOOL"と"UTL"ディレクトリー内の各ファイルに実行パーミッションを与えるのだ。
+If git command isn't available, you can install the following way. But [unzip](http://www.info-zip.org/UnZip.html) command is required instead.
+
+(The case you can use wget)
 
 ```sh:
-$ cd <適当なインストールディレクトリー>
+$ cd <AN_APPROPRIATE_DIRECTORY>
 $ wget https://github.com/ShellShoccar-jpn/kotoriotoko/archive/master.zip
 $ unzip master.zip
 $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 ```
 
-### 2) 設定ファイルにアカウント情報を書き込む
-
-残りは設定作業だけだ。インストール前のTwitterアカウント発行で、「方法1」「方法2」のどちらを選択したかですべきことは変わる。
-
-「方法1」を選択したのなら次のようにしてBINディレクトリーの中のgetstared.shを実行して、指示に従え。"Enjoy now!"とメッセージが出るまで進めば完了だ。
+(The case you can use curl)
 
 ```sh:
-$ cd <小鳥男のインストールディレクトリー>/BIN
-$ ./getstarted.sh
+$ cd <AN_APPROPRIATE_DIRECTORY>
+$ curl -O https://github.com/ShellShoccar-jpn/kotoriotoko/archive/master.zip
+$ unzip master.zip
+$ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 ```
 
-「方法2」を選択していたり、getstarted.shで"Enjoy now!"ではなく"Almost Finish preparing"と表示されたのなら次の作業をしろ。
+### Step 2. Get four Twitter authentication keys and Write them into a config-file
 
-まず"CONFIG"ディレクトリーの中にある"COMMON.SHLIB.SAMPLE"というファイルを同じ場所に"COMMON.SHLIB"という名前でコピーし、
+You have to choose one way to get Twitter authentication keys.
+
+#### (A) Quick setup to use normally
+
+This first way is for people who want to use kotoriotoko just simply or want to finish to get and write auth-keys quickly. If so, execute the following commands. And what you have to do after that is just follow messages by this command and Twitter web page which this command guides you.
 
 ```sh:
-$ cd <小鳥男のインストールディレクトリー>/CONFIG
+$ cd <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
+```
+
+#### (B) Not quick setup to use for data analysis
+
+The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
+
+###### 1) Register your cell phone number onto Twitter service for identification
+
+Twitter service requires your cell phone number as a collateral for giving you apprication keys. To register it, you have to open the web page "[Mobile](https://twitter.com/settings/add_phone)" with your web browser. You can arrive there by "[Home](https://twitter.com/)" -> "[(Profile and) settings](https://twitter.com/settings/account)" -> "[Mobile](https://twitter.com/settings/add_phone)".
+
+After registering your phone number, a PIN code will come to your phone by SMS. You have to input it on "Mobile" page finally.
+
+##### 2) Get four authentication keys on Twitter Apps page
+
+At first, open [Twitter Apps](https://apps.twitter.com/) page, and push "Create New App" button.
+
+Next, fill out all columns except "Callback URL" on "Create an application" page and agree the developer agreement, then push "Create your Twitter application" button.
+
+And then, click "Keys and Access Tokens" tab. You can get "**Consumer Key**" and "**Consumer Secret**" there first. Copy these strings.
+
+At finally, push "Create my access token" button, which is at the bottom of the page. You can also get "**Access Token**" and "**Access Token Secret**" there. Copy these strings, too.
+
+##### 3) Write the keys into CONFIG.SHLIB
+
+Go back to your console, and type the following commands to make your own configuration file "CONFIG.SHLIB".
+
+```sh:
+$ cd <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/CONFIG
 $ cp COMMON.SHLIB.SAMPLE COMMON.SHLIB
 $ vi COMMON.SHLIB
 ```
 
-この中身に、自分のアカウント名（ログインID）＋用意（またはgetstarted.shで表示された）したTwitterの4つのアクセスキー（計5つ）を書き込むのだ。
+And write the four auth-keys into the bottom with the following format.
 
 ```text:
             :
             :
 ######################################################################
-# アカウント情報
+# My account info
 ######################################################################
 
-readonly MY_scname='hogehoge'
-readonly MY_apikey='1234567890123456789012345'
-readonly MY_apisec='12345678901234567890123456789012345678901234567890'
-readonly MY_atoken='1234567890-123456789012345678901234567890123456789'
-readonly MY_atksec='123456789012345678901234567890123456789012345'
+readonly MY_scname='YOUR_TWITTER_ID_(SCREEN_NAME)'
+readonly MY_apikey='SET_YOUR_CONSUMER_KEY_HERE'
+readonly MY_apisec='SET_YOUR_CONSUMER_SECRET_HERE'
+readonly MY_atoken='SET_YOUR_ACCESS_TOKEN_HERE'
+readonly MY_atksec='SET_YOUR_ACCESS_SECRET_HERE'
             :
             :
 ```
 
-5つのコードは、それぞれだいたいこれくらいの長さになっているはずだ。あまりにも違うようならもう一度確認しておくがいい。
+## Usage
 
-## 追加の設定（btw*.shコマンドを使いたい場合）
-
-例えばテレビ番組で「特定のハッシュタグを使ってツイートしてください」などといい、物凄い密度でツイートが集まることがある。そういったツイートを全部かき集めて分析し、侵略計画を策略するのに役立てたい者もお前たちの中にはいるかもしれん。しかし、例えば検索コマンドなどは通常の認証方法では最大で5秒あたり1回の頻度（厳密には15分に180回まで）というアクセス制限がある。しかも、1回あたり最大で100ツイートしか取れん。これでは、ツイートをかき集めるには心もとないな。
-
-そこで、このアクセス頻度制限が緩和される btw*.sh というコマンド群を用意した。例えば btwsrch.sh なら、今まで最大で5秒あたり1回の頻度（厳密には15分に180回まで）でしか検索できなかったものが、2秒あたり1回の頻度で検索できるのだ。だが、これらを使うにはもう一つ追加の設定作業が必要だ。
-
-### 1) 「方法2」でアクセスキーを作り直す
-
-小鳥男の設定ファイルCONFIG/COMMON.SHLIBにはそこで発行されたConsumer Key (API Key)、Consumer Secret (API Secret)を設定しておかねば使い物にならん。なぜかだと？btwsrch.shを含むbtw*.shコマンド皆、お前たちのユーザーアカウントではなくアプリケーションに対して設定されたアクセス制限を受ける。小鳥男デフォルトのアプリケーションは他に誰が使っているかわからんからな。そいつらと共にアクセス頻度の制限を奪い合って、結局使い物にならんからだ。
-
-だからアクセスキーの用意のところで「方法1」を選択していたのなら、「方法2」でアクセスキーの発行・設定をやり直してこい。
-
-### 2) ベアラートークンを取得し、設定する
-
-btwsrch.shを含むbtw*.shコマンドを使うには、小鳥男の設定ファイルCONFIG/COMMON.SHLIBにTwitterアプリケーションのベアラートークン文字列を設定せねばならん。
-
-それを取得したければgetbtwid.shコマンドを実行するのだ。次のように打ち込めば目的のベアラートークン文字列が発行される。
-
-```sh:
-$ cd <小鳥男のインストールディレクトリー>/BIN
-$ ./getbtwid.sh
-readonly MY_bearer='1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012'
-
-Write the variable into COMMON.SHLIB.
-And you can use btw* commands.
-$ 
-```
-
-これを、COMMON.SHLIB ファイルに追加せよ。 `readonly MY_bearer=` という文字列ごと COMMON.SHLIB に貼り付けるのだ。
-
-
-## つかいかた
-
-まずは、インストールされたTwitterクライアント怪人のディレクトリー構成を見よ！これを見れば、もうだいたいの使い方はわかるだろう。BINディレクトリーの中にあるのが、怪人を動かしてTwitter民を侵略するためのプログラムだ。
-
-### ファイル・ディレクトリー構成
+To know the ussage, you should the following file/directory list. The files in "`BIN`" directory are Twitter operating commands. And you can see all of the command usages with executing with "`--help`" option.
 
 ```
 .
-|-- README.md ................ このファイル
+|-- README.md ................ This file
 |
-|-- BIN/ ..................... Twitterコマンド群（普段使うのはこの中）
+|-- BIN/ ..................... Directory for Twitter operating commands (You have to learn only them basically)
 |   |
-|   |-- getstarted.sh ........ アクセスキーを取得する（インストール時に実行する）
+|   |-- getstarted.sh ........ Get auth-keys (Only execute before starting to use kotoriotoko)
 |   |
-|   |-- tweet.sh ............. 与えられた文字列でツイートする
-|   |-- retweet.sh ........... 指定されたツイートをリツイート
-|   |-- deltweet.sh .......... 指定されたツイート・リツイートを削除
-|   |-- twmediup.sh .......... 指定されたメディアファイル（画像等）をアップロード
-|   |                          （tweet.shで画像付ツイートをする時のサブコマンドでもある）
-|   |-- twvideoup.sh ......... 指定された動画メディアファイル（MP4）をアップロード
-|   |                          （twmediup.shでMP4動画を指定された時のサブコマンドでもある）
+|   |-- tweet.sh ............. Post A Tweet
+|   |-- retweet.sh ........... Retweet A Tweet
+|   |-- deltweet.sh .......... Delete A Tweet
+|   |-- twmediup.sh .......... Upload A Image or Video File To Twitter
+|   |                          (The subcontract command of "tweet.sh"）
+|   |-- twvideoup.sh ......... Upload A Video File To Twitter
+|   |                          (The sub-sub contract command which will be called by "twmediup.sh")
 |   |
-|   |-- twview.sh ............ 指定されたツイートの詳細を表示する
-|   |-- twtl.sh .............. 指定されたユーザーのタイムラインを表示する
-|   |-- twsrch.sh ............ 指定された文字列で検索する
-|   |-- retwers.sh ........... 指定されたツイートをリツイートしたユーザー一覧を表示する
+|   |-- twview.sh ............ View Tweets Which Are Request By Tweet-IDs
+|   |-- twtl.sh .............. View The Twitter Timeline of A User
+|   |-- twsrch.sh ............ Search Twitters Which Match With Given Keywords
+|   |-- retwers.sh ........... View Retweeted User List
 |   |
-|   |-- twfav.sh ............. 指定されたツイートをお気に入り登録する
-|   |-- twunfav.sh ........... 指定されたツイートのお気に入りを解除する
-|   |-- favtws.sh ............ 指定されたユーザーのお気に入りツイートを表示する
+|   |-- twfav.sh ............. Like A Tweet (Mark Favorite)
+|   |-- twunfav.sh ........... Cancel Like For A Tweet (Cancel Favorite Mark)
+|   |-- favtws.sh ............ View The Favorite Tweets of A User
 |   |
-|   |-- twfollow.sh .......... 指定されたユーザーをフォローする
-|   |-- twunfollow.sh ........ 指定されたユーザーのフォローをやめる
-|   |-- twfer.sh ............. 指定されたユーザーのフォロワーを表示する
-|   |-- twfing.sh ............ 指定されたユーザーのフォローユーザーを表示する
+|   |-- twfollow.sh .......... Follow A User
+|   |-- twunfollow.sh ........ Finish Following A User
+|   |-- twfer.sh ............. List Followers Of A Person
+|   |-- twfing.sh ............ List Followering Users Of A Person
 |   |
-|   |-- getbtwid.sh .......... 高頻度APIアクセスコマンド（btw*.sh）用のIDを取得する
-|   |-- btwsrch.sh ........... 指定された文字列で検索する（ベアラートークンモード*1）
-|   |-- btwtl.sh ............. 指定ユーザーのタイムラインを表示（ベアラートークンモード*2）
-|   |-- bretwer.sh ........... 指定ツイートのretweet者一覧を表示（ベアラートークンモード*3）
-|   |                          *1 通常5秒あたり1回までの制限頻度が2秒あたり1回まで短縮可能
-|   |                          *2 通常5秒あたり1回までの制限頻度が3秒あたり1回まで短縮可能
-|   |                          *3 通常1分あたり1回までの制限頻度が15秒あたり1回まで短縮可能
+|   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
+|   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
+|   |-- btwtl.sh ............. View The Twitter Timeline of A User (on Bearer Token Mode *2)
+|   |-- bretwer.sh ........... View Retweeted User List (on Bearer Token Mode *3)
+|   |                          *1 Access limit will be mitigated once during 5sec -> 2sec
+|   |                          *2 Access limit will be mitigated once during 5sec -> 3sec
+|   |                          *3 Access limit will be mitigated once during 1min -> 15sec
 |   |
-|   |-- stwsrch.sh ........... 指定された文字列で検索する（ストリームモード*4）
-|   |                          *4 アクセス制限無しの究極の検索コマンド（ただし英数字のみ）
+|   |-- stwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Streaming API Mode *4)
+|   |                          *4 No access limit but for only english tweets
 |   |
-|   |-- twplsrch.sh .......... 指定された文字列でTwitter上の位置情報を検索する
+|   |-- twplsrch.sh .......... Search Place Informations Which Match With Given Keywords
 |   |
-|   |-- dmtweet.sh ........... 指定された相手に与えられた文字列でダイレクトメッセージ送信
-|   |-- deldmtw.sh ........... 指定されたダイレクトメッセージを削除する
-|   |-- dmtwview.sh .......... 指定されたダイレクトメッセージを表示する
-|   |-- dmtwrcv.sh ........... 受信済のダイレクトメッセージを一覧表示する
-|   `-- dmtwsnt.sh ........... 送信済のダイレクトメッセージを一覧表示する
-|
-|
-|-- CONFIG/ .................. 設定ファイル置き場
-|   |
-|   |-- COMMON.SHLIB ......... 共通設定ファイル
-|   |                          ・Twitter APIのキーやアクセストークン等を書き込む
-|   |                          ・下の ".SAMPLE" ファイルをコピーして作る
-|   `-- COMMON.SHLIB.SAMPLE .. 共通設定ファイルのテンプレート
+|   |-- dmtweet.sh ........... Post A Direct Message
+|   |-- deldmtw.sh ........... Delete A Direct Message
+|   |-- dmtwview.sh .......... View A Direct Message Which Are Request By Tweet-IDs
+|   |-- dmtwrcv.sh ........... List Received Direct Messages
+|   `-- dmtwsnt.sh ........... List Sent Direct Messages
 |
 |
-|-- TOOL/ .................... シェルスクリプト開発用コマンドセット "Open usp Tukubai" の一部
-|   |                          ・だたしここに置いてあるのは、POSIX環境に移植したクローン
+|-- CONFIG/ .................. Directory for Configuration File
 |   |
-|   |-- calclock ............. 日常日時―UNIX時間変換コマンド
-|   |                          ・Twitter APIからUTC日時で返す日時をJST日時等へ変換するのに利用
-|   |                          ・Twitter APIが要求する、現在日時のUNIX時間表現の生成に利用
-|   `-- self ................. 列抽出コマンド
-|                              ・self 1 3 5 は、awk '{print $1,$3,$5}'と同じ
-|                              ・可読性のために利用
+|   |-- COMMON.SHLIB ......... Common Config-file
+|   |                          * Use to set Twitter auth-keys
+|   |                          * This file should be made by copying the following file
+|   `-- COMMON.SHLIB.SAMPLE .. Common Config-file (template)
 |
-|-- UTL/ ..................... その他、自作シェルスクリプト製コマンド置き場
+|
+|-- TOOL/ .................... Directory for The Libbary shellscript commands "Open usp Tukubai"
+|   |                          * These commands are called by the commands in BIN/ directory
 |   |
-|   |-- urlencode ............ URLエンコーダー
-|   |                          ・Twitter APIが要求するURLエンコード済文字列の生成に利用
-|   |-- parsrj.sh ............ JSONをシェルスクリプト向けに正規化するコマンド"PARSeR-Json"
-|   |                          ・Twitter APIが返すJSONの解読に利用
-|   |-- unescj.sh ............ エスケープ表現されたJSON中のユニコード文字を元に戻すコマンド
-|   |                          ・日本語ツイートがこれで読めるようになる
-|   |                          ・Twitter APIが返すJSONの解読に利用
-|   `-- mime-make ............ MIMEマルチパート作成作成コマンド
-|                              ・画像ファイルをTwitterサーバーにアップロードする時に利用
+|   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
+|   `-- self ................. Extract text fields
+|                              * "self 1 3 5" is equivalent "awk '{print $1,$3,$5}'"
+|                              * This command makes shellscript more readable
 |
-`-- APPS/ .................... 小鳥男のコマンド（BINの中）を応用した各種サンプルシェルスクリプト
+|-- UTL/ ..................... Directoy for Orher Libbary shellscript commands of our own making
+|   |
+|   |-- urlencode ............ URL encoder
+|   |                          * This is used to generate OAuth string
+|   |-- parsrj.sh ............ JSON Parser
+|   |                          * This is used to read JSON data Twitter API returns
+|   |-- unescj.sh ............ Unescape command for JSON data
+|   |                          * This is used to decode Unicode Escaped characters
+|   |                          * Twitter API returns escaped UTF-8 string
+|   `-- mime-make ............ MIME Multipart Data Maker
+|                              * This is used to upload image and video files when using Wget command
+|
+`-- APPS/ .................... Directory for Sample Applications Using Some Commands in BIN/
     |
-    `-- gathertw.sh .......... 指定キーワードを含むツイートを収集するコマンド
-                                ・REST API反復呼出しによるツイートの連続自動収集を行う
-                                ・リアルタイム検索も可能（疑似的に）
-                                ・しかもStreaming APIでは不可能な日本語キーワード指定可
-                                ・しかもStreaming APIでありがちな輻輳時データ間引きもなし
-                                ・[詳しい使い方はここ](APPS/gathertw.md)
+    `-- gathertw.sh .......... Gather Tweets Which Match the Searching Keywords
+                               * Gather tweets in bulk continuously
+                               * Support real-time searching in a pseudo manner
+                               * Also support languages other than English
+                               * See APPS/gathertw.md for more information
 ```
 
-詳細な使い方は省略するが、各Twitterコマンドの書式が知りたくば"--help"オプションを付けて実行してみるがいい。それでだいたいわかるはずだ。
+## Licence
 
-なぁに大丈夫だ、間違っても大したことないからいろいろ試してみるがいい。大変なことになるとしたら、周到な準備無しに殺人予告や爆破予告をツイートするくらいなものだ。まぁ我々組織としてはそういう使い方は大いに歓迎だがな、フハハハ……。
+Complete Public-Domain Software (CC0)
 
-さぁお前たちもこの怪人を操作してTwitter民たちを炎上させ、世界征服を目指すのだ、ゆけぃ！
-
-
-# ライセンス
-
-何、ライセンスだと？愚問だな。似るなり焼くなり売るなり改造するなり、好きにするがいい。我々のような秘密結社だろうが何だろうが誰でもだ。
-この意味がわからぬか？完全なるPUBLIC DOMAIN (CC0)という意味だ。
-
-ただ、一つだけ憶えておくことだ。使い出した瞬間、それはお前たちは我らに洗脳されたということだ。ワッハッハ！
+It measns that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are broght about by the major licenses.

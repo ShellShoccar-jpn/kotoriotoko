@@ -187,7 +187,7 @@ To know the ussage, you should the following file/directory list. The files in "
 |   |-- twfing.sh ............ List Followering Users Of A Person
 |   |
 |   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
-|   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
+|   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
 |   |-- btwtl.sh ............. View The Twitter Timeline of A User (on Bearer Token Mode *2)
 |   |-- bretwer.sh ........... View Retweeted User List (on Bearer Token Mode *3)
 |   |                          *1 Access limit will be mitigated once during 5sec -> 2sec
@@ -238,7 +238,7 @@ To know the ussage, you should the following file/directory list. The files in "
     |
     `-- gathertw.sh .......... Gather Tweets Which Match the Searching Keywords
                                * Gather tweets in bulk continuously
-                               * Support real-time searching in a pseudo manner
+                               * Support real-time searching in a pseudo manner
                                * Also support languages other than English
                                * See APPS/gathertw.md for more information
 ```
