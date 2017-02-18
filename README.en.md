@@ -44,7 +44,7 @@ Kotoriotoko works on various OSs. Not usign OS-specialized codes basically, but 
 
 ### (2) Easy to Install
 
-Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of Unix like systems. So there is almost nothing to have to do on installing this. *On almost of all system, what you have to do on installing is just to execute git command once* because most of all OSs already have the two extra commands.
+Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing this. *On almost of all system, what you have to do on installing is just to execute git command once* because most of all OSs already have the two extra commands.
 
 
 ## How to Install
@@ -106,7 +106,7 @@ $ cd <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
 
 #### (B) Not quick setup to use for data analysis
 
-The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/btw*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
+The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
 
 ###### 1) Register your cell phone number onto Twitter service for identification
 
@@ -151,3 +151,100 @@ readonly MY_atksec='SET_YOUR_ACCESS_SECRET_HERE'
             :
             :
 ```
+
+## Usage
+
+To know the ussage, you should the following file/directory list. The files in "`BIN`" directory are Twitter operating commands. And you can see all of the command usages with executing with "`--help`" option.
+
+```
+.
+|-- README.md ................ This file
+|
+|-- BIN/ ..................... Directory for Twitter operating commands (You have to learn only them basically)
+|   |
+|   |-- getstarted.sh ........ Get auth-keys (Only execute before starting to use kotoriotoko)
+|   |
+|   |-- tweet.sh ............. Post A Tweet
+|   |-- retweet.sh ........... Retweet A Tweet
+|   |-- deltweet.sh .......... Delete A Tweet
+|   |-- twmediup.sh .......... Upload A Image or Video File To Twitter
+|   |                          (The subcontract command of "tweet.sh"）
+|   |-- twvideoup.sh ......... Upload A Video File To Twitter
+|   |                          (The sub-sub contract command which will be called by "twmediup.sh")
+|   |
+|   |-- twview.sh ............ View Tweets Which Are Request By Tweet-IDs
+|   |-- twtl.sh .............. View The Twitter Timeline of A User
+|   |-- twsrch.sh ............ Search Twitters Which Match With Given Keywords
+|   |-- retwers.sh ........... View Retweeted User List
+|   |
+|   |-- twfav.sh ............. Like A Tweet (Mark Favorite)
+|   |-- twunfav.sh ........... Cancel Like For A Tweet (Cancel Favorite Mark)
+|   |-- favtws.sh ............ View The Favorite Tweets of A User
+|   |
+|   |-- twfollow.sh .......... Follow A User
+|   |-- twunfollow.sh ........ Finish Following A User
+|   |-- twfer.sh ............. List Followers Of A Person
+|   |-- twfing.sh ............ List Followering Users Of A Person
+|   |
+|   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
+|   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
+|   |-- btwtl.sh ............. View The Twitter Timeline of A User (on Bearer Token Mode *2)
+|   |-- bretwer.sh ........... View Retweeted User List (on Bearer Token Mode *3)
+|   |                          *1 Access limit will be mitigated once during 5sec -> 2sec
+|   |                          *2 Access limit will be mitigated once during 5sec -> 3sec
+|   |                          *3 Access limit will be mitigated once during 1min -> 15sec
+|   |
+|   |-- stwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Streaming API Mode *4)
+|   |                          *4 No access limit but for only english tweets
+|   |
+|   |-- twplsrch.sh .......... Search Place Informations Which Match With Given Keywords
+|   |
+|   |-- dmtweet.sh ........... Post A Direct Message
+|   |-- deldmtw.sh ........... Delete A Direct Message
+|   |-- dmtwview.sh .......... View A Direct Message Which Are Request By Tweet-IDs
+|   |-- dmtwrcv.sh ........... List Received Direct Messages
+|   `-- dmtwsnt.sh ........... List Sent Direct Messages
+|
+|
+|-- CONFIG/ .................. Directory for Configuration File
+|   |
+|   |-- COMMON.SHLIB ......... Common Config-file
+|   |                          * Use to set Twitter auth-keys
+|   |                          * This file should be made by copying the following file
+|   `-- COMMON.SHLIB.SAMPLE .. Common Config-file (template)
+|
+|
+|-- TOOL/ .................... Directory for The Libbary shellscript commands "Open usp Tukubai"
+|   |                          * These commands are called by the commands in BIN/ directory
+|   |
+|   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
+|   `-- self ................. Extract text fields
+|                              * "self 1 3 5" is equivalent "awk '{print $1,$3,$5}'"
+|                              * This command makes shellscript more readable
+|
+|-- UTL/ ..................... Directoy for Orher Libbary shellscript commands of our own making
+|   |
+|   |-- urlencode ............ URL encoder
+|   |                          * This is used to generate OAuth string
+|   |-- parsrj.sh ............ JSON Parser
+|   |                          * This is used to read JSON data Twitter API returns
+|   |-- unescj.sh ............ Unescape command for JSON data
+|   |                          * This is used to decode Unicode Escaped characters
+|   |                          * Twitter API returns escaped UTF-8 string
+|   `-- mime-make ............ MIME Multipart Data Maker
+|                              * This is used to upload image and video files when using Wget command
+|
+`-- APPS/ .................... Directory for Sample Applications Using Some Commands in BIN/
+    |
+    `-- gathertw.sh .......... Gather Tweets Which Match the Searching Keywords
+                               * Gather tweets in bulk continuously
+                               * Support real-time searching in a pseudo manner
+                               * Also support languages other than English
+                               * See APPS/gathertw.md for more information
+```
+
+## Licence
+
+Completely Public-Domain Software (CC0)
+
+It measns that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are broght about by the major licenses.
