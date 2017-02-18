@@ -1,4 +1,4 @@
-# KOTORIOTOKO -- The Ultimate ShellScript Twitter Tools
+# KOTORIOTOKO -- The Ultimate Shell Script Twitter Tools
 
 ## What is This?
 
@@ -214,15 +214,15 @@ To know the ussage, you should the following file/directory list. The files in "
 |   `-- COMMON.SHLIB.SAMPLE .. Common Config-file (template)
 |
 |
-|-- TOOL/ .................... Directory for The Libbary shellscript commands "Open usp Tukubai"
+|-- TOOL/ .................... Directory for The Libbary shell script commands "Open usp Tukubai"
 |   |                          * These commands are called by the commands in BIN/ directory
 |   |
 |   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
 |   `-- self ................. Extract text fields
 |                              * "self 1 3 5" is equivalent "awk '{print $1,$3,$5}'"
-|                              * This command makes shellscript more readable
+|                              * This command makes shell script more readable
 |
-|-- UTL/ ..................... Directoy for Orher Libbary shellscript commands of our own making
+|-- UTL/ ..................... Directoy for Orher Libbary shell script commands of our own making
 |   |
 |   |-- urlencode ............ URL encoder
 |   |                          * This is used to generate OAuth string
