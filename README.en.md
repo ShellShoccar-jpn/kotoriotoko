@@ -23,8 +23,8 @@ And Kotoriotoko commands provide a lot of the following functions.
   * Receive
   * Delete
   * List
-* Others
-  * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API )
+* Other functions
+  * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
 
 Moreover, Kotoriotoko has more the following two strong points.
 
@@ -245,6 +245,6 @@ To know the ussage, you should the following file/directory list. The files in "
 
 ## Licence
 
-Completely Public-Domain Software (CC0)
+Complete Public-Domain Software (CC0)
 
 It measns that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are broght about by the major licenses.
