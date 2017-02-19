@@ -40,7 +40,7 @@ Moreover, Kotoriotoko has more the following two strong points.
 
 ### (1) Works Anywhare
 
-Kotoriotoko works on various OSs. Not usign OS-specialized codes basically, but works on Windows, Mac, of course Un*x. I made sure of working on the following OSs.
+Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized codes basically, it works on Windows, Mac, of course Un*x. I made sure of working on the following OSs.
 
 * Windows 10 ([version 1607](https://blogs.windows.com/windowsexperience/2016/08/02/how-to-get-the-windows-10-anniversary-update/#4gLdGvDumEFzl82c.97) and over, Windows Subsystem for Linux, which is available on developer mode)
 * Cygwin and gnupack
