@@ -58,8 +58,8 @@ You have to have the following stuff.
 1. A Twitter account
 2. A Unix host
 3. Two additional software
-  1. [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/) If you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance. But you don't have to configure them anything at all.
-  2. [cURL](https://curl.haxx.se/) or [Wget](https://www.gnu.org/software/wget/) If you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance.
+  1. [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance. But you don't have to configure them anything at all.
+  2. [cURL](https://curl.haxx.se/) or [Wget](https://www.gnu.org/software/wget/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance.
 
 Most of all rental host service and/or Unix compatible OSs probably have the above software.
 
@@ -220,7 +220,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
 |   `-- self ................. Extract text fields
 |                              * "self 1 3 5" is equivalent "awk '{print $1,$3,$5}'"
-|                              * This command makes shell script more readable
+|                              * This command makes shell scripts more readable
 |
 |-- UTL/ ..................... Directoy for Orher Libbary shell script commands of our own making
 |   |
