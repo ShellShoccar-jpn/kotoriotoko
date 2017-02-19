@@ -17,7 +17,7 @@ Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operati
 And Kotoriotoko commands provide a lot of the following functions.
 
 * Posting
-  * Tweet (*you can also add up to 4 image files or 1 video file*)
+  * Tweet (*you can also attach up to 4 image files or 1 video file*)
   * Retweet
   * Cancel a tweet
   * Like / Unlike
