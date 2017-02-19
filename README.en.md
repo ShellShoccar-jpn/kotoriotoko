@@ -90,7 +90,7 @@ If git command isn't available, you can install the following way. But [unzip](h
 $ cd <AN_APPROPRIATE_DIRECTORY>
 $ wget https://github.com/ShellShoccar-jpn/kotoriotoko/archive/master.zip
 $ unzip master.zip
-$ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
+$ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/* kotoriotoko/APPS/*.sh
 ```
 
 (The case you can use curl)
@@ -99,7 +99,7 @@ $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 $ cd <AN_APPROPRIATE_DIRECTORY>
 $ curl -O https://github.com/ShellShoccar-jpn/kotoriotoko/archive/master.zip
 $ unzip master.zip
-$ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
+$ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/* kotoriotoko/APPS/*.sh
 ```
 
 ### Step 2. Get four Twitter authentication keys and write them into a config-file
