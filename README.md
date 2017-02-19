@@ -170,7 +170,8 @@ To know the usage, you should the following file/directory list. The files in "`
 .
 |-- README.md ................ This file
 |
-|-- BIN/ ..................... Directory for Twitter operating commands (You have to learn only them basically)
+|-- BIN/ ..................... Directory for Twitter operating commands
+|   |                          (You have to learn only them basically)
 |   |
 |   |-- getstarted.sh ........ Get auth-keys (Only execute before starting to use kotoriotoko)
 |   |
@@ -228,8 +229,8 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |                          * These commands are called by the commands in BIN/ directory
 |   |
 |   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
-|   `-- self ................. Extract text fields
-|                              * "self 1 3 5" is equivalent "awk '{print $1,$3,$5}'"
+|   `-- self ................. Extract text fields (SELect Fields)
+|                              * "self 1 3 5" is equivalent to "awk '{print $1,$3,$5}'"
 |                              * This command makes shell scripts more readable
 |
 |-- UTL/ ..................... Directoy for Orher Libbary shell script commands of our own making
