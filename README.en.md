@@ -120,7 +120,7 @@ The second way is for people who want to execute kotoriotoko commands **at frequ
 
 ##### 1) Register your cell phone number onto Twitter service for identification
 
-Twitter service requires your cell phone number as a collateral for giving you apprication keys. To register it, you have to open the web page "[Mobile](https://twitter.com/settings/add_phone)" with your web browser. You can arrive there by "[Home](https://twitter.com/)" -> "[(Profile and) settings](https://twitter.com/settings/account)" -> "[Mobile](https://twitter.com/settings/add_phone)".
+Twitter service requires your cell phone number as a collateral for giving you application keys. To register it, you have to open the web page "[Mobile](https://twitter.com/settings/add_phone)" with your web browser. You can arrive there by "[Home](https://twitter.com/)" -> "[(Profile and) settings](https://twitter.com/settings/account)" -> "[Mobile](https://twitter.com/settings/add_phone)".
 
 After registering your phone number, a PIN code will come to your phone by SMS. You have to input it on "Mobile" page finally.
 
