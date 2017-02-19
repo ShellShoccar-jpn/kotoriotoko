@@ -8,7 +8,7 @@
   * [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
   * [Step 2. Get four Twitter authentication keys and write them into a config-file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
 * [Usage](#usage)
-* [Licence](#licence)
+* [License](#license)
 
 ## What is This?
 
@@ -253,7 +253,7 @@ To know the usage, you should the following file/directory list. The files in "`
                                * See APPS/gathertw.md for more information
 ```
 
-## Licence
+## License
 
 Complete Public-Domain Software (CC0)
 
