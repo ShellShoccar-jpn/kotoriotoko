@@ -106,7 +106,7 @@ $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 
 You have to choose one way to get Twitter authentication keys.
 
-#### (A) Quick setup to use normally
+#### (A) Quick setup for normal using
 
 This first way is for people who want to use kotoriotoko just simply or want to finish to get and write auth-keys quickly. If so, execute the following commands. And what you have to do after that is just follow messages by this command and Twitter web page which this command guides you.
 
@@ -114,7 +114,7 @@ This first way is for people who want to use kotoriotoko just simply or want to 
 $ <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
 ```
 
-#### (B) Not quick setup to use for data analysis
+#### (B) Not quick setup for data analysis
 
 The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
 
