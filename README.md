@@ -2,7 +2,7 @@
 
 ## What is This?
 
-Kotoriotoko is a command set to operating [Twitter](https://twitter.com/). This makes it possible to operating Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
+Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operating [Twitter](https://twitter.com/). This makes it possible to operating Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
 
 And Kotoriotoko commands provide a lot of the following functions.
 
@@ -44,7 +44,7 @@ Kotoriotoko works on various OSs. Not usign OS-specialized codes basically, but 
 
 ### (2) Easy to Install
 
-Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing this. *On almost of all system, what you have to do on installing is just to execute git command once* because most of all OSs already have the two extra commands.
+Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of the Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing Kotoriotoko. *On almost of all system, what you have to do on installing is just to execute git command once* because the majority of OS already have the two extra commands.
 
 
 ## How to Install
