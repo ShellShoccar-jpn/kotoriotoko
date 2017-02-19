@@ -101,7 +101,7 @@ You have to choose one way to get Twitter authentication keys.
 This first way is for people who want to use kotoriotoko just simply or want to finish to get and write auth-keys quickly. If so, execute the following commands. And what you have to do after that is just follow messages by this command and Twitter web page which this command guides you.
 
 ```sh:
-$ cd <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
+$ <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
 ```
 
 #### (B) Not quick setup to use for data analysis
