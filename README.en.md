@@ -92,7 +92,7 @@ $ unzip master.zip
 $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/*
 ```
 
-### Step 2. Get four Twitter authentication keys and Write them into a config-file
+### Step 2. Get four Twitter authentication keys and write them into a config-file
 
 You have to choose one way to get Twitter authentication keys.
 
@@ -154,7 +154,7 @@ readonly MY_atksec='SET_YOUR_ACCESS_SECRET_HERE'
 
 ## Usage
 
-To know the ussage, you should the following file/directory list. The files in "`BIN`" directory are Twitter operating commands. And you can see all of the command usages with executing with "`--help`" option.
+To know the usage, you should the following file/directory list. The files in "`BIN`" directory are Twitter operating commands. And you can see all of the command usages with executing with "`--help`" option.
 
 ```
 .
