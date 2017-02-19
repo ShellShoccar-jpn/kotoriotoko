@@ -1,5 +1,15 @@
 # KOTORIOTOKO -- The Ultimate Shell Script Twitter Tools
 
+## Table of Contents
+
+* [What is This?]()
+* [How to Install](#how-to-install)
+  * [Step 0. Make sure the requirements](#step-0-make-sure-the-requirements)
+  * [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
+  * [Step 2. Get four Twitter authentication keys and write them into a config-file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
+* [Usage](#usage)
+* [Licence](#licence)
+
 ## What is This?
 
 Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operating [Twitter](https://twitter.com/). This makes it possible to operating Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
@@ -108,7 +118,7 @@ $ <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
 
 The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
 
-###### 1) Register your cell phone number onto Twitter service for identification
+##### 1) Register your cell phone number onto Twitter service for identification
 
 Twitter service requires your cell phone number as a collateral for giving you apprication keys. To register it, you have to open the web page "[Mobile](https://twitter.com/settings/add_phone)" with your web browser. You can arrive there by "[Home](https://twitter.com/)" -> "[(Profile and) settings](https://twitter.com/settings/account)" -> "[Mobile](https://twitter.com/settings/add_phone)".
 
