@@ -3,12 +3,12 @@
 ## Table of Contents
 
 * [What is This?]()
-* [How to Install](#how-to-install)
-  * [Step 0. Make sure the requirements](#step-0-make-sure-the-requirements)
-  * [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
-  * [Step 2. Get four Twitter authentication keys and write them into a config-file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
-* [Usage](#usage)
-* [Licence](#licence)
+* [How to Install](README.en.md#how-to-install)
+  * [Step 0. Make sure the requirements](README.en.md#step-0-make-sure-the-requirements)
+  * [Step 1. Install Kotoriotoko](README.en.md#step-1-install-kotoriotoko)
+  * [Step 2. Get four Twitter authentication keys and write them into a config-file](README.en.md#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
+* [Usage](README.en.md#usage)
+* [Licence](README.en.md#licence)
 
 ## What is This?
 
