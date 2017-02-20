@@ -36,7 +36,7 @@ And Kotoriotoko commands provide a lot of the following functions.
 * Other functions
   * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
 
-Moreover, Kotoriotoko has more the following two strong points.
+Moreover, Kotoriotoko has more the following three strong points.
 
 ### (1) Works Anywhare
 
@@ -55,6 +55,10 @@ Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized code
 ### (2) Easy to Install
 
 Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of the Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing Kotoriotoko. *On almost of all system, what you have to do on installing is just to execute git command once* because the majority of OS already have the two extra commands.
+
+### (3) Works for Good
+
+I said Kototiotoko hardly depends on extra software. It means it is hardly involved in depending software troubles, for example, specification change due to version-up, becoming unusable due to vulnerable problems, end of support. There is little worry about depending POSIX stuff because there're a lot of compatible and exchangable implementations by a lot of vendors. So you can use Kotoriotoko without maintenance for a long time.
 
 
 ## How to Install
