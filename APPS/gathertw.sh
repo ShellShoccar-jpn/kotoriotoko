@@ -4,9 +4,9 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-17
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
 #
-# This is a public-domain software (CC0). It measns that all of the
+# This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
 # By the way, I am fed up the side effects which are broght about by
 # the major licenses.
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	          -g <lon,lat,radius>|--geocode=<lon,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-02-17 18:16:30 JST
+	Version : 2017-02-24 01:05:51 JST
 	USAGE
   exit 1
 }

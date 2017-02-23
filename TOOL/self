@@ -16,9 +16,9 @@
 #                  as a field formatted string instead of <file>
 #
 # Designed originally by Nobuaki Tounaka
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
 #
-# This is a public-domain software (CC0). It measns that all of the
+# This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
 # By the way, I am fed up the side effects which are broght about by
 # the major licenses.
@@ -48,7 +48,7 @@ print_usage_and_exit () {
 	Options : -d ...... Direct Mode :
 	          It make this command regard the last argument (<string>)
 	          as a field formatted string instead of <file>
-	Version : 2017-02-08 19:17:21 JST
+	Version : 2017-02-24 01:00:18 JST
 	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands/UTF-8)
 	USAGE
   exit 1

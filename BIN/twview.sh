@@ -4,9 +4,9 @@
 #
 # TWVIEW.SH : View Tweets Which Are Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-10
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
 #
-# This is a public-domain software (CC0). It measns that all of the
+# This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
 # By the way, I am fed up the side effects which are broght about by
 # the major licenses.
@@ -30,7 +30,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-10 01:43:58 JST
+	Version : 2017-02-24 01:05:51 JST
 	USAGE
   exit 1
 }
