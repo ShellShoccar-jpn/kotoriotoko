@@ -19,7 +19,7 @@
 #                  from YYYYMMDDhhmmss to YYYYMMDDhhmmss
 #
 # Designed originally by Nobuaki Tounaka
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -54,13 +54,13 @@ print_usage_and_exit () {
 	                    converting
 	          -r ...... Converts from UNIX time to YYYYMMDDhhmmss instead of
 	                    from YYYYMMDDhhmmss to YYYYMMDDhhmmss
-	Version : 2017-02-24 01:00:18 JST
+	Version : 2017-02-26 01:05:48 JST
 	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
 }
 error_exit() {
-  [ -n "$2" ] && echo "${0##*/}: $2" 1>&2
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
   exit $1
 }
 

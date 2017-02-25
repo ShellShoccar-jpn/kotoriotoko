@@ -4,7 +4,7 @@
 #
 # RETWER.SH : View Retweeted User List
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -31,12 +31,12 @@ print_usage_and_exit () {
 	Options : -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-24 01:05:51 JST
+	Version : 2017-02-26 01:15:52 JST
 	USAGE
   exit 1
 }
 error_exit() {
-  [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
   exit $1
 }
 

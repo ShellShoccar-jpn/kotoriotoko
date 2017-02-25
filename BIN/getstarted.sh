@@ -5,7 +5,7 @@
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,12 +29,12 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/}
-	Version : 2017-02-24 01:05:51 JST
+	Version : 2017-02-26 01:15:52 JST
 	USAGE
   exit 1
 }
 error_exit() {
-  [ -n "$2"       ] && echo "${0##*/}: $2" 1>&2
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
   exit $1
 }
 
