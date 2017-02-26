@@ -19,7 +19,7 @@
 # Usage: unescj.sh [-n] [JSONPath-value_textfile]
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-24
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -42,7 +42,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n] [JSONPath-value_textfile]
-	Version : 2017-02-24 00:55:02 JST
+	Version : 2017-02-26 17:05:48 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -62,8 +62,8 @@ CR=$( printf '\015' )              # Carridge Return
 ACK=$(printf '\006' )              # Escape chr. for "\\"
 
 # === Get the options and the filepath ===============================
-nopt=0
-case "$#" in [!0]*) case "$1" in '-n') nopt=1;shift;; esac;; esac
+optn=0
+case "$#" in [!0]*) case "$1" in '-n') optn=1;shift;; esac;; esac
 case "$#" in
   0) file='-'
      ;;
@@ -144,7 +144,7 @@ sed 's/\\r/'"$CR"'/g'                                                          |
 sed 's/\\t/'"$TAB"'/g'                                                         |
 #                                                                              #
 # === Also unescape "\0", "\n", "\\" when "-n" option is not given =========== #
-case "$nopt" in                                                                #
+case "$optn" in                                                                #
   0) sed 's/\\0//g'                             |  # - "\0" should be deleted  #
      sed 's/\\n/'"$LFs"'/g'                     |  #   without conv to <0x00>  #
      sed 's/'"$ACK"'/\\\\/g'                    |  # - Unescaoe escaped "\\"s  #
