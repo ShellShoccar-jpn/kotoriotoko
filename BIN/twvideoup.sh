@@ -28,7 +28,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2017-02-26 01:15:52 JST
+	Version : 2017-02-26 10:35:49 JST
 	USAGE
   exit 1
 }
@@ -418,7 +418,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
 case $? in [!0]*) error_exit 1 'Failed to upload a video at step (2/3)';; esac
 
 # === Analyze the response (HTTP status code) ========================
-[ \( $apires -ge 200 \) -a \( $apires -lt 300 \) ] || {
+([ $apires -ge 200 ] && [ $apires -lt 300 ]) || {
   s="Failed to upload a video at step (2/3): HTTP statuscode is $apires"
   error_exit 2 "$s"
 }
