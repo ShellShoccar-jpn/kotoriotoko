@@ -4,7 +4,31 @@
 #
 # RAW2RESANL.SH : Convert RAW Date Gotten by GATHERTW.SH to RES and ANL Data
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
+# Usage: ${0##*/} [options] [file ...]
+# Args : file ...
+#            Twitter original JSON data (RAW) files:
+#            For example, you can set the files as follows
+#              $ find /PATH/TO/Twitter/JSON/RAW -name '*.json' |
+#              > xargs ${0##*/} -d FOO
+#            or
+#              $ find /PATH/TO/Twitter/JSON/RAW -name '*.json' |
+#              > xargs cat                                     |
+#              > ${0##*/} -d FOO
+# Opts : -d <data_directory>|--datadir=<data_directory>
+#            Directory to write the converted tweets into
+#            "ANL/" and "RES/" directory will be made in the directory.
+#            Default directory name is "<YYYYMMDDHHMMSS>.data/".
+#            * "ANL/" is a directory for tweet data files of which
+#              format are suitable for Twitter data analysis.
+#            * "RES/" is a directory for tweet data files which are
+#              human readble.
+#        --noanl
+#            Do not create "ANL/" directory nor write out its files.
+#        --nores
+#            Do not create "RES/" directory nor write out its files.
+#
+#
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,11 +53,28 @@ export LC_ALL='C'
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [file ...]
-	Options : -d <data_directory>      |--datadir=<data_directory>
-	                                    --noraw
-	                                    --nores
-	                                    --noanl
-	Version : 2017-02-26 01:15:52 JST
+	Args    : file ...
+	              Twitter original JSON data (RAW) files:
+	              For example, you can set the arguments as follows
+	                $ find /PATH/TO/Twitter/JSON/RAW -name '*.json' |
+	                > xargs ${0##*/} -d FOO
+	              or
+	                $ find /PATH/TO/Twitter/JSON/RAW -name '*.json' |
+	                > xargs cat                                     |
+	                > ${0##*/} -d FOO
+	Options : -d <data_directory>|--datadir=<data_directory>
+	              Directory to write the converted tweets into
+	              "ANL/" and "RES/" directory will be made in the directory.
+	              Default directory name is "<YYYYMMDDHHMMSS>.data/".
+	              * "ANL/" is a directory for tweet data files of which
+	                format are suitable for Twitter data analysis.
+	              * "RES/" is a directory for tweet data files which are
+	                human readble.
+	          --noanl
+	              Do not create "ANL/" directory nor write out its files.
+	          --nores
+	              Do not create "RES/" directory nor write out its files.
+	Version : 2017-02-27 19:24:44 JST
 	USAGE
   exit 1
 }
