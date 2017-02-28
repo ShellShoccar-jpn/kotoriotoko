@@ -47,7 +47,7 @@
 #           -li     Inserts another JSONPath line which has no value
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-28
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -84,7 +84,7 @@ Options : -t      Quotes a value at converting when the value is a string
           -ls<s>  Replaces the suffix of array character "]" with <s>
           -fn<n>  Redefines the start number of arrays with <n>
           -li     Inserts another JSONPath line which has no value
-Version : 2017-02-26 10:38:02 JST
+Version : 2017-02-28 00:22:01 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1
@@ -145,6 +145,7 @@ for arg in "$@"; do
   fi
 done
 [ -z "$file" ] && file='-'
+case "$file" in -|/*|./*|../*) :;; *) file="./$file";; esac
 
 
 ######################################################################
