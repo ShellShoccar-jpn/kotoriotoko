@@ -47,12 +47,12 @@
 #           -li     Inserts another JSONPath line which has no value
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are brought about by
-# the major licenses.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
 #
 ######################################################################
 
@@ -84,7 +84,7 @@ Options : -t      Quotes a value at converting when the value is a string
           -ls<s>  Replaces the suffix of array character "]" with <s>
           -fn<n>  Redefines the start number of arrays with <n>
           -li     Inserts another JSONPath line which has no value
-Version : 2017-03-04 15:11:01 JST
+Version : 2017-03-05 04:49:02 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1

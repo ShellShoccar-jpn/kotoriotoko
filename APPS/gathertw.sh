@@ -4,12 +4,12 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are brought about by
-# the major licenses.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
 #
 ######################################################################
 
@@ -43,7 +43,7 @@ print_usage_and_exit () {
 	          -g <long,lat,radius>|--geocode=<long,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-03-04 23:47:13 JST
+	Version : 2017-03-05 04:49:02 JST
 	USAGE
   exit 1
 }

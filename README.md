@@ -263,4 +263,4 @@ To know the usage, you should the following file/directory list. The files in "`
 
 Complete Public-Domain Software (CC0)
 
-It means that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are brought about by the major licenses.
+It means that all of the people can use this for any purposes with no restrictions at all. By the way, We are fed up with the side effects which are brought about by the major licenses.

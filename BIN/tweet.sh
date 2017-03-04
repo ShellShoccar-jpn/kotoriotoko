@@ -4,12 +4,12 @@
 #
 # TWEET.SH : Post A Tweet
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are brought about by
-# the major licenses.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
 #
 ######################################################################
 
@@ -34,7 +34,7 @@ print_usage_and_exit () {
 	          -r <tweet_id>  |--reply=<tweet_id>
 	          -l <lat>,<long>|--location=<lat>,<long>
 	          -p <place_id>  |--place=<place_id>
-	Version : 2017-03-04 15:11:01 JST
+	Version : 2017-03-05 04:49:02 JST
 	USAGE
   exit 1
 }
