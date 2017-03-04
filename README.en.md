@@ -12,7 +12,7 @@
 
 ## What is This?
 
-Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operating [Twitter](https://twitter.com/). This makes it possible to operating Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
+Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operate [Twitter](https://twitter.com/). This makes it possible to operate Twitter on CUI. It means that it gets easier to operate Twitter by other applications on UNIX.
 
 And Kotoriotoko commands provide a lot of the following functions.
 
