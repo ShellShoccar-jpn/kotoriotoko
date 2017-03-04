@@ -47,11 +47,11 @@
 #           -li     Inserts another JSONPath line which has no value
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-28
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
+# By the way, I am fed up the side effects which are brought about by
 # the major licenses.
 #
 ######################################################################
@@ -84,7 +84,7 @@ Options : -t      Quotes a value at converting when the value is a string
           -ls<s>  Replaces the suffix of array character "]" with <s>
           -fn<n>  Redefines the start number of arrays with <n>
           -li     Inserts another JSONPath line which has no value
-Version : 2017-02-28 00:22:01 JST
+Version : 2017-03-04 15:11:01 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1
@@ -254,7 +254,7 @@ BEGIN {                                                                  #
       if (stack_depth>0)                                       {         #
         s=datacat_stack[stack_depth];                                    #
         if (s=="h0" || s=="h4")                              {           #
-          if (s=="h0") {print_keys_and_value("");}                       #
+          if (s=="h0") {print_path();}                                   #
           delete datacat_stack[stack_depth];                             #
           delete keyname_stack[stack_depth];                             #
           stack_depth--;                                                 #
@@ -294,8 +294,8 @@ BEGIN {                                                                  #
       if (stack_depth>0)                                         {       #
         s=datacat_stack[stack_depth];                                    #
         if (s=="l0" || s=="l2")                                {         #
-          if (s=="l0") {print_keys_and_value("");}                       #
-          '"$unoptli"'if (s=="l2") {print_keys_and_value("");}           #
+          if (s=="l0") {print_path();}                                   #
+          '"$unoptli"'if (s=="l2") {print_path();}                       #
           delete datacat_stack[stack_depth];                             #
           delete keyname_stack[stack_depth];                             #
           stack_depth--;                                                 #
@@ -335,7 +335,7 @@ BEGIN {                                                                  #
       }                                                                  #
       '"$unoptli"'# 1.5)Action in case which li option is enabled        #
       '"$unoptli"'if (substr(datacat_stack[stack_depth],1,1)=="l") {     #
-      '"$unoptli"'  print_keys_and_value("");                            #
+      '"$unoptli"'  print_path();                                        #
       '"$unoptli"'}                                                      #
       # 2)Do someting according to the top of datacat stack              #
       # 2a)When "l2" (list-step2 : just after getting a value in list)   #
@@ -380,7 +380,7 @@ BEGIN {                                                                  #
       # 4a)When "l0" (list-step0 : waiting for the 1st value)            #
       s=datacat_stack[stack_depth];                                      #
       if ((s=="l0") || (s=="l1")) {                                      #
-        print_keys_and_value(value);                                     #
+        print_path_and_value(value);                                     #
         datacat_stack[stack_depth]="l2";                                 #
       # 4b)When "h0,1" (hash-step0,1 : waiting for the 1st or next key)  #
       } else if (s=="h0" || (s=="h1")) {                                 #
@@ -389,7 +389,7 @@ BEGIN {                                                                  #
         datacat_stack[stack_depth]="h2";                                 #
       # 4c)When "h3" (hash-step3 : waiting for a value of hash)          #
       } else if (s=="h3") {                                              #
-        print_keys_and_value(value);                                     #
+        print_path_and_value(value);                                     #
         datacat_stack[stack_depth]="h4";                                 #
       # 4d)Other cases (error)                                           #
       } else {                                                           #
@@ -413,8 +413,19 @@ END {                                                                    #
   }                                                                      #
   exit _assert_exit;                                                     #
 }                                                                        #
-# The Function printing JSONPath-value                                   #
-function print_keys_and_value(str) {                                     #
+# The Functions printing JSONPath-value                                  #
+function print_path( i) {                                                #
+  print root_symbol;                                                     #
+  for (i=1;i<=stack_depth;i++) {                                         #
+    if (substr(datacat_stack[i],1,1)=="l") {                             #
+      print list_prefix, keyname_stack[i], list_suffix;                  #
+    } else {                                                             #
+      print key_delimit, keyname_stack[i];                               #
+    }                                                                    #
+  }                                                                      #
+  print "\n";                                                            #
+}                                                                        #
+function print_path_and_value(str ,i) {                                  #
   print root_symbol;                                                     #
   for (i=1;i<=stack_depth;i++) {                                         #
     if (substr(datacat_stack[i],1,1)=="l") {                             #

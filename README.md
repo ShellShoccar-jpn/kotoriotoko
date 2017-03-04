@@ -6,7 +6,7 @@
 * [How to Install](#how-to-install)
   * [Step 0. Make sure the requirements](#step-0-make-sure-the-requirements)
   * [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
-  * [Step 2. Get four Twitter authentication keys and write them into a config-file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
+  * [Step 2. Get four Twitter authentication keys and write them into a config file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
 * [Usage](#usage)
 * [License](#license)
 
@@ -28,7 +28,7 @@ And Kotoriotoko commands provide a lot of the following functions.
   * Follow somebody
   * Unfollow somebody
   * List users who you following or you are followed
-* Direct Messagge Managing
+* Direct Message Managing
   * Send
   * Receive
   * Delete
@@ -38,9 +38,9 @@ And Kotoriotoko commands provide a lot of the following functions.
 
 Moreover, Kotoriotoko has more the following three strong points.
 
-### (1) Works Anywhare
+### (1) Works Anywhere
 
-Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized codes basically, it works on Windows, Mac, of course Un*x. I made sure of working on the following OSs.
+Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized codes basically, it works on Windows, Mac, of course, Un*x. I made sure of working on the following OSs.
 
 * Windows 10 ([version 1607](https://blogs.windows.com/windowsexperience/2016/08/02/how-to-get-the-windows-10-anniversary-update/#4gLdGvDumEFzl82c.97) and over, Windows Subsystem for Linux, which is available on developer mode)
 * Cygwin and gnupack
@@ -48,22 +48,23 @@ Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized code
 * Linux (CentOS5,6,7, Ubuntu12,14)
 * Raspbian (wheezy and jessie, which work on Raspberry Pi series)
 * FreeBSD (6,7,9,10,11)
+* NetBSD (7.0)
 * OpenBSD (6.0)
 * Solaris (11.3)
 * AIX (7.1)
 
 ### (2) Easy to Install
 
-Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are arleady installed on all of the Unix like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing Kotoriotoko. *On almost of all system, what you have to do on installing is just to execute git command once* because the majority of OS already have the two extra commands.
+Kotoriotoko depends on only two extra commands besides POSIX commands. All of the other depending commands are already installed on all of the Unix-like systems. It requires no extra programming language (Perl, PHP, Ruby, Python, Java, Go, ...) and no enhancement shell (bash, ksh, zsh, ...). So there is almost nothing to have to do on installing Kotoriotoko. *On almost of all system, what you have to do on installing is just to execute git command once* because the majority of OS already have the two extra commands.
 
 ### (3) Works for Good
 
-I said Kototiotoko hardly depends on extra software. It means it is hardly involved in depending software troubles, for example, specification change due to version-up, becoming unusable due to vulnerable problems, end of support. There is little worry about depending POSIX stuff because there're a lot of compatible and exchangable implementations by a lot of vendors. So you can use Kotoriotoko without maintenance for a long time.
+I said Kototiotoko hardly depends on extra software. It means it is hardly involved in depending software troubles, for example, specification change due to version-up, becoming unusable due to vulnerable problems, end of support. There is little worry about depending POSIX stuff because there are a lot of compatible and exchangeable implementations by a lot of vendors. So you can use Kotoriotoko without maintenance for a long time.
 
 
 ## How to Install
 
-It consist of two (or three) steps.
+It consists of two (or three) steps.
 
 ### Step 0. Make sure the requirements
 
@@ -86,7 +87,7 @@ $ cd <AN_APPROPRIATE_DIRECTORY>
 $ git clone https://github.com/ShellShoccar-jpn/kotoriotoko.git
 ```
 
-If git command isn't available, you can install the following way. But [unzip](http://www.info-zip.org/UnZip.html) command is required instead.
+If the git command isn't available, you can install the following way. But [unzip](http://www.info-zip.org/UnZip.html) command is required instead.
 
 (The case you can use wget)
 
@@ -106,7 +107,7 @@ $ unzip master.zip
 $ chmod +x kotoriotoko/BIN/* kotoriotoko/TOOL/* kotoriotoko/UTL/* kotoriotoko/APPS/*.sh
 ```
 
-### Step 2. Get four Twitter authentication keys and write them into a config-file
+### Step 2. Get four Twitter authentication keys and write them into a config file
 
 You have to choose one way to get Twitter authentication keys.
 
@@ -120,7 +121,7 @@ $ <KOTORIOTOKO_DIRECTORY_YOU_INSTALLED>/BIN/getstarted.sh
 
 #### (B) Not quick setup for data analysis
 
-The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzining. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
+The second way is for people who want to execute kotoriotoko commands **at frequent intervals** to collect massive tweets for data analyzing. "`BIN/b*.sh`" and "`APPS/gathertw.sh`" commands are provided for that purpose. If you want to do that, do the following substeps.
 
 ##### 1) Register your cell phone number onto Twitter service for identification
 
@@ -132,7 +133,7 @@ After registering your phone number, a PIN code will come to your phone by SMS. 
 
 At first, open [Twitter Apps](https://apps.twitter.com/) page, and push "Create New App" button.
 
-Next, fill out all columns except "Callback URL" on "Create an application" page and agree the developer agreement, then push "Create your Twitter application" button.
+Next, fill out all columns except "Callback URL" on "Create an application" page and agree to the developer agreement, then push "Create your Twitter application" button.
 
 And then, click "Keys and Access Tokens" tab. You can get "**Consumer Key**" and "**Consumer Secret**" there first. Copy these strings.
 
@@ -182,7 +183,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- tweet.sh ............. Post A Tweet
 |   |-- retweet.sh ........... Retweet A Tweet
 |   |-- deltweet.sh .......... Delete A Tweet
-|   |-- twmediup.sh .......... Upload A Image or Video File To Twitter
+|   |-- twmediup.sh .......... Upload An Image or Video File To Twitter
 |   |                          (The subcontract command of "tweet.sh"）
 |   |-- twvideoup.sh ......... Upload A Video File To Twitter
 |   |                          (The sub-sub contract command which will be called by "twmediup.sh")
@@ -199,7 +200,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- twfollow.sh .......... Follow A User
 |   |-- twunfollow.sh ........ Finish Following A User
 |   |-- twfer.sh ............. List Followers Of A Person
-|   |-- twfing.sh ............ List Followering Users Of A Person
+|   |-- twfing.sh ............ List Following Users Of A Person
 |   |
 |   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
 |   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
@@ -210,9 +211,9 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |                          *3 Access limit will be mitigated once during 1min -> 15sec
 |   |
 |   |-- stwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Streaming API Mode *4)
-|   |                          *4 No access limit but for only english tweets
+|   |                          *4 No access limit but for only English tweets
 |   |
-|   |-- twplsrch.sh .......... Search Place Informations Which Match With Given Keywords
+|   |-- twplsrch.sh .......... Search Place Information Which Match With Given Keywords
 |   |
 |   |-- dmtweet.sh ........... Post A Direct Message
 |   |-- deldmtw.sh ........... Delete A Direct Message
@@ -229,7 +230,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   `-- COMMON.SHLIB.SAMPLE .. Common Config-file (template)
 |
 |
-|-- TOOL/ .................... Directory for The Libbary shell script commands "Open usp Tukubai"
+|-- TOOL/ .................... Directory for The Library shell script commands "Open usp Tukubai"
 |   |                          * These commands are called by the commands in BIN/ directory
 |   |
 |   |-- calclock ............. Converting Command Between YYYYMMDDhhmmss and UNIX-time
@@ -237,7 +238,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |                              * "self 1 3 5" is equivalent to "awk '{print $1,$3,$5}'"
 |                              * This command makes shell scripts more readable
 |
-|-- UTL/ ..................... Directoy for Orher Libbary shell script commands of our own making
+|-- UTL/ ..................... Directory for Other Library shell script commands of our own making
 |   |
 |   |-- urlencode ............ URL encoder
 |   |                          * This is used to generate OAuth string
@@ -262,4 +263,4 @@ To know the usage, you should the following file/directory list. The files in "`
 
 Complete Public-Domain Software (CC0)
 
-It means that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are broght about by the major licenses.
+It means that all of the people can use this for any purposes with no restrictions at all. By the way, I am fed up the side effects which are brought about by the major licenses.

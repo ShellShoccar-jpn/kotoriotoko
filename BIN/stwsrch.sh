@@ -5,11 +5,11 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
+# By the way, I am fed up the side effects which are brought about by
 # the major licenses.
 #
 ######################################################################
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-02-26 01:15:52 JST
+	Version : 2017-03-04 15:11:01 JST
 	USAGE
   exit 1
 }

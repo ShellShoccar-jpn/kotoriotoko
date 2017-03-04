@@ -18,11 +18,11 @@
 #                       from wrapping.
 #        -i ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
+# By the way, I am fed up the side effects which are brought about by
 # the major licenses.
 #
 ######################################################################
@@ -48,7 +48,7 @@ print_usage_and_exit () {
 	            -d, -w <COLS>, -i
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-02-26 00:56:29 JST
+	Version : 2017-03-04 15:11:01 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	            * Although the bult-in base64, uuencode and uudecode command or
 	              GNU AWK produces better performance than the POSIX commands set

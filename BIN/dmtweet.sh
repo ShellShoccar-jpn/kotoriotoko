@@ -4,11 +4,11 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
+# By the way, I am fed up the side effects which are brought about by
 # the major licenses.
 #
 ######################################################################
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-02-26 01:15:52 JST
+	Version : 2017-03-04 15:11:01 JST
 	USAGE
   exit 1
 }

@@ -28,11 +28,11 @@
 #            Do not create "RES/" directory nor write out its files.
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-02-27
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
+# By the way, I am fed up the side effects which are brought about by
 # the major licenses.
 #
 ######################################################################
@@ -74,7 +74,7 @@ print_usage_and_exit () {
 	              Do not create "ANL/" directory nor write out its files.
 	          --nores
 	              Do not create "RES/" directory nor write out its files.
-	Version : 2017-02-27 19:24:44 JST
+	Version : 2017-03-04 15:11:01 JST
 	USAGE
   exit 1
 }
