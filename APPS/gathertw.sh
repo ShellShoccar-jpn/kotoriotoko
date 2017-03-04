@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Options : -d <data_directory>      |--datadir=<data_directory>
 	          -M <max_id>              |--maxid=<max_id>
 	          -u <until_date>          |--until=<until_date>
-	          -S <since_id>            |--sinceid=<lang>
+	          -S <since_id>            |--sinceid=<since_id>
 	          -s <since_date[ant_time]>|--sincedt=<since_date[ant_time]>
 	          -c                       |--continuously
 	          -p[n](n=1,2,3)           |--peek[n](n=1,2,3)
@@ -40,10 +40,10 @@ print_usage_and_exit () {
 	                                    --nores
 	                                    --noanl
 	          and
-	          -g <lon,lat,radius>|--geocode=<lon,lat,radius>
+	          -g <long,lat,radius>|--geocode=<long,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-03-04 15:11:01 JST
+	Version : 2017-03-04 23:47:13 JST
 	USAGE
   exit 1
 }
