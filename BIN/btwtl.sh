@@ -283,15 +283,15 @@ awk '                                                                         #
     r = (fr=="true") ? "RET" : "ret";                                         #
     f = (ff=="true") ? "FAV" : "fav";                                         #
     if (en>0) {replace_url();}                                                #
-    printf("%s\n"                                ,tm       );                 #
-    printf("- %s (@%s)%s\n"                      ,nm,sn,vf );                 #
-    printf("- %s\n"                              ,tx       );                 #
-    printf("- %s:%d %s:%d\n"                     ,r,nr,f,nf);                 #
+    printf("%s\n"                                   ,tm       );              #
+    printf("- %s (@%s)%s\n"                         ,nm,sn,vf );              #
+    printf("- %s\n"                                 ,tx       );              #
+    printf("- %s:%d %s:%d\n"                        ,r,nr,f,nf);              #
     s = (pl=="null")?"-":pn;                                                  #
     s = (ge=="null")?s:sprintf("%s (%s,%s)",s,la,lo);                         #
     print "-",s;                                                              #
-    printf("- %s (%s)\n",an,au);                                              #
-    printf("- https://twitter.com/%s/status/%s\n",sn,id    );                 #
+    printf("- %s (%s)\n"                            ,an,au    );              #
+    printf("- https://twitter.com/i/web/status/%s\n",id       );              #
     init_param(2);                                                          } #
   function replace_url( tx0,i) {                                              #
     tx0= tx;                                                                  #
