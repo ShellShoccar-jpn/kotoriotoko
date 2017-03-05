@@ -30,7 +30,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-03-05 19:24:19 JST
 	USAGE
   exit 1
 }
@@ -121,6 +121,7 @@ API_methd='GET'
 # (2)parameters
 API_param=$(cat <<-PARAM                   |
 				id=$tweetids
+				tweet_mode=extended
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
@@ -249,7 +250,7 @@ awk '                                                                         #
   sub(/^retweeted_status\./,"",k){rtwflg++;if(rtwflg==1){init_param(1);}    } #
   $2=="created_at"        {init_param(2);tm=substr($0,length($1 $2)+3);next;} #
   $2=="id"                {id= substr($0,length($1 $2)+3);print_tw();  next;} #
-  k =="text"              {tx= substr($0,length($1 $2)+3);print_tw();  next;} #
+  k =="full_text"         {tx= substr($0,length($1 $2)+3);print_tw();  next;} #
   k =="retweet_count"     {nr= substr($0,length($1 $2)+3);print_tw();  next;} #
   k =="favorite_count"    {nf= substr($0,length($1 $2)+3);print_tw();  next;} #
   k =="retweeted"         {fr= substr($0,length($1 $2)+3);print_tw();  next;} #
