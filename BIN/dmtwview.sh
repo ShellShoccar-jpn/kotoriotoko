@@ -30,7 +30,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id>
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-03-05 20:47:55 JST
 	USAGE
   exit 1
 }
@@ -121,6 +121,7 @@ API_methd='GET'
 # (2)parameters
 API_param=$(cat <<-PARAM                   |
 				id=$tweetid
+				full_text=true
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
