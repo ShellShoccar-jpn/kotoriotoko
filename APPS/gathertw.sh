@@ -35,6 +35,7 @@ print_usage_and_exit () {
 	          -S <since_id>            |--sinceid=<since_id>
 	          -s <since_date[ant_time]>|--sincedt=<since_date[ant_time]>
 	          -c                       |--continuously
+	          -r <times>               |--retry=<times>
 	          -p[n](n=1,2,3)           |--peek[n](n=1,2,3)
 	                                    --noraw
 	                                    --nores
@@ -43,7 +44,7 @@ print_usage_and_exit () {
 	          -g <long,lat,radius>|--geocode=<long,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-03-05 13:12:02 JST
 	USAGE
   exit 1
 }
@@ -95,6 +96,7 @@ geocode=''
 lang=''
 locale=''
 continuously=0
+retry=''           # default value of $retry will be decided by $continuously
 peek=0
 noraw=0
 nores=0
@@ -162,6 +164,13 @@ while [ $# -gt 0 ]; do
                        shift 2
                        ;;
     --continuously|-c) continuously=1; shift;;
+    --retry=*)         retry=$(printf '%s' "${1#--retry=}" | tr -d '\n')
+                       shift
+                       ;;
+    -r)                case $# in 1) error_exit 1 'Invalid -r option';; esac
+                       retry=$(printf '%s' "$2" | tr -d '\n')
+                       shift 2
+                       ;;
     --peek*)           s=${1#--peek}
                        case "$s" in
                          ''|1) peek=1                              ;;
@@ -194,6 +203,13 @@ while [ $# -gt 0 ]; do
                        ;;
   esac
 done
+case "$retry" in '')
+  case $continuously in 0) retry=4;; *) retry=1;; esac
+  ;;
+esac
+printf '%s\n' "$retry" | grep -Eq '^[0-9]+$' || {
+  error_exit 1 'Invalid -r,--rerty option'
+}
 printf '%s\n' "$maxid" | grep -Eq '^[0-9]*$' || {
   error_exit 1 'Invalid -M,--maxid option'
 }
@@ -281,11 +297,11 @@ Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXXX"` || {
 }
 
 # === Set misc parameters ============================================
-interval_ok=2    # min. interval (sec) to call btwsrch.sh(API)
+interval_ok=2      # min. interval (sec) to call btwsrch.sh(API)
 intervals_ng="$interval_ok 10 20 40 80 160 240" # retry intervals when error
-count=100     # max tweets which could be gathered at once (up tp 100)
-maxretry_ok=1 # retry times when no tweet has gotten normally
-maxretry_ng=4 # retry times when something error has been happened
+count=100          # max tweets which could be gathered at once (up tp 100)
+maxretry_ok=$retry # retry times when no tweet has gotten normally
+maxretry_ng=4      # retry times when something error has been happened
 
 # === Set the oldest tweet ID ========================================
 since=''
