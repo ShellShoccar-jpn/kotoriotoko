@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-07
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -35,6 +35,7 @@ print_usage_and_exit () {
 	          -S <since_id>            |--sinceid=<since_id>
 	          -s <since_date[ant_time]>|--sincedt=<since_date[ant_time]>
 	          -c                       |--continuously
+	          -m                       |--monitoring
 	          -r <times>               |--retry=<times>
 	          -p[n](n=1,2,3)           |--peek[n](n=1,2,3)
 	                                    --noraw
@@ -44,7 +45,7 @@ print_usage_and_exit () {
 	          -g <long,lat,radius>|--geocode=<long,lat,radius>
 	          -l <lang>          |--lang=<lang>
 	          -o <locale>        |--locale=<locale>
-	Version : 2017-03-05 13:12:02 JST
+	Version : 2017-03-07 09:26:30 JST
 	USAGE
   exit 1
 }
@@ -96,6 +97,7 @@ geocode=''
 lang=''
 locale=''
 continuously=0
+monitoring=0
 retry=''           # default value of $retry will be decided by $continuously
 peek=0
 noraw=0
@@ -164,6 +166,7 @@ while [ $# -gt 0 ]; do
                        shift 2
                        ;;
     --continuously|-c) continuously=1; shift;;
+    --monitoring|-m)   monitoring=1; shift;;
     --retry=*)         retry=$(printf '%s' "${1#--retry=}" | tr -d '\n')
                        shift
                        ;;
@@ -389,6 +392,21 @@ while :; do
   esac
   s=$(wc -l "$Tmp/res" | awk '{print $1}')
   [ $s -eq 0 ] && {
+    case "$monitoring" in 0) :;; *)
+      #echo 'No tweet found' 1>&2
+      if [ -s "$File_lastid" ]; then
+        lastID=$(cat "$File_lastid" | tr -Cd 0123456789)
+      else
+        lastID=''
+      fi
+      case "$lastID" in
+        '') :                        ;;
+         *) since="--sinceid=$lastID";;
+      esac
+      interval=$interval_ok
+      continue
+      ;;
+    esac
     retry_ok=$((retry_ok-1))
     case "$continuously $retry_ok" in
       '0 0') echo "No tweet found ... finish gathering"             1>&2;break;;
@@ -683,7 +701,15 @@ while :; do
   fi
 
   # === Prepare the next lap =========================================
-  last="--maxid=$(echo $sID - 1 | $CMD_CALC)"
+  case "$monitoring" in
+    0) last="--maxid=$(echo $sID - 1 | $CMD_CALC)"
+       ;;
+    *) last=''
+       if [ -s "$File_lastid" ]; then
+         since="--sinceid=$(cat "$File_lastid" | tr -Cd 0123456789)"
+       fi
+       ;;
+  esac
   retry_ok=$((maxretry_ok+1))
   retry_ng=$((maxretry_ng+1))
   interval=$interval_ok
