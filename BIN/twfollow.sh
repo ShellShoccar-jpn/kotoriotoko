@@ -4,7 +4,7 @@
 #
 # TWFOLLOW.SH : Follow A User
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-04-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -28,7 +28,7 @@ export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <loginname>
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-04-04 17:39:39 JST
 	USAGE
   exit 1
 }
