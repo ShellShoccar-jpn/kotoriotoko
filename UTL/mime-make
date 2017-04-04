@@ -41,7 +41,7 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-04-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -96,7 +96,7 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-04-04 14:20:51 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -216,7 +216,7 @@ escape_for_header_string() {
          base64 --wrap=0     |                                            #
          grep '^'                                                         #
        done                                                               |
-       sed 's/.*/=?UTF-8?B?&?=/' 2>/dev/null                              |
+       sed 's/.*/=?UTF-8?B?&?=/'                                          |
        sed '1!s/^/'"$TAB"'/'                                              |
        sed '$!s/$/'"$CR"'/'                                               ;;
   esac
@@ -1371,17 +1371,17 @@ while [ $# -gt 0 ]; do
                        "$cr"
                 printf 'Content-Type: text/plain; charset="UTF-8"%s\n%s\n' \
                        "$cr" "$cr"
-                cat "$file"                      | # For the mailbody text,
-                sed "/^\$/s/\$/$CR/" 2>/dev/null | # it must be always put <CR>
-                sed "/[^$CR]\$/s/\$/$CR/"        | # on the end of every line
-                base64 --wrap=76                 |
-                sed '$!s/$/@ /'                  |
-                tr -d '\n'                       |
-                tr '@ ' '\r\n'                   |
-                if [ -n "$cr" ]; then            #
-                  cat                            #
-                else                             #
-                  tr -d "$cr"                    #
+                grep ^ "$file"            | # For the mailbody text,
+                sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>
+                sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line
+                base64 --wrap=76          |
+                sed '$!s/$/@ /'           |
+                tr -d '\n'                |
+                tr '@ ' '\r\n'            |
+                if [ -n "$cr" ]; then     #
+                  cat                     #
+                else                      #
+                  tr -d "$cr"             #
                 fi
                 printf '%s\n' "$cr"
                 ;;

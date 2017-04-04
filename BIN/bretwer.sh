@@ -138,9 +138,10 @@ apip_enc=$(printf '%s\n' "${API_param}" |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
 # --- 2.joint all lines with "&" (note: string for giving to the API)
-apip_get=$(printf '%s' "${apip_enc}"      |
-           tr '\n' '&'                    |
-           sed 's/^./?&/' 2>/dev/null || :)
+apip_get=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               |
+           grep ^                    |
+           sed 's/^./?&/'            )
 
 # === Generate the signature string of OAuth 1.0 =====================
 case "${MY_bearer:-}" in '')
@@ -177,7 +178,7 @@ apires=$(echo "Authorization: Bearer $MY_bearer"            |
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g' 2>/dev/null || :               #
+           grep ^ | sed 's/\\/\\\\/g'                       #
          else                                               #
            cat                                              #
          fi                                                 )

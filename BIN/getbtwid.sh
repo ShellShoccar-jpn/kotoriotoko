@@ -114,9 +114,10 @@ readonly HDR_ctype='Content-Type: application/x-www-form-urlencoded;charset=UTF-
 readonly POS_gtype='grant_type=client_credentials'
 
 # === Generate the auth header to get the token ======================
-readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec"              |
-                     base64 -w 0                                      |
-                     sed 's/^/Authorization: Basic /' 2>/dev/null || :)"
+readonly HDR_auth="$(printf '%s' "$MY_apikey:$MY_apisec" |
+                     base64 -w 0                         |
+                     grep ^                              |
+                     sed 's/^/Authorization: Basic /'    )"
 
 # === Access to the endpoint =========================================
 if   [ -n "${CMD_WGET:-}" ]; then
@@ -126,7 +127,7 @@ if   [ -n "${CMD_WGET:-}" ]; then
                        --post-data="$POS_gtype"               \
                        "$API_endpt"                           |
            if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-             sed 's/\\/\\\\/g' 2>/dev/null || :               #
+             grep ^ | sed 's/\\/\\\\/g'                       #
            else                                               #
              cat                                              #
            fi                                                 )
@@ -137,7 +138,7 @@ elif [ -n "${CMD_CURL:-}" ]; then
                        -d "$POS_gtype"                        \
                        "$API_endpt"                           |
            if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-             sed 's/\\/\\\\/g' 2>/dev/null || :               #
+             grep ^ | sed 's/\\/\\\\/g'                       #
            else                                               #
              cat                                              #
            fi                                                 )

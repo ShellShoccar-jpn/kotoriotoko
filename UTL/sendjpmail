@@ -23,7 +23,7 @@
 #   * If the following headers is omitted, inserted by this function.
 #     "Content-Type:", "Content-Transfer-Encoding:", "MIME-Version:"
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-04-04
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -50,7 +50,7 @@ print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <mailfile>
 	Args    : <mailfile> ... Text data as a e-mail
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2017-04-04 16:04:09 JST
 	          (POSIX Bourne Shell/POSIX commands/sendmail command/UTF-8)
 	USAGE
   exit 1
@@ -256,15 +256,15 @@ while read -r line; do                                                         #
       sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                           #
       tr -d '\n'                                                               #
       # 2) convert and print header of the after part                          #
-      printf '%s\n' "$line"                 |                                  #
-      sed "s/^[^$TAB ]*[$TAB ]*//"          |                                  #
-      cutstr_by_bytes 42                    |                                  #
-      while read -r str; do                 #                                  #
-        printf '%s' "${str}" |              #                                  #
-        base64 --wrap=0      |              #                                  #
-        grep '^'                            #                                  #
-      done                                  |                                  #
-      sed 's/.*/=?UTF-8?B?&?=/' 2>/dev/null |                                  #
+      printf '%s\n' "$line"        |                                           #
+      sed "s/^[^$TAB ]*[$TAB ]*//" |                                           #
+      cutstr_by_bytes 42           |                                           #
+      while read -r str; do        #                                           #
+        printf '%s' "${str}" |     #                                           #
+        base64 --wrap=0      |     #                                           #
+        grep '^'                   #                                           #
+      done                         |                                           #
+      sed 's/.*/=?UTF-8?B?&?=/'    |                                           #
       sed '1!s/^/'"$TAB"'/'                                                    #
       ;;                                                                       #
     # --- address header (From, To, Cc, Bcc, Reply-To) processing ----         #
@@ -287,7 +287,8 @@ while read -r line; do                                                         #
       sed "/^ESC:/s/;/$NAK/g"                                    |             #
       sed 's/^....//'                                            |             #
       tr '\n' '"'                                                |             #
-      sed 's/"$//' 2>/dev/null                                   |             #
+      grep ^                                                     |             #
+      sed 's/"$//'                                               |             #
       sed "s/\\([,;]\\)/\\1$LFs/g"                               |             #
       sed 's/^['"$TAB"' ]\{1,\}//'                               |             #
       grep -v '^$'                                               |             #
@@ -306,10 +307,11 @@ while read -r line; do                                                         #
           base64 --wrap=0       |                        #                     #
           grep ^                                         #                     #
         done                                             |                     #
-        sed 's/.*/=?UTF-8?B?&?=/' 2>/dev/null            |                     #
+        sed 's/.*/=?UTF-8?B?&?=/'                        |                     #
         sed '1!s/^/'"$TAB"'/'                            |                     #
         tr '\n' "$ACK"                                   |                     #
-        sed "s/$ACK\$//" 2>/dev/null                     |                     #
+        grep ^                                           |                     #
+        sed "s/$ACK\$//"                                 |                     #
         tr -d '\n'                                       |                     #
         tr "$ACK" '\n'                                                         #
         printf '%s\n' "$str1" |                                                #
@@ -337,9 +339,9 @@ while read -r line; do                                                         #
       echo                                                                     #
       # 3) print the body part                                                 #
       case "$((cte+ct_m))" in                                                  #
-        0) cat                              | # For the mailbody text,         #
-           sed "/^\$/s/\$/$CR/" 2>/dev/null | # it must be always put <CR>     #
-           sed "/[^$CR]\$/s/\$/$CR/"        | # on the end of every line       #
+        0) grep ^                    | # For the mailbody text,                #
+           sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>            #
+           sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line              #
            base64 --wrap=76         ;;                                         #
         *) cat                      ;;                                         #
       esac                                                                     #

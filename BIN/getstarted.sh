@@ -139,13 +139,14 @@ oa_param=$(cat <<-APIDATA                             |
            urlencode -r                               |
            sed 's/%3[Dd]/=/'                          )
 # --- 4. data string for signature string
-sig_param=$(cat <<-OAUTHPARAM              |
+sig_param=$(cat <<-OAUTHPARAM  |
 				${oa_param}
 				OAUTHPARAM
-            grep -v '^ *$'                 |
-            sort -k 1,1 -t '='             |
-            tr '\n' '&'                    |
-            sed 's/&$//' 2>/dev/null || :  )
+            grep -v '^ *$'     |
+            sort -k 1,1 -t '=' |
+            tr '\n' '&'        |
+            grep ^             |
+            sed 's/&$//'       )
 # --- 5. signature string
 sig_strin=$(cat <<-KEY_AND_DATA                              |
 				${KOTORIOTOKO_apisec}
@@ -155,8 +156,8 @@ sig_strin=$(cat <<-KEY_AND_DATA                              |
 				KEY_AND_DATA
             urlencode -r                                     |
             tr '\n' ' '                                      |
-            sed 's/ *$//' 2>/dev/null                        |
             grep ^                                           |
+            sed 's/ *$//'                                    |
             # 1:APIkey 2:request-method                      #
             # 3:API-endpoint 4:API-parameter                 #
             while read key mth ept par; do                   #
@@ -174,10 +175,10 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//' 2>/dev/null                          |
+         grep ^                                             |
+         sed 's/^,*//'                                      |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
-         grep ^                                             |
          while read -r oa_hdr; do                           #
            if   [ -n "${CMD_WGET:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
@@ -206,7 +207,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g' 2>/dev/null || :               #
+           grep ^ | sed 's/\\/\\\\/g'                       #
          else                                               #
            cat                                              #
          fi                                                 )
@@ -297,13 +298,14 @@ oa_param=$(cat <<-APIDATA                             |
            urlencode -r                               |
            sed 's/%3[Dd]/=/'                          )
 # --- 4. data string for signature string
-sig_param=$(cat <<-OAUTHPARAM              |
+sig_param=$(cat <<-OAUTHPARAM  |
 				${oa_param}
 				OAUTHPARAM
-            grep -v '^ *$'                 |
-            sort -k 1,1 -t '='             |
-            tr '\n' '&'                    |
-            sed 's/&$//' 2>/dev/null || :  )
+            grep -v '^ *$'     |
+            sort -k 1,1 -t '=' |
+            tr '\n' '&'        |
+            grep ^             |
+            sed 's/&$//'       )
 # --- 5. signature string
 sig_strin=$(cat <<-KEY_AND_DATA                              |
 				${KOTORIOTOKO_apisec}
@@ -313,8 +315,8 @@ sig_strin=$(cat <<-KEY_AND_DATA                              |
 				KEY_AND_DATA
             urlencode -r                                     |
             tr '\n' ' '                                      |
-            sed 's/ *$//' 2>/dev/null                        |
             grep ^                                           |
+            sed 's/ *$//'                                    |
             # 1:APIkey 2:request-method                      #
             # 3:API-endpoint 4:API-parameter                 #
             while read key mth ept par; do                   #
@@ -332,10 +334,10 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//' 2>/dev/null                          |
+         grep ^                                             |
+         sed 's/^,*//'                                      |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
-         grep ^                                             |
          while read -r oa_hdr; do                           #
            if   [ -n "${CMD_WGET:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
@@ -364,7 +366,7 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g' 2>/dev/null || :               #
+           grep ^ | sed 's/\\/\\\\/g'                       #
          else                                               #
            cat                                              #
          fi                                                 )

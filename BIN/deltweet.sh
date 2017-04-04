@@ -151,14 +151,15 @@ oa_param=$(cat <<-OAUTHPARAM
 # --- 4.generate pre-string of the signature
 #       (note: the API parameters and OAuth 1.0 parameters
 #        are formed a line like a CGI parameter of GET method)
-sig_param=$(cat <<-OAUTHPARAM              |
+sig_param=$(cat <<-OAUTHPARAM  |
 				${oa_param}
 				${apip_enc}
 				OAUTHPARAM
-            grep -v '^ *$'                 |
-            sort -k 1,1 -t '='             |
-            tr '\n' '&'                    |
-            sed 's/&$//' 2>/dev/null || :  )
+            grep -v '^ *$'     |
+            sort -k 1,1 -t '=' |
+            tr '\n' '&'        |
+            grep ^             |
+            sed 's/&$//'       )
 # --- 5.generate the signature string
 #       (note: URL-encode API-access-method -- GET or POST --, the endpoint,
 #        and the above No.4 string respectively at first. and transfer to
@@ -172,8 +173,8 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
 				KEY_AND_DATA
             urlencode -r                                         |
             tr '\n' ' '                                          |
-            sed 's/ *$//' 2>/dev/null                            |
             grep ^                                               |
+            sed 's/ *$//'                                        |
             # 1:API-key 2:APIsec 3:method                        #
             # 4:API-endpoint 5:API-parameter                     #
             while read key sec mth ept par; do                   #
@@ -192,10 +193,10 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
          sed 's/%3[Dd]/=/'                                  |
          sort -k 1,1 -t '='                                 |
          tr '\n' ','                                        |
-         sed 's/^,*//' 2>/dev/null                          |
+         grep ^                                             |
+         sed 's/^,*//'                                      |
          sed 's/,*$//'                                      |
          sed 's/^/Authorization: OAuth /'                   |
-         grep ^                                             |
          while read -r oa_hdr; do                           #
            if   [ -n "${CMD_WGET:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
@@ -224,7 +225,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           sed 's/\\/\\\\/g' 2>/dev/null || :               #
+           grep ^ | sed 's/\\/\\\\/g'                       #
          else                                               #
            cat                                              #
          fi                                                 )
