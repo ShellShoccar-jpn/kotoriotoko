@@ -52,6 +52,7 @@ Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized code
 * OpenBSD (6.0)
 * Solaris (11.3)
 * AIX (7.1)
+* HP-UX (11i v3)
 
 ### (2) Easy to Install
 
