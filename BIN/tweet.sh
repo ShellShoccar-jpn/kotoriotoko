@@ -4,7 +4,7 @@
 #
 # TWEET.SH : Post A Tweet
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 202017-05-02
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -35,7 +35,7 @@ print_usage_and_exit () {
 	          -r <tweet_id>  |--reply=<tweet_id>
 	          -l <lat>,<long>|--location=<lat>,<long>
 	          -p <place_id>  |--place=<place_id>
-	Version : 202017-05-02 21:11:01 JST
+	Version : 2017-05-03 01:36:50 JST
 	USAGE
   exit 1
 }
