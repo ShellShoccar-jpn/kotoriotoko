@@ -47,7 +47,7 @@
 #           -li     Inserts another JSONPath line which has no value
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -64,7 +64,8 @@
 # === Initialize shell environment ===================================
 set -eu
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Usage printing function ========================================
 print_usage_and_exit () {
@@ -84,7 +85,7 @@ Options : -t      Quotes a value at converting when the value is a string
           -ls<s>  Replaces the suffix of array character "]" with <s>
           -fn<n>  Redefines the start number of arrays with <n>
           -li     Inserts another JSONPath line which has no value
-Version : 2017-03-05 04:49:02 JST
+Version : 20202017-05-02 21:11:01 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1
@@ -101,6 +102,7 @@ case "$# ${1:-}" in
 esac
 
 # === Get the options and the filepath ===============================
+# --- initialize option parameters -----------------------------------
 file=''
 sk='_'
 rt='$'
@@ -112,8 +114,9 @@ unoptli='#'
 unopte='#'
 optt=''
 unoptt='#'
-case $# in 0) set -- '-';; esac
-for arg in "$@"; do
+#
+# --- get them -------------------------------------------------------
+for arg in ${1+"$@"}; do
   if   [ "_${arg#-sk}" != "_$arg"    ] && [ -z "$file" ] ; then
     sk=${arg#-sk}
   elif [ "_${arg#-rt}" != "_$arg"    ] && [ -z "$file" ] ; then
@@ -144,8 +147,22 @@ for arg in "$@"; do
     print_usage_and_exit
   fi
 done
-[ -z "$file" ] && file='-'
-case "$file" in -|/*|./*|../*) :;; *) file="./$file";; esac
+
+# === Validate the arguments =========================================
+if   [ "_$file" = '_'                ] ||
+     [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
+  file=''
+elif [ -f "$file"                    ] ||
+     [ -c "$file"                    ] ||
+     [ -p "$file"                    ]  ; then
+  [ -r "$file" ] || error_exit 1 'Cannot open the file: '"$file"
+else
+  print_usage_and_exit
+fi
+case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
 
 ######################################################################
@@ -170,7 +187,7 @@ export ls
 ######################################################################
 
 # === Open the JSON data source ======================================== #
-cat "$file"                                                              |
+cat ${file:+"$file"}                                                     |
 #                                                                        #
 # === Escape DQs and put each string between DQs into a sigle line ===== #
 tr -d '\n'  | # 1)convert each DQ to new "\n" instead of original "\n"s  |
@@ -402,14 +419,14 @@ BEGIN {                                                                  #
 END {                                                                    #
   # FINAL ROUTINE                                                        #
   if (_assert_exit) {                                                    #
-    print "Invalid JSON format\n" > "/dev/stderr";                       #
+    print "Invalid JSON format\n" | "cat 1>&2";                          #
     line1="keyname-stack:";                                              #
     line2="datacat-stack:";                                              #
     for (i=1;i<=stack_depth;i++) {                                       #
       line1=line1 sprintf("{%s}",keyname_stack[i]);                      #
       line2=line2 sprintf("{%s}",datacat_stack[i]);                      #
     }                                                                    #
-    print line1, "\n", line2, "\n" > "/dev/stderr";                      #
+    print line1, "\n", line2, "\n" | "cat 1>&2";                         #
   }                                                                      #
   exit _assert_exit;                                                     #
 }                                                                        #

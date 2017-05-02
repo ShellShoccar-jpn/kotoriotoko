@@ -41,7 +41,7 @@
 # Return: $?=0 (when all of the arguments are valid)
 #         stdout : generated MIME formatted data
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-04-04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -58,7 +58,8 @@
 # === Initialize shell environment ===================================
 set -u
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage ========================
 print_usage_and_exit () {
@@ -96,7 +97,7 @@ print_usage_and_exit () {
 	                (default is --crlf when form-mode, --lf when mail-mode)
 	  --b64/--raw : switch about applying or not Base64 to the <file> of (c)-(f)
 	                (default is --raw)
-	Version : 2017-04-04 14:20:51 JST
+	Version : 20202017-05-02 21:11:01 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -120,9 +121,9 @@ LFs=$(printf '\n_'); LFs=${LFs%_} # Use as a "\n" in s-command of sed
 # === which command also works on Just a POSIX environment ($1:command name)
 which which >/dev/null 2>&1 || {
   which() {
-    command -v "$1" 2>/dev/null |
-    awk 'match($0,/^\//){print; ok=1;}
-         END {if(ok==0){print "which: not found" > "/dev/stderr"; exit 1}}'
+    command -v "$1" 2>/dev/null | grep '^/' || {
+      echo 'which: not found' 1>&2 && (exit 1)
+    }
   }
 }
 
@@ -1122,9 +1123,9 @@ decide_type() {
 
 # === Validate and exit if the file is invalid =======================
 use_stdin=0
-validate_file() {
-  case $1 in
-    '-'|'/dev/stdin'|'/dev/fd/0'|'/dev/self/fd/0')
+validate_and_normalize_file_str() {
+  case "$file" in
+    ''|'-'|'/dev/stdin'|'/dev/fd/0'|'/dev/self/fd/0')
       use_stdin=$((use_stdin+1))
       case $use_stdin in
         [01]) return 0;;
@@ -1133,12 +1134,14 @@ validate_file() {
               exit 1
               ;;
       esac
+      file=''
       ;;
     *)
-      [ -f "$1" ] || [ -c "$1" ] || [ -p "$1" ] || {
-        printf '%s: Invalid file: %s\n' "${0##*/}" "$1" 1>&2
+      [ -f "$file" ] || [ -c "$file" ] || [ -p "$file" ] || {
+        printf '%s: Invalid file: %s\n' "${0##*/}" "$file" 1>&2
         exit 1
       }
+      case "$file" in /*|./*|../*) :;; *) file="./$file";; esac
       ;;
   esac
 }
@@ -1205,21 +1208,21 @@ while [ $# -gt 0 ]; do
     -Tf)  mode='textform'
           case $# in
             1) print_usage_and_exit;;
-            2) file='-'            ;;
+            2) file=''             ;;
             *) file=$3             ;;
           esac
-          validate_file "$file"
-          text=$(cat "$file")
+          validate_and_normalize_file_str
+          text=$(cat ${file:+"$file"})
           name=$2
           case $# in 2) shift 2;; *) shift 3;; esac
           ;;
     -F)   mode='fileform'
           case $# in
             1) print_usage_and_exit         ;;
-            2) file='-'                     ;;
+            2) file=''                      ;;
             *) file=$3; filename=${file##*/};;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
           type=$(decide_type "${ext##*.}")
           name=$2
@@ -1228,10 +1231,10 @@ while [ $# -gt 0 ]; do
     -Ff)  mode='fileform'
           case $# in
             [12]) print_usage_and_exit;;
-               3) file='-'            ;;
+               3) file=''             ;;
                *) file=$4             ;;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           filename=$3
           ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
           type=$(decide_type "${ext##*.}")
@@ -1241,10 +1244,10 @@ while [ $# -gt 0 ]; do
     -Ft)  mode='fileform'
           case $# in
             [12]) print_usage_and_exit         ;;
-               3) file='-'                     ;;
+               3) file=''                      ;;
                *) file=$4; filename=${file##*/};;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           type=$3
           name=$2
           case $# in 3) shift 3;; *) shift 4;; esac
@@ -1252,10 +1255,10 @@ while [ $# -gt 0 ]; do
     -Ftf) mode='fileform'
           case $# in
             [123]) print_usage_and_exit;;
-                4) file='-'            ;;
+                4) file=''             ;;
                 *) file=$5             ;;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           filename=$4
           type=$3
           name=$2
@@ -1263,19 +1266,19 @@ while [ $# -gt 0 ]; do
           ;;
     -M)   mode='mailbody'
           case $# in
-            1) file='-'            ;;
+            1) file=''             ;;
             *) file=$2             ;;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           case $# in 1) shift  ;; *) shift 2;; esac
           ;;
     -A)   mode='mailatch'
           case $# in
-            1) file='-'                     ;;
+            1) file=''                      ;;
             *) file=$2; filename=${file##*/};;
           esac
           name=$filename
-          validate_file "$file"
+          validate_and_normalize_file_str
           ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
           type=$(decide_type "${ext##*.}")
           case $# in 1) shift 1;; *) shift 2;; esac
@@ -1283,10 +1286,10 @@ while [ $# -gt 0 ]; do
     -Af)  mode='mailatch'
           case $# in
             1) print_usage_and_exit;;
-            2) file='-'            ;;
+            2) file=''             ;;
             *) file=$3             ;;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           filename=$2
           name=$filename
           ext=${file##*/};case "${ext##*.}" in "$ext") ext='';; esac
@@ -1296,10 +1299,10 @@ while [ $# -gt 0 ]; do
     -At)  mode='mailatch'
           case $# in
             1) print_usage_and_exit         ;;
-            2) file='-'                     ;;
+            2) file=''                      ;;
             *) file=$3; filename=${file##*/};;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           name=$filename
           type=$2
           case $# in 2) shift 2;; *) shift 3;; esac
@@ -1307,10 +1310,10 @@ while [ $# -gt 0 ]; do
     -Atf) mode='mailatch'
           case $# in
             [12]) print_usage_and_exit;;
-               3) file='-'            ;;
+               3) file=''             ;;
                *) file=$4             ;;
           esac
-          validate_file "$file"
+          validate_and_normalize_file_str
           filename=$3
           name=$filename
           type=$2
@@ -1352,8 +1355,8 @@ while [ $# -gt 0 ]; do
                 esac
                 printf '%s\n' "$cr"
                 case "$base64" in
-                   0) cat "$file"           ;;
-                   *) cat "$file"           |
+                   0) cat ${file:+"$file"}  ;;
+                   *) cat ${file:+"$file"}  |
                       base64 --wrap=76      |
                       sed '$!s/$/@ /'       |
                       tr -d '\n'            |
@@ -1371,7 +1374,7 @@ while [ $# -gt 0 ]; do
                        "$cr"
                 printf 'Content-Type: text/plain; charset="UTF-8"%s\n%s\n' \
                        "$cr" "$cr"
-                grep ^ "$file"            | # For the mailbody text,
+                grep '' ${file:+"$file"}  | # For the mailbody text,
                 sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>
                 sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line
                 base64 --wrap=76          |
@@ -1391,7 +1394,7 @@ while [ $# -gt 0 ]; do
                        "$cr"
                 printf 'Content-Type: %s; name="%s"%s\n%s\n'                \
                        "$type" "$name" "$cr" "$cr"
-                cat "$file"           |
+                cat ${file:+"$file"}  |
                 base64 --wrap=76      |
                 sed '$!s/$/@ /'       |
                 tr -d '\n'            |

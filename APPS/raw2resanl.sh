@@ -28,7 +28,7 @@
 #            Do not create "RES/" directory nor write out its files.
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -45,9 +45,10 @@
 # === Initialize =====================================================
 set -u
 umask 0022
-PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
 export PATH
 export LC_ALL='C'
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define error functions =========================================
 print_usage_and_exit () {
@@ -74,7 +75,7 @@ print_usage_and_exit () {
 	              Do not create "ANL/" directory nor write out its files.
 	          --nores
 	              Do not create "RES/" directory nor write out its files.
-	Version : 2017-03-05 04:49:02 JST
+	Version : 202017-05-02 21:11:01 JST
 	USAGE
   exit 1
 }

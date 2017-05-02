@@ -19,7 +19,7 @@
 #                          in front of the filepath
 #        --suffix=<suff> . Adds the suffix behind the filename
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -37,7 +37,8 @@
 set -u
 umask 0022
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
@@ -48,7 +49,7 @@ print_usage_and_exit () {
 	            -d, -p <DIR>, -q, -u, -t, --suffix=<suff>
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-03-05 04:49:02 JST
+	Version : 2020202017-05-02 21:11:01 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -69,7 +70,7 @@ case "${1:-}" in
      esac
      ;;
 esac
-case $by_myself in 0) exec mktemp "$@"; exit 1;; esac
+case $by_myself in 0) exec mktemp ${1+"$@"}; exit 1;; esac
 
 # === Investigate the temporary directory if set =====================
 Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');

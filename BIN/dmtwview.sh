@@ -4,7 +4,7 @@
 #
 # DMTWVIEW.SH : View A Direct Message Which Is Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-04-04
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -22,7 +22,8 @@
 set -u
 umask 0022
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
@@ -30,7 +31,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id>
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-04-04 17:39:39 JST
+	Version : 202017-05-02 21:11:01 JST
 	USAGE
   exit 1
 }

@@ -16,7 +16,7 @@
 #                  as a field formatted string instead of <file>
 #
 # Designed originally by Nobuaki Tounaka
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -34,7 +34,8 @@
 set -u
 umask 0022
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
@@ -48,7 +49,7 @@ print_usage_and_exit () {
 	Options : -d ...... Direct Mode :
 	          It make this command regard the last argument (<string>)
 	          as a field formatted string instead of <file>
-	Version : 2017-03-05 04:49:02 JST
+	Version : 20202017-05-02 21:11:01 JST
 	          Open usp Tukubai (POSIX Bourne Shell/POSIX commands/UTF-8)
 	USAGE
   exit 1
@@ -65,7 +66,6 @@ error_exit() {
 
 # === Get the options and the filepath ===============================
 # --- initialize option parameters -----------------------------------
-# initialize
 directmode=0
 directstr=''
 awkprstr=''    # partial code for AWK, which contains field variables for print
@@ -253,24 +253,22 @@ if [ -z "$awkprstr" ]; then
   print_usage_and_exit
 fi
 if [ -n "$arg" ] && [ $i -eq $# ] && [ $directmode -eq 0 ]; then
-  file0=$arg
+  file=$arg
 else
-  file0=''
+  file=''
 fi
-if [ -z "$file0" ]; then
-  file='-'
-elif [ -f "$file0"      ] ||
-     [ -c "$file0"      ] ||
-     [ -p "$file0"      ] ||
-     [ "_$file0" = '_-' ]  ; then
-  file="$file0"
+if   [ "_$file" = '_'                ] ||
+     [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
+  file=''
+elif [ -f "$file"                    ] ||
+     [ -c "$file"                    ] ||
+     [ -p "$file"                    ]  ; then
+  [ -r "$file" ] || error_exit 1 'Cannot open the file: '"$file"
 else
   print_usage_and_exit
-fi
-if [ $directmode -ne 0 ]; then
-  file=''
-elif [ ! -r "$file" ] && [ "_$file" != '_-' ]; then
-  error_exit 1 'Cannot open the file'
 fi
 case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
@@ -292,7 +290,7 @@ BEGIN {
 END {
   if (_assert_exit) {
     print "'"${0##*/}"': Invalid string position for separating the field",
-          "at line", NR > "/dev/stderr";
+          "at line", NR | "cat 1>&2";
     exit _assert_exit;
   }
 }
@@ -429,7 +427,7 @@ function getfldclstr2(fldnum1, fldnum2, stpos, len  ,i,str) {
 ######################################################################
 
 case $directmode in
-  0) exec awk "$awkcode" "$file"
+  0) exec awk "$awkcode" ${file:+"$file"}
      ;;
   *) printf '%s' "$directstr" | awk "$awkcode"
      exit $?

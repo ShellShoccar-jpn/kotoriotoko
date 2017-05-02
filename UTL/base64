@@ -18,7 +18,7 @@
 #                       from wrapping.
 #        -i ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,7 +36,8 @@
 set -u
 umask 0022
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
@@ -48,7 +49,7 @@ print_usage_and_exit () {
 	            -d, -w <COLS>, -i
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-03-05 04:49:02 JST
+	Version : 20202017-05-02 21:11:01 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	            * Although the bult-in base64, uuencode and uudecode command or
 	              GNU AWK produces better performance than the POSIX commands set
@@ -68,9 +69,9 @@ error_exit() {
 # === FUNC: which command also works on Just a POSIX environment =====
 which which >/dev/null 2>&1 || {
   which() {
-    command -v "$1" 2>/dev/null |
-    awk 'match($0,/^\//){print; ok=1;}
-         END {if(ok==0){print "which: not found" > "/dev/stderr"; exit 1}}'
+    command -v "$1" 2>/dev/null | grep '^/' || {
+      echo 'which: not found' 1>&2 && (exit 1)
+    }
   }
 }
 
@@ -89,7 +90,7 @@ esac
 #
 # --- use "bult-in" base64 if available and wanted -------------------
 if   [ $by_myself -eq 0 ] && printf 1 | base64 -w 0 >/dev/null 2>&1; then
-  exec base64 "$@"
+  exec base64 ${1+"$@"}
   exit 1
 elif [ $by_myself -eq 0 ] && printf 1 | base64 -b 0 >/dev/null 2>&1; then
   # If Mac OS X version exists, I will use it after option parsing
@@ -203,12 +204,22 @@ case $# in
   1) file=$1             ;;
   *) print_usage_and_exit;;
 esac
-case "$file" in
-  /*) :             ;;
-   -) :             ;;
-  '') file='-'      ;;
-   *) file="./$file";;
-esac
+
+# === Validate the arguments =========================================
+if   [ "_$file" = '_'                ] ||
+     [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
+  file=''
+elif [ -f "$file"                    ] ||
+     [ -c "$file"                    ] ||
+     [ -p "$file"                    ]  ; then
+  [ -r "$file" ] || error_exit 1 'Cannot open the file: '"$file"
+else
+  print_usage_and_exit
+fi
+case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
 
 ######################################################################
@@ -220,7 +231,7 @@ case "$by_myself${CMD_BASE64_MAC:-}" in 0/*)
   opts=''
   case $mode in d) opts="$opts -d";; esac
   opts="$opts -b $width"
-  exec "$CMD_BASE64_MAC" $opts -i "$file"
+  exec "$CMD_BASE64_MAC" $opts -i ${file:+"$file"}
   exit 1
   ;;
 esac
@@ -229,12 +240,12 @@ esac
 if [ $by_myself -eq 0 ] && uuencode -m dummy </dev/null >/dev/null 2>&1; then
   case "$mode" in
     d) [ -w /dev/stdout ] && {
-         (echo 'begin-base64 644 dummy'; cat "$file"; echo '====') |
+         (echo 'begin-base64 644 dummy'; cat ${file:+"$file"}; echo '====') |
          uudecode -o /dev/stdout
          exit $?
        }
        ;;
-    e) cat "$file"                                  |
+    e) cat ${file:+"$file"}                         |
        uuencode -m dummy                            |
        sed '1d;$d'                                  |
        case $width in                               #
@@ -249,7 +260,7 @@ fi
 
 # === Encode/Decode by myself ========================================
 case $mode$binarable_awk in
-  e*) cat "$file"                                                              |
+  e*) cat ${file:+"$file"}                                                     |
       od -A n -t x1 -v                                                         |
       tr -Cd '0123456789abcdefABCDEF\n'                                        |
       awk 'BEGIN{OFS=""; ORS="";                                               #
@@ -305,10 +316,7 @@ case $mode$binarable_awk in
         '')     max1line=4096           ;;
         [0-9]*) max1line=$((max1line/2));;
       esac
-      case "$file" in                                                         #
-        -) fold -b -w 508        ;;                                           #
-        *) fold -b -w 508 "$file";;                                           #
-      esac                                                                    |
+      fold -b -w 508 ${file:+"$file"}                                         |
       case $opti in                                                           #
         1) sed 's![^A-Za-z0-9+/=]!!g';;                                       #
         *) cat                       ;;                                       #
@@ -413,10 +421,7 @@ case $mode$binarable_awk in
       # <LF>   :  "\\\\n"     \\n         \n          <LF>                 #
       # "      :  "\\\""      \"          "           "                    #"
       # '      :  "\\'"'"'"   \'          '           '                    #'
-  d1) case "$file" in                                                         #
-        -) fold -b -w 508        ;;                                           #
-        *) fold -b -w 508 "$file";;                                           #
-      esac                                                                    |
+  d1) fold -b -w 508 ${file:+"$file"}                                         |
       case $opti in                                                           #
         1) sed 's![^A-Za-z0-9+/=]!!g';;                                       #
         *) cat                       ;;                                       #

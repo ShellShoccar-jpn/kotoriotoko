@@ -9,7 +9,7 @@
 #                  replaced with "%20" instead of "+".
 #        --raw ... same as the "-r" option
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-03-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -27,7 +27,8 @@
 set -eu
 umask 0022
 export LC_ALL=C
-export PATH="$(command -p getconf PATH)${PATH:+:}${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage ========================
 print_usage_and_exit () {
@@ -36,7 +37,7 @@ print_usage_and_exit () {
 	Args    : <file> ...... Text file for URL encoding
 	Options : -r, --raw ... RAW MODE :
 	                        " " will not be converted into "+" but "%20"
-	Version : 2017-03-05 04:49:02 JST
+	Version : 20202017-05-02 21:11:01 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -55,7 +56,7 @@ esac
 # === Other options ==================================================
 instead_of_spc='+';
 case $# in [!0]*)
-  for arg in "$@"; do
+  for arg in ${1+"$@"}; do
     case "$arg" in
       -r|--raw) instead_of_spc='%20'; shift;break;;
       --)                             shift;break;;
@@ -70,46 +71,35 @@ esac
 # Main
 ######################################################################
 
-case $# in
-  0) cat -                    ;;
-  *) for file in "$@"; do      #
-       case "$file" in      #  #
-         -)  :             ;;  #
-         /*) :             ;;  #
-         *)  file="./$file";;  #
-       esac                 #  #
-       cat "$file"             #
-     done                     ;;
-esac |
-(cat -; printf '\n') |
-awk '
-BEGIN {
-  # --- prepare
-  OFS = "";
-  ORS = "";
-  # --- prepare encoding
-  for(i= 0;i<256;i++){c2p[sprintf("%c",i)]=sprintf("%%%02X",i);}
-  c2p[" "]="'"$instead_of_spc"'";
-  for(i=48;i< 58;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
-  for(i=65;i< 91;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
-  for(i=97;i<123;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    }
-  c2p["-"]="-"; c2p["."]="."; c2p["_"]="_"; c2p["~"]="~";
-  # --- encode
-  while (getline line) {
-    for (i=1; i<=length(line); i++) {
-      print c2p[substr(line,i,1)];
-    }
-    print "\n";
-  }
-}' |
-awk '
-BEGIN{
-  ORS="";
-  OFS="";
-  getline line;
-  print line;
-  while (getline line) {
-    print "\n",line;
-  }
-}
+(cat ${1+"$@"}; echo '')                                         |
+awk '                                                            #
+BEGIN {                                                          #
+  # --- prepare                                                  #
+  OFS = "";                                                      #
+  ORS = "";                                                      #
+  # --- prepare encoding                                         #
+  for(i= 0;i<256;i++){c2p[sprintf("%c",i)]=sprintf("%%%02X",i);} #
+  c2p[" "]="'"$instead_of_spc"'";                                #
+  for(i=48;i< 58;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    } #
+  for(i=65;i< 91;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    } #
+  for(i=97;i<123;i++){c2p[sprintf("%c",i)]=sprintf("%c",i);    } #
+  c2p["-"]="-"; c2p["."]="."; c2p["_"]="_"; c2p["~"]="~";        #
+  # --- encode                                                   #
+  while (getline line) {                                         #
+    for (i=1; i<=length(line); i++) {                            #
+      print c2p[substr(line,i,1)];                               #
+    }                                                            #
+    print "\n";                                                  #
+  }                                                              #
+}'                                                               |
+awk '                                                            #
+BEGIN{                                                           #
+  ORS="";                                                        #
+  OFS="";                                                        #
+  getline line;                                                  #
+  print line;                                                    #
+  while (getline line) {                                         #
+    print "\n",line;                                             #
+  }                                                              #
+}                                                                #
 '
