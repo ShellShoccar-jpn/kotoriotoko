@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-06-28
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,12 +32,12 @@ print_usage_and_exit () {
 	          echo <tweet_message> | ${0##*/} [options]
 	Options : * Always Required
 	            -t <loginname> |--to=<loginname>
+	          * The following options are still ignored by the current API
 	            -f <media_file>|--file=<media_file>
 	            -m <media_id>  |--mediaid=<media_id>
-	          * The following options are still ignored by the current API
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-06-28 00:00:29 JST
+	Version : 2017-05-03 01:36:50 JST
 	USAGE
   exit 1
 }
@@ -157,12 +157,12 @@ while :; do
     -p)          place=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
-    --to=*)      msgto=$(printf '%s' "${1#--to=}" |
-                         tr -d '\n' | grep ^      )
+    --to=*)      msgto=$(printf '%s' "${1#--to=}"          |
+                         tr -d '\n' | grep ^ | sed 's/^@//')
                  shift
                  ;;
-    -t)          msgto=$(printf '%s' "${2:-}" |
-                         tr -d '\n' | grep ^  )
+    -t)          msgto=$(printf '%s' "${2:-}"              |
+                         tr -d '\n' | grep ^ | sed 's/^@//')
                  shift 2
                  ;;
     --rawout=*)  # for debug
@@ -189,7 +189,7 @@ done
 [ -n "$msgto" ] || {
   error_exit 1 '-t or --to option is always required, set that'
 }
-printf '%s\n' "$msgto" | grep -Eq '^@?[A-Za-z0-9_]{3,15}$' || {
+printf '%s\n' "$msgto" | grep -Eq '^[A-Za-z0-9_]+$' || {
   error_exit 1 'Invalid -t,--to option'
 }
 printf '%s\n' "$location" | grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+$' || {
@@ -198,21 +198,8 @@ printf '%s\n' "$location" | grep -Eq '^$|^-?[0-9.]+,-?[0-9.]+$' || {
 printf '%s\n' "$place" | grep -q '^[0-9a-f]*$' || {
   error_exit 1 'Invalid -p,--place option'
 }
-# --- Convert to User-ID if msgto is seemed a screen-name ------------
-case "$msgto" in *[!0-9]*)
-  msgto=$($Homedir/BIN/twusers.sh $msgto | self 2)
-  ([ $? -eq 0 ] && [ -n "$msgto" ]) || {
-    error_exit 1 'Cannot got the user-id of recipient'
-  }
-  ;;
-esac
-# --- If media-IDs are set, print it at first ------------------------
-case "$mediaids" in
-   '') :                                                                      ;;
-  *,*) echo "mid=$mediaids"
-       error_exit 1 'Only 1 media file or ID can be set by the API limitation';;
-    *) echo "mid=$mediaids"                                                   ;;
-esac
+# --- If media-ID is set, print it at first --------------------------
+[ -n "$mediaids" ] && echo "mid=$mediaids"
 
 # === Get direct message =============================================
 case $# in
@@ -227,8 +214,8 @@ case $# in
   *) case "$1" in '--') shift;; esac
      message="$*"
      ;;
-esac
-message=$(printf '%s\n' "$message" | sed '$!s/$/\\n/' | tr -d '\n')
+esac                                               # Escape 0x0A to 0x1E
+message=$(printf '%s' "$message" | tr '\n' '\036') #<temporarily
 
 
 ######################################################################
@@ -237,24 +224,31 @@ message=$(printf '%s\n' "$message" | sed '$!s/$/\\n/' | tr -d '\n')
 
 # === Set parameters of Twitter API endpoint =========================
 # (1)endpoint
-readonly API_endpt='https://api.twitter.com/1.1/direct_messages/events/new.json'
+readonly API_endpt='https://api.twitter.com/1.1/direct_messages/new.json'
 readonly API_methd='POST'
 # (2)parameters
-API_param=`cat <<-PARAM                                                       |
-			$.event.type message_create
-			$.event.message_create.target.recipient_id $msgto
-			$.event.message_create.message_data.text $message
-			$.event.message_create.message_data.attachment.type media
-			$.event.message_create.message_data.attachment.media.id $mediaids
-			PARAM
-           case "$mediaids" in                                                #
-             '') grep -Ev '^[^ ]+\.message_data\.attachment\.';;              #
-              *) cat                                          ;;              #
-           esac                                                               |
-           makrj.sh                                                           |
-           sed 's/^ \{1,\}//'                                                 |
-            tr -d '\n'                                                        `
+API_param=$(cat <<-PARAM                      |
+				screen_name=$msgto
+				text=$message
+				media_ids=$mediaids
+				lat=${location%,*}
+				long=${location#*,}
+				place_id=$place
+				PARAM
+            grep -v '^[A-Za-z0-9_]\{1,\}=$'   )
 readonly API_param
+
+# === Pack the parameters for the API ================================
+# --- 1.URL-encode only the right side of "="
+#       (note: This string is also used to generate OAuth 1.0 signature)
+apip_enc=$(printf '%s\n' "${API_param}" |
+           grep -v '^$'                 |
+           urlencode -r                 |
+           sed 's/%1[Ee]/%0A/g'         | # Unescape 0x1E to "%0A"
+           sed 's/%3[Dd]/=/'            )
+# --- 2.joint all lines with "&" (note: string for giving to the API)
+apip_pos=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               )
 
 # === Generate the signature string of OAuth 1.0 =====================
 # --- 1.a random string
@@ -279,6 +273,7 @@ oa_param=$(cat <<-OAUTHPARAM
 #        are formed a line like a CGI parameter of GET method)
 sig_param=$(cat <<-OAUTHPARAM  |
 				${oa_param}
+				${apip_enc}
 				OAUTHPARAM
             grep -v '^ *$'     |
             sort -k 1,1 -t '=' |
@@ -310,74 +305,89 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
 
 # === Access to the endpoint =========================================
 # --- 1.connect and get a response
-apires=$(printf '%s\noauth_signature=%s\n%s\n'                     \
-                "${oa_param}"                                      \
-                "${sig_strin}"                                     |
-         urlencode -r                                              |
-         sed 's/%3[Dd]/=/'                                         |
-         sort -k 1,1 -t '='                                        |
-         tr '\n' ','                                               |
-         grep ^                                                    |
-         sed 's/^,*//'                                             |
-         sed 's/,*$//'                                             |
-         sed 's/^/Authorization: OAuth /'                          |
-         while read -r oa_hdr; do                                  #
-           if   [ -n "${CMD_WGET:-}" ]; then                       #
-             [ -n "$timeout" ] && {                                #
-               timeout="--connect-timeout=$timeout"                #
-             }                                                     #
-             if type gunzip >/dev/null 2>&1; then                  #
-               comp='--header=Accept-Encoding: gzip'               #
-             else                                                  #
-               comp=''                                             #
-             fi                                                    #
-             "$CMD_WGET" ${no_cert_wget:-} -q -O -                 \
-                         --header="$oa_hdr"                        \
-                         --header='Content-type: application/json' \
-                         --post-data="$API_param"                  \
-                         $timeout "$comp"                          \
-                         "$API_endpt"                     |        #
-             if [ -n "$comp" ]; then gunzip; else cat; fi          #
-           elif [ -n "${CMD_CURL:-}" ]; then                       #
-             [ -n "$timeout" ] && {                                #
-               timeout="--connect-timeout $timeout"                #
-             }                                                     #
-             "$CMD_CURL" ${no_cert_curl:-} -s                      \
-                         $timeout --compressed                     \
-                         -H "$oa_hdr"                              \
-                         -H 'Content-type: application/json'       \
-                         -d "$API_param"                           \
-                         "$API_endpt"                              #
-           fi                                                      #
-         done                                                      |
-         if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then        #
-           grep ^ | sed 's/\\/\\\\/g'                              #
-         else                                                      #
-           cat                                                     #
-         fi                                                        )
+apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
+                "${oa_param}"                               \
+                "${sig_strin}"                              \
+                "${API_param}"                              |
+         urlencode -r                                       |
+         sed 's/%1[Ee]/%0A/g'                               | #<Unescape
+         sed 's/%3[Dd]/=/'                                  | # 0x1E
+         sort -k 1,1 -t '='                                 | # to "%0A"
+         tr '\n' ','                                        |
+         grep ^                                             |
+         sed 's/^,*//'                                      |
+         sed 's/,*$//'                                      |
+         sed 's/^/Authorization: OAuth /'                   |
+         while read -r oa_hdr; do                           #
+           if   [ -n "${CMD_WGET:-}" ]; then                #
+             [ -n "$timeout" ] && {                         #
+               timeout="--connect-timeout=$timeout"         #
+             }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
+             "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
+                         --header="$oa_hdr"                 \
+                         --post-data="$apip_pos"            \
+                         $timeout "$comp"                   \
+                         "$API_endpt"                     | #
+             if [ -n "$comp" ]; then gunzip; else cat; fi   #
+           elif [ -n "${CMD_CURL:-}" ]; then                #
+             [ -n "$timeout" ] && {                         #
+               timeout="--connect-timeout $timeout"         #
+             }                                              #
+             "$CMD_CURL" ${no_cert_curl:-} -s               \
+                         $timeout --compressed              \
+                         -H "$oa_hdr"                       \
+                         -d "$apip_pos"                     \
+                         "$API_endpt"                       #
+           fi                                               #
+         done                                               |
+         if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
+           grep ^ | sed 's/\\/\\\\/g'                       #
+         else                                               #
+           cat                                              #
+         fi                                                 )
 # --- 2.exit immediately if it failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === Parse the response =============================================
 # --- 1.extract the required parameters from the response (written in JSON)
-echo "$apires"                                                        |
-if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi   |
-parsrj.sh 2>/dev/null                                                 |
-sed 's/^\$\.event\.//'                                                |
-awk 'BEGIN                   {fid=0; fts=0;                        }  #
-     $1~/^id$/               {fid=1; sid=$2                       ;}  #
-     $1~/^created_timestamp$/{fts=1; sts=substr($2,1,length($2)-3);}  #
-     END                     {if(fid*fts) {print sts,sid;}         }' |
-# 1:timestamp(UNIX-time) 2:ID                                         #
-# --- 2.convert date string into "YYYYMMDDhhmmss"                     #
-calclock -r 1                                                         |
-# 1:timestamp(UNIX-time) 2:YYYYMMDDHHMMSS(local) 3:ID                 #
-# --- 3.print with the format "at=YYYY/MM/DD hh:mm:ss\nid=n\n"        #
-awk 'BEGIN {fmt="at=%s/%s/%s %s:%s:%s\nid=%s\n";                   }  #
-           {gsub(/[0-9][0-9]/,"& ",$2);sub(/ /,"",$2);split($2,t);    #
-            printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$3);          }' |
-# --- 4.regard as an error if no line was outputed                    #
-grep -v '=$'                                                          |
+echo "$apires"                                                       |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi  |
+parsrj.sh 2>/dev/null                                                |
+awk 'BEGIN                {fid=0; fca=0;                         }   #
+     $1~/^\$\.created_at$/{fca=1; sca=substr($0,index($0," ")+1);}   #
+     $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
+     END                  {if(fid*fca) {print sca,sid}           }'  |
+# 1:DayOfWeek 2:NameOfMonth 3:day 4:HH:MM:SS 5:delta(local-UTC)      #
+# 6:year 7:ID                                                        #
+# --- 2.convert date string into "YYYY/MM/DD hh:mm:ss"               #
+awk 'BEGIN                                                        {  #
+       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
+       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #
+       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";}  #
+     /^[A-Z]/                                                     {  #
+       t=$4;                                                         #
+       gsub(/:/,"",t);                                               #
+       d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);       #
+       d*=1;                                                         #
+       printf("%04d%02d%02d%s %s %s\n",$6,m[$2],$3,t,d,$7);       }' |
+# 1:YYYYMMDDHHMMSS 2:delta(local-UTC) 3:ID                           #
+TZ=UTC+0 calclock 1                                                  |
+# 1:YYYYMMDDHHMMSS 2:UNIX-time 3:delta(local-UTC) 4:ID               #
+awk '{print $2-$3,$4;}'                                              |
+# 1::UNIX-time(adjusted) 2:ID                                        #
+calclock -r 1                                                        |
+# 1::UNIX-time(adjusted) 2:localtime 3:ID                            #
+self 2 3                                                             |
+# 1:localtime 2:ID                                                   #
+awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
+           {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
+            printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
+# --- 3.regard as an error if no line was outputed                   #
 awk '{print;} END{exit 1-(NR>0);}'
 
 # === Print error message if some error occured ======================
