@@ -202,6 +202,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- twunfollow.sh ........ Finish Following A User
 |   |-- twfer.sh ............. List Followers Of A Person
 |   |-- twfing.sh ............ List Following Users Of A Person
+|   |-- twusers.sh ........... List Users Which Are Request By IDs
 |   |
 |   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
 |   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
