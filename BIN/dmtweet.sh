@@ -32,12 +32,13 @@ print_usage_and_exit () {
 	          echo <tweet_message> | ${0##*/} [options]
 	Options : * Always Required
 	            -t <loginname> |--to=<loginname>
+	          * The following options can be used only any one of them at a time
+	            due to the API restriction
 	            -f <media_file>|--file=<media_file>
 	            -m <media_id>  |--mediaid=<media_id>
-	          * The following options are still ignored by the current API
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-06-28 00:00:29 JST
+	Version : 2017-06-28 22:04:36 JST
 	USAGE
   exit 1
 }
@@ -85,11 +86,16 @@ msgto=''
 mediaids=''
 rawoutputfile=''
 timeout=''
+attached=0
 
 # === Read options ===================================================
 while :; do
   case "${1:-}" in
-    --file=*)    [ -x "$Homedir/BIN/twmediup.sh" ] || {
+    --file=*)    case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 [ -x "$Homedir/BIN/twmediup.sh" ] || {
                    error_exit 1 'twmediup.sh command is required, but not found'
                  }
                  s=$(printf '%s' "${1#--file=}")
@@ -108,7 +114,11 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift
                  ;;
-    -f)          [ -x "$Homedir/BIN/twmediup.sh" ] || {
+    -f)          case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 [ -x "$Homedir/BIN/twmediup.sh" ] || {
                    error_exit 1 'twmediup.sh command is required, but not found'
                  }
                  s=$(printf '%s' "${2:-}")
@@ -127,13 +137,25 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift 2
                  ;;
-    --location=*) location=$(printf '%s' "${1#--location=}" | tr -d '\n')
+    --location=*) case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 location=$(printf '%s' "${1#--location=}" | tr -d '\n')
                  shift
                  ;;
-    -l)          location=$(printf '%s' "${2:-}" | tr -d '\n')
+    -l)          case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 location=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
-    --mediaid=*) s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
+    --mediaid=*) case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
                  printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
                    error_exit 1 'Invalid --mediaid option'
                  }
@@ -142,7 +164,11 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift
                  ;;
-    -m)          s=$(printf '%s' "${2:-}" | tr -d '\n')
+    -m)          case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 s=$(printf '%s' "${2:-}" | tr -d '\n')
                  printf '%s\n' "$s" | grep -q '^[0-9,]\{1,\}$' || {
                    error_exit 1 'Invalid -m option'
                  }
@@ -151,10 +177,18 @@ while :; do
                             sed 's/,,*/,/'        )
                  shift 2
                  ;;
-    --place=*)   place=$(printf '%s' "${1#--place=}" | tr -d '\n')
+    --place=*)   case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 place=$(printf '%s' "${1#--place=}" | tr -d '\n')
                  shift
                  ;;
-    -p)          place=$(printf '%s' "${2:-}" | tr -d '\n')
+    -p)          case $attached in [!0]*)
+                   error_exit 1 'You can use the options only once at a time';;
+                 esac
+                 attached=1
+                 place=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
     --to=*)      msgto=$(printf '%s' "${1#--to=}" |
@@ -208,10 +242,8 @@ case "$msgto" in *[!0-9]*)
 esac
 # --- If media-IDs are set, print it at first ------------------------
 case "$mediaids" in
-   '') :                                                                      ;;
-  *,*) echo "mid=$mediaids"
-       error_exit 1 'Only 1 media file or ID can be set by the API limitation';;
-    *) echo "mid=$mediaids"                                                   ;;
+   '') :                   ;;
+    *) echo "mid=$mediaids";;
 esac
 
 # === Get direct message =============================================
@@ -241,16 +273,41 @@ readonly API_endpt='https://api.twitter.com/1.1/direct_messages/events/new.json'
 readonly API_methd='POST'
 # (2)parameters
 API_param=`cat <<-PARAM                                                       |
-			$.event.type message_create
+			$.event.type "message_create"
 			$.event.message_create.target.recipient_id $msgto
-			$.event.message_create.message_data.text $message
-			$.event.message_create.message_data.attachment.type media
+			$.event.message_create.message_data.text "$message"
+			### BEGIN ATTACHED FILE SECTION ###
+			$.event.message_create.message_data.attachment.type "media"
 			$.event.message_create.message_data.attachment.media.id $mediaids
+			### END ATTACHED FILE SECTION ###
+			### BEGIN ATTACHED COORDINATES SECTION ###
+			$.event.message_create.message_data.attachment.type "location"
+			$.event.message_create.message_data.attachment.location.type "shared_coordinate"
+			$.event.message_create.message_data.attachment.location.shared_coordinate.coordinates.type "Point"
+			$.event.message_create.message_data.attachment.location.shared_coordinate.coordinates.coordinates[0] ${location#*,}
+			$.event.message_create.message_data.attachment.location.shared_coordinate.coordinates.coordinates[1] ${location%,*}
+			### END ATTACHED COORDINATES SECTION ###
+			### BEGIN ATTACHED PLACE INFO SECTION ###
+			$.event.message_create.message_data.attachment.type "location"
+			$.event.message_create.message_data.attachment.location.type "shared_place"
+			$.event.message_create.message_data.attachment.location.shared_place.place.id "$place"
+			### END ATTACHED PLACE INFO SECTION ###
 			PARAM
-           case "$mediaids" in                                                #
-             '') grep -Ev '^[^ ]+\.message_data\.attachment\.';;              #
-              *) cat                                          ;;              #
-           esac                                                               |
+           if   [ -n "$mediaids" ]; then
+             sed '/^### BEGIN ATTACHED COO/,/^### END ATTACHED COO/d' |
+             sed '/^### BEGIN ATTACHED PLA/,/^### END ATTACHED PLA/d' |
+             grep -v '^#'
+           elif [ -n "$location" ]; then
+             sed '/^### BEGIN ATTACHED FIL/,/^### END ATTACHED FIL/d' |
+             sed '/^### BEGIN ATTACHED PLA/,/^### END ATTACHED PLA/d' |
+             grep -v '^#'
+           elif [ -n "$place"    ]; then
+             sed '/^### BEGIN ATTACHED COO/,/^### END ATTACHED COO/d' |
+             sed '/^### BEGIN ATTACHED FIL/,/^### END ATTACHED FIL/d' |
+             grep -v '^#'
+           else
+             sed '/^### BEGIN /,$d'
+           fi                                                                 |
            makrj.sh                                                           |
            sed 's/^ \{1,\}//'                                                 |
             tr -d '\n'                                                        `
