@@ -17,19 +17,22 @@ Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operate
 And Kotoriotoko commands provide a lot of the following functions.
 
 * Posting
-  * Tweet (*you can also attach up to 4 image files or 1 video file*)
+  * Tweet (*you can also attach up to 4 image files or 1 video file and location info*)
   * Retweet
   * Cancel a tweet
-  * Like / Unlike
+  * Like
+  * Unlike
 * Tweets Viewing
   * View Somebody's timeline
   * Search tweets by keywords (you can also search with [**Streaming API**](https://dev.twitter.com/streaming/overview))
-* Following
+* User Controlling
   * Follow somebody
   * Unfollow somebody
-  * List users who you following or you are followed
+  * List users who you following
+  * List users who you are followed
+  * View Somebody's info
 * Direct Message Managing
-  * Send
+  * Send (*up to 10,000 chrs, and you can also attach 1 image/video file or location info*)
   * Receive
   * Delete
   * List
