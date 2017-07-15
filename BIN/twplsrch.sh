@@ -4,7 +4,7 @@
 #
 # TWPLSRCH.SH : Search Place Information Which Match With Given Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-15
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	          -w <place_ID>         |--containedwithin=<place_ID>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-05-03 01:36:50 JST
+	Version : 2017-07-15 12:14:57 JST
 	USAGE
   exit 1
 }
@@ -112,7 +112,7 @@ while [ $# -gt 0 ]; do
                  granularity=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
-    --ip=*)      ipaddr=$(printf '%s' "${1#--ipaddr=}" | tr -d '\n')
+    --ipaddr=*)  ipaddr=$(printf '%s' "${1#--ipaddr=}" | tr -d '\n')
                  shift
                  ;;
     -i)          case $# in 1) error_exit 1 'Invalid -i option';; esac
