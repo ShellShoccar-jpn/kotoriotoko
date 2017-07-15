@@ -35,7 +35,7 @@ print_usage_and_exit () {
 	          -e <label>, --exclude=<label>
 	            * If you set "hashtags" to <label>, it will not contain
 	              any hashtags in the trend list
-	Version : 2017-07-15 20:00:17 JST
+	Version : 2017-07-15 23:44:49 JST
 	USAGE
   exit 1
 }
@@ -306,9 +306,6 @@ case $woeid in '')
 # === END THIS SECTION ===============================================
 ;; esac
 
-# === Print the WOEID ================================================
-echo "woeid=$woeid"
-
 
 ######################################################################
 # Main Routine
@@ -446,28 +443,31 @@ if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000'                                                                  |
-grep -E 'created_at|name|tweet_volume'                                        |
+grep -E 'created_at|name|tweet_volume|woeid'                                  |
 sed 's/^[^.]*.//'                                                             |
 sed '/^trends/s/^trends\[\([0-9]*\)\]\./\1 /'                                 |
 awk -v printtimes=$printtimes '                                               #
      BEGIN             {n= 0; split("",nam); split("",vol);        }          #
-     $1!=n             {n=$1;                                      }          #
-     $2=="name"        {nam[n]=substr($0,length($1 $2)+3);    next;}          #
-     $2=="tweet_volume"{vol[n]=($3!="null")?$3:"-";           next;}          #
+     $1~/\.name$/      {nm=$2;                                next;}          #
+     $1~/\.woeid$/     {id=$2;                                next;}          #
      $1=="created_at"  {ts=$2; gsub(/[^0-9]/,"",ts);          next;}          #
-     END               {print ts;                                             #
+     $1!~/^[0-9]+$/    {                                      next;}          #
+     $2=="name"        {nam[$1]=substr($0,length($1 $2)+3);   next;}          #
+     $2=="tweet_volume"{vol[$1]=($3!="null")?$3:"-";          next;}          #
+     END               {printf("%s\n%s\n%s\n",nm,id,ts);                      #
                         if (printtimes==0) {                                  #
-                          for(n=0; (n in nam); n++) {                         #
-                            printf("%s\n",nam[n]);                            #
+                          for(i=0; (i in nam); i++) {                         #
+                            printf("%s\n",nam[i]);                            #
                           }                                                   #
                         } else {                                              #
-                          for(n=0; (n in nam); n++) {                         #
-                            printf("%-7s %s\n",vol[n],nam[n]);                #
+                          for(i=0; (i in nam); i++) {                         #
+                            printf("%-7s %s\n",vol[i],nam[i]);                #
                           }                                                   #
                         }                                          }'         |
-# --- 2.convert and printf the 1st line, which means the trend generated time #
-{ read ts;                                  #                                 #
-  echo $ts                                | #                                 #
+# --- 2.convert and printf the 3rd line, which means the trend generated time #
+{ IFS= read -r name ; echo "name=$name"     #                                 #
+  IFS= read -r woeid; echo "woeid=$woeid"   #                                 #
+  IFS= read -r ts   ; echo "$ts"          | #                                 #
   TZ=UTC+0 calclock 1                     | #                                 #
   calclock -r 2                           | #                                 #
   self 3                                  | #                                 #
