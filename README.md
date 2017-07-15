@@ -37,6 +37,7 @@ And Kotoriotoko commands provide a lot of the following functions.
   * Delete
   * List
 * Other functions
+  * View trend list
   * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
 
 Moreover, Kotoriotoko has more the following three strong points.
@@ -219,6 +220,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |                          *4 No access limit but for only English tweets
 |   |
 |   |-- twplsrch.sh .......... Search Place Information Which Match With Given Keywords
+|   |-- twtrends.sh .......... View Trend Lists in The Specified Area
 |   |
 |   |-- dmtweet.sh ........... Post A Direct Message
 |   |-- deldmtw.sh ........... Delete A Direct Message
