@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-06-28
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-16
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -38,7 +38,7 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-06-28 22:04:36 JST
+	Version : 2017-07-16 00:58:37 JST
 	USAGE
   exit 1
 }
@@ -260,7 +260,14 @@ case $# in
      message="$*"
      ;;
 esac
-message=$(printf '%s\n' "$message" | sed '$!s/$/\\n/' | tr -d '\n')
+message=$(printf '%s\n' "$message"       |
+          sed 's@["/\]@\\&@g'            |
+          sed "s/$(printf '\b')/\\\\b/g" |
+          sed "s/$(printf '\f')/\\\\f/g" |
+          sed "s/$(printf '\r')/\\\\r/g" |
+          sed "s/$(printf '\t')/\\\\t/g" |
+          sed '$!s/$/\\n/'               |
+          tr -d '\n'                     )
 
 
 ######################################################################
