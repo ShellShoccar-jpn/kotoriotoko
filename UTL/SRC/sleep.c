@@ -8,7 +8,7 @@
 #                      non-integer number here.
 # Retuen  : Return 0 only when succeeded to sleep
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-11
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -43,7 +43,7 @@ void print_usage_and_exit(void) {
   WRN("                     give not only an integer number but also a\n"     );
   WRN("                     non-integer number here.\n"                       );
   WRN("Retuen  : Return 0 only when succeeded to sleep\n"                     );
-  WRN("Version : 2017-05-11 06:22:12 JST\n"                                   );
+  WRN("Version : 2017-07-18 00:23:25 JST\n"                                   );
   WRN("          (POSIX C language)\n"                                        );
   exit(1);
 }

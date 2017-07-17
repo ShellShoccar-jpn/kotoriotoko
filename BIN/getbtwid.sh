@@ -6,7 +6,7 @@
 #               (It is requiered by btw*.sh commands, which are to get
 #                tweets in shorter interval)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -24,6 +24,7 @@
 set -u
 umask 0022
 export LC_ALL=C
+type getconf >/dev/null 2>&1 &&
 export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
@@ -35,7 +36,7 @@ print_usage_and_exit () {
 	              before execute this command.
 	              * MY_apikey
 	              * MY_apisec
-	Version     : 2017-05-03 01:36:50 JST
+	Version     : 2017-07-18 00:23:25 JST
 	USAGE
   exit 1
 }
@@ -133,16 +134,16 @@ if   [ -n "${CMD_WGET:-}" ]; then
              cat                                              #
            fi                                                 )
 elif [ -n "${CMD_CURL:-}" ]; then
-  apires=$("$CMD_CURL" ${no_cert_curl:-} -s --compressed      \
-                       -H "$HDR_auth"                         \
-                       -H "$HDR_ctype"                        \
-                       -d "$POS_gtype"                        \
-                       "$API_endpt"                           |
-           if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-             grep ^ | sed 's/\\/\\\\/g'                       #
-           else                                               #
-             cat                                              #
-           fi                                                 )
+  apires=$("$CMD_CURL" ${no_cert_curl:-} -s ${curl_comp_opt:-} \
+                       -H "$HDR_auth"                          \
+                       -H "$HDR_ctype"                         \
+                       -d "$POS_gtype"                         \
+                       "$API_endpt"                            |
+           if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then  #
+             grep ^ | sed 's/\\/\\\\/g'                        #
+           else                                                #
+             cat                                               #
+           fi                                                  )
 fi
 
 # === Exit immediately if it failed to access ========================

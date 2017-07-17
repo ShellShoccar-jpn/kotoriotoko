@@ -57,6 +57,7 @@ Kotoriotoko works on various OSs. Even though it doesn't use OS-specialized code
 * Solaris (11.3)
 * AIX (7.1)
 * HP-UX (11i v3)
+* OpenWrt (Barrier Breaker/14.07)
 
 ### (2) Easy to Install
 

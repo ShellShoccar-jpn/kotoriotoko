@@ -23,7 +23,7 @@
 #   * If the following headers is omitted, inserted by this function.
 #     "Content-Type:", "Content-Transfer-Encoding:", "MIME-Version:"
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -51,7 +51,7 @@ print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <mailfile>
 	Args    : <mailfile> ... Text data as a e-mail
-	Version : 2017-05-03 01:36:50 JST
+	Version : 2017-07-18 00:23:25 JST
 	          (POSIX Bourne Shell/POSIX commands/sendmail command/UTF-8)
 	USAGE
   exit 1
@@ -237,7 +237,7 @@ case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 # Main Routine
 ######################################################################
 
-# ===== CONVERT AND SEND =============================================
+# ===== Convert the header ===========================================
 ct=0   # be set to 1 if the mail text has "Content-Type:" header
 ct_m=0 # be set to 1 if the mail text has "Content-Type: multipart/*" header
 cte=0  # be set to 1 if the mail text has "Content-Transfer-Encoding:" header
@@ -245,126 +245,167 @@ mv=0   # be set to 1 if the mail text has "MIME-Version:" header
 IFS='
 '
 mode=''
-cat ${file:+"$file"}                                                           |
-while read -r line; do                                                         #
-  case "$line" in                                                              #
-    '')                                mode='endh'               ;;            #
-    From:*|To:*|Cc:*|Bcc:*|Reply-To:*) mode='addr'               ;;            #
-    Subject:*)                         mode='subj'               ;;            #
-    "$TAB"*|' '*)                                                ;;            #
-    Content-Type:*multipart/*)         mode='othr';  ct=1; ct_m=1;;            #
-    Content-Type:*)                    mode='othr';  ct=1        ;;            #
-    Content-Transfer-Encoding:*)       mode='othr'; cte=1        ;;            #
-    MIME-Version:*)                    mode='othr';  mv=1        ;;            #
-    *)                                 mode='othr'               ;;            #
-  esac                                                                         #
-  #                                                                            #
-  case "$mode" in                                                              #
-    # --- Subject header processing ----------------------------------         #
-    'subj')                                                                    #
-      # 0) check whether converting is required or not                         #
-      printf '%s\n' "$line" | grep "^[${TAB} -~]\\{1,\\}\$" && continue        #
-      # 1) print the label of the header (header name)                         #
-      printf '%s\n' "$line"                        |                           #
-      sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                           #
-      tr -d '\n'                                                               #
-      # 2) convert and print header of the after part                          #
-      printf '%s\n' "$line"        |                                           #
-      sed "s/^[^$TAB ]*[$TAB ]*//" |                                           #
-      cutstr_by_bytes 42           |                                           #
-      while read -r str; do        #                                           #
-        printf '%s' "${str}" |     #                                           #
-        base64 --wrap=0      |     #                                           #
-        grep '^'                   #                                           #
-      done                         |                                           #
-      sed 's/.*/=?UTF-8?B?&?=/'    |                                           #
-      sed '1!s/^/'"$TAB"'/'                                                    #
-      ;;                                                                       #
-    # --- address header (From, To, Cc, Bcc, Reply-To) processing ----         #
-    'addr')                                                                    #
-      # 0) check whether converting is required or not                         #
-      printf '%s\n' "$line" | grep "^[${TAB} -~]\\{1,\\}\$" && continue        #
-      # 1) print the label of the header (header name)                         #
-      printf '%s\n' "$line"                        |                           #
-      sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                           #
-      tr -d '\n'                                                               #
-      # 2) convert and print header of the after part                          #
-      firstloop1=1                                                             #
-      printf '%s\n' "$line"                                      |             #
-      sed "s/^[^$TAB ]*[$TAB ]*//"                               |             #
-      sed "s/\"/$LFs\"$LFs/g"                                    |             #
-      awk 'BEGIN{attr = "RAW:";                               }  #             #
-           /^"/ {attr = (attr=="RAW:") ? "ESC:" : "RAW:";next;}  #             #
-                {print attr $0;                               }' |             #
-      sed "/^ESC:/s/,/$ACK/g"                                    |             #
-      sed "/^ESC:/s/;/$NAK/g"                                    |             #
-      sed 's/^....//'                                            |             #
-      tr '\n' '"'                                                |             #
-      grep ''                                                    |             #
-      sed 's/"$//'                                               |             #
-      sed "s/\\([,;]\\)/\\1$LFs/g"                               |             #
-      sed 's/^['"$TAB"' ]\{1,\}//'                               |             #
-      grep -v '^$'                                               |             #
-      tr "$ACK$NAK" ',;'                                         |             #
-      while read -r str1; do                                                   #
-        case "$firstloop1" in 1) firstloop1=0;; 0) printf '\t';; esac          #
-        printf '%s\n' "$str1" |                                                #
-        grep -E "^[$TAB ]*<?[!-?A-~]+@[A-Za-z0-9][A-Za-z0-9.-]+[A-Za-z0-9]>?[$TAB ]*,?[$TAB ]*$" &&
-        continue                                                               #
-        printf '%s\n' "$str1"                            |                     #
-        sed "s/[$TAB ]*<\\{0,1\\}[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>\\{0,1\\}[$TAB ]*,\\{0,1\\}[$TAB ]*\$//" |
-        sed 's/^[^'"$TAB"' ]*"\(.*\)"[^'"$TAB"' ]*$/\1/' |                     #
-        cutstr_by_bytes 30                               |                     #
-        while read -r str2; do                           #                     #
-          printf '%s' "${str2}" |                        #                     #
-          base64 --wrap=0       |                        #                     #
-          grep ''                                        #                     #
-        done                                             |                     #
-        sed 's/.*/=?UTF-8?B?&?=/'                        |                     #
-        sed '1!s/^/'"$TAB"'/'                            |                     #
-        tr '\n' "$ACK"                                   |                     #
-        grep ''                                          |                     #
-        sed "s/$ACK\$//"                                 |                     #
-        tr -d '\n'                                       |                     #
-        tr "$ACK" '\n'                                                         #
-        printf '%s\n' "$str1" |                                                #
-        sed "s/\\([$TAB ]*<\\{0,1\\}[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>\\{0,1\\}[$TAB ]*,\\{0,1\\}[$TAB ]*\\)\$/$ACK\\1/" |
-        sed "s/^.*$ACK//"                                                      #
-      done                                                                     #
-      ;;                                                                       #
-    # --- another header processing ----------------------------------         #
-    'othr')                                                                    #
-      printf '%s\n' "$line"                                                    #
-      ;;                                                                       #
-    # --- routine after the end of the header part -------------------         #
-    'endh')                                                                    #
-      # 1) print headers which are printed yet                                 #
-      case $ct  in                                                             #
-        '0') echo 'Content-Type: text/plain;charset="UTF-8"';;                 #
-      esac                                                                     #
-      case "$((cte+ct_m))" in                                                  #
-        '0') echo 'Content-Transfer-Encoding: base64'       ;;                 #
-      esac                                                                     #
-      case $mv  in                                                             #
-        '0') echo 'MIME-Version: 1.0'                       ;;                 #
-      esac                                                                     #
-      # 2) print a blank line, which means a boundary between header and body  #
-      echo                                                                     #
-      # 3) print the body part                                                 #
-      case "$((cte+ct_m))" in                                                  #
-        0) grep ''                   | # For the mailbody text,                #
-           sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>            #
-           sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line              #
-           base64 --wrap=76         ;;                                         #
-        *) cat                      ;;                                         #
-      esac                                                                     #
-      ;;                                                                       #
-    # --- when a invalid header line is given ------------------------         #
-    '')                                                                        #
-      printf '%s\n' "${0##*/}: Invalid header part" 1>&2                       #
-      cat >/dev/nulll                                                          #
-      CMD_SENDMAIL=':'                                                         #
-      ;;                                                                       #
-  esac                                                                         #
-done                                                                           |
-"$CMD_SENDMAIL" -i -t
+case "$file" in '') :;; *) exec <"$file";; esac
+s=`f=''                                                                        #
+   while read -r line; do                                                      #
+     case "$line" in                                                           #
+       '')                                mode='endh'               ;;         #
+       To:*|Cc:*|Bcc:*|Reply-To:*)        mode='addr'               ;;         #
+       From:*)                            mode='addrF'              ;;         #
+       Subject:*)                         mode='subj'               ;;         #
+       "$TAB"*|' '*)                                                ;;         #
+       Content-Type:*multipart/*)         mode='othr';  ct=1; ct_m=1;;         #
+       Content-Type:*)                    mode='othr';  ct=1        ;;         #
+       Content-Transfer-Encoding:*)       mode='othr'; cte=1        ;;         #
+       MIME-Version:*)                    mode='othr';  mv=1        ;;         #
+       *)                                 mode='othr'               ;;         #
+     esac                                                                      #
+     #                                                                         #
+     case "$mode" in                                                           #
+       # --- Subject header processing ----------------------------------      #
+       'subj')                                                                 #
+         # 0) check whether converting is required or not                      #
+         printf '%s\n' "$line" | grep "^[${TAB} -~]\\{1,\\}\$" && continue     #
+         # 1) print the label of the header (header name)                      #
+         printf '%s\n' "$line"                        |                        #
+         sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' |                        #
+         tr -d '\n'                                                            #
+         # 2) convert and print header of the after part                       #
+         printf '%s\n' "$line"        |                                        #
+         sed "s/^[^$TAB ]*[$TAB ]*//" |                                        #
+         cutstr_by_bytes 42           |                                        #
+         while read -r str; do        #                                        #
+           printf '%s' "${str}" |     #                                        #
+           base64 --wrap=0      |     #                                        #
+           grep '^'                   #                                        #
+         done                         |                                        #
+         sed 's/.*/=?UTF-8?B?&?=/'    |                                        #
+         sed '1!s/^/'"$TAB"'/'                                                 #
+         ;;                                                                    #
+       # --- address header (From, To, Cc, Bcc, Reply-To) processing ----      #
+       'addr'*)                                                                #
+         # 0) print the label of the header (header name)                      #
+         hdrlabel=$(printf '%s\n' "$line"                        |             #
+                    sed 's/^\([^'"$TAB"' ]*['"$TAB"' ]*\).*/\1/' )             #
+         printf '%s' "$hdrlabel"                                               #
+         # 1) check whether converting is required or not                      #
+         h=$(printf '%s\n' "$line"                |                            #
+             sed 's/^[^'"$TAB"' ]*['"$TAB"' ]*//' |                            #
+             grep "^[${TAB} -~]\\{1,\\}\$"        )                            #
+         case "$h" in                                                          #
+           '') :                                                               #
+               ;;                                                              #
+            *) printf '%s\n' "$h";                                             #
+               case "$mode" in 'addrF') f="$f$ACK$h";; esac                    #
+               continue                                                        #
+               ;;                                                              #
+         esac                                                                  #
+         # 2) convert and print the follwing part in the header                #
+         h=$(indent=''                                                  #      #
+             printf '%s\n' "$line"                                      |      #
+             sed "s/^[^$TAB ]*[$TAB ]*//"                               |      #
+             sed "s/\"/$LFs\"$LFs/g"                                    |      #
+             awk 'BEGIN{attr = "RAW:";                               }  #      #
+                  /^"/ {attr = (attr=="RAW:") ? "ESC:" : "RAW:";next;}  #      #
+                       {print attr $0;                               }' |      #
+             sed "/^ESC:/s/,/$ACK/g"                                    |      #
+             sed "/^ESC:/s/;/$NAK/g"                                    |      #
+             sed 's/^....//'                                            |      #
+             tr '\n' '"'                                                |      #
+             grep ''                                                    |      #
+             sed 's/"$//'                                               |      #
+             sed "s/\\([,;]\\)/\\1$LFs/g"                               |      #
+             sed 's/^['"$TAB"' ]\{1,\}//'                               |      #
+             grep -v '^$'                                               |      #
+             tr "$ACK$NAK" ',;'                                         |      #
+             while read -r str1; do                                     #      #
+               printf "$indent"; indent=${TAB}                          #      #
+               printf '%s\n' "$str1" |                                  #      #
+               grep -E "^[$TAB ]*<?[!-?A-~]+@[A-Za-z0-9][A-Za-z0-9.-]+[A-Za-z0-9]>?[$TAB ]*,?[$TAB ]*\$" && continue # #
+               printf '%s\n' "$str1"                            |       #      #
+               sed "s/[$TAB ]*<\\{0,1\\}[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>\\{0,1\\}[$TAB ]*,\\{0,1\\}[$TAB ]*\$//" | # #
+               sed 's/^[^'"$TAB"' ]*"\(.*\)"[^'"$TAB"' ]*$/\1/' |       #      #
+               cutstr_by_bytes 30                               |       #      #
+               while read -r str2; do                           #       #      #
+                 printf '%s' "${str2}" |                        #       #      #
+                 base64 --wrap=0       |                        #       #      #
+                 grep ''                                        #       #      #
+               done                                             |       #      #
+               sed 's/.*/=?UTF-8?B?&?=/'                        |       #      #
+               sed '1!s/^/'"$TAB"'/'                            |       #      #
+               tr '\n' "$ACK"                                   |       #      #
+               grep ''                                          |       #      #
+               sed "s/$ACK\$//"                                 |       #      #
+               tr -d '\n'                                       |       #      #
+               tr "$ACK" '\n'                                           #      #
+               printf '%s\n' "$str1" |                                  #      #
+               sed "s/\\([$TAB ]*<\\{0,1\\}[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>\\{0,1\\}[$TAB ]*,\\{0,1\\}[$TAB ]*\\)\$/$ACK\\1/" | # #
+               sed "s/^.*$ACK//"                                        #      #
+             done                                                       )      #
+         printf '%s\n' "$h"                                                    #
+         case "$mode" in 'addrF') f="$f$ACK$h";; esac                          #
+         ;;                                                                    #
+       # --- another header processing ----------------------------------      #
+       'othr')                                                                 #
+         printf '%s\n' "$line"                                                 #
+         ;;                                                                    #
+       # --- routine after the end of the header part -------------------      #
+       'endh')                                                                 #
+         # 1) print headers which are printed yet                              #
+         case $ct  in                                                          #
+           '0') echo 'Content-Type: text/plain;charset="UTF-8"';;              #
+         esac                                                                  #
+         case "$((cte+ct_m))" in                                               #
+           '0') echo 'Content-Transfer-Encoding: base64'       ;;              #
+         esac                                                                  #
+         case $mv  in                                                          #
+           '0') echo 'MIME-Version: 1.0'                       ;;              #
+         esac                                                                  #
+         # 2) print a blank line, which means a boundary between header & body #
+         echo                                                                  #
+         # 3) Exit the header processing loop                                  #
+         break                                                                 #
+         ;;                                                                    #
+       # --- when a invalid header line is given ------------------------      #
+       '')                                                                     #
+         printf '%s\n' "${0##*/}: Invalid header part" 1>&2                    #
+         cat >/dev/nulll                                                       #
+         CMD_SENDMAIL=':'                                                      #
+         ;;                                                                    #
+     esac                                                                      #
+   done                                                                        #
+   # --- attach "From:" header value after the header section with only 1 line #
+   printf '_%s\n' "$f" | tr '\n' "$ACK"                                        `
+
+
+# ===== Send the mail ================================================
+# --- take out the "From:" header value  -----------------------------
+addr=$(printf '%s\n' "$s" |
+       tail -n 1          |
+       sed 's/^_//'       |
+       sed "s/[$TAB ]*<\\{0,1\\}\\([!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]\\)>\\{0,1\\}.*\$/$ACK\\1/" |
+       sed "s/^.*$ACK//"  )
+name=$(printf '%s\n' "$s" |
+       tail -n 1          |
+       sed 's/^_//'       |
+       tr "$ACK" ' '      |
+       sed "s/[$TAB ]*//" |
+       sed "s/[$TAB ]*<[!-?A-~]\\{1,\\}@[A-Za-z0-9][A-Za-z0-9.-]\\{1,\\}[A-Za-z0-9]>[$TAB ]*\$//" |
+       tr -d "$TAB"       )
+#
+# --- send -----------------------------------------------------------
+{                                                                       #
+  printf '%s\n' "$s" | sed '$d'                                         #
+  case "$((cte+ct_m))" in                                               #
+    0) grep ''                   | # For the mailbody text,             #
+       sed "/^\$/s/\$/$CR/"      | # it must be always put <CR>         #
+       sed "/[^$CR]\$/s/\$/$CR/" | # on the end of every line           #
+       base64 --wrap=76         ;;                                      #
+    *) cat                      ;;                                      #
+  esac                                                                  #
+}                                                                       |
+case "$addr$ACK$name" in
+  $ACK*) "$CMD_SENDMAIL"                     -i -t;;
+  *$ACK) "$CMD_SENDMAIL" -f"$addr"           -i -t;;
+      *) "$CMD_SENDMAIL" -f"$addr" -F"$name" -i -t;;
+esac

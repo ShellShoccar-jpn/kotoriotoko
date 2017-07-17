@@ -22,6 +22,12 @@
 #no_cert_curl='-k'
 #no_cert_wget='--no-check-certificate'
 
+# === If curl command on your environment does not support ===========
+#     "--compress" option, comment out the following line.
+#     (It has been reported the following OS's curl doesn't surpport.
+#      OpenWrt, LEDE)
+curl_comp_opt='--compressed'
+
 
 ######################################################################
 # Configurations For Authorizing Kotoriotoko

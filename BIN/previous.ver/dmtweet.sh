@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-05-03
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -22,6 +22,7 @@
 set -u
 umask 0022
 export LC_ALL=C
+type getconf >/dev/null 2>&1 &&
 export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
@@ -37,7 +38,7 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-05-03 01:36:50 JST
+	Version : 2017-07-18 00:23:25 JST
 	USAGE
   exit 1
 }
@@ -252,7 +253,7 @@ apip_pos=$(printf '%s' "${apip_enc}" |
 
 # === Generate the signature string of OAuth 1.0 =====================
 # --- 1.a random string
-randmstr=$("$CMD_OSSL" rand 8 | od -A n -t x4 -v | sed 's/[^0-9a-fA-F]//g')
+randmstr=$("$CMD_OSSL" rand 8 | "$CMD_OSSL" md5 | sed 's/.*\(.\{16\}\)$/\1/')
 # --- 2.the current UNIX time
 nowutime=$(date '+%Y%m%d%H%M%S' |
            calclock 1           |
@@ -339,7 +340,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
                timeout="--connect-timeout $timeout"         #
              }                                              #
              "$CMD_CURL" ${no_cert_curl:-} -s               \
-                         $timeout --compressed              \
+                         $timeout ${curl_comp_opt:-}        \
                          -H "$oa_hdr"                       \
                          -d "$apip_pos"                     \
                          "$API_endpt"                       #
