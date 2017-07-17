@@ -22,7 +22,7 @@
 set -u
 umask 0022
 export LC_ALL=C
-type getconf >/dev/null 2>&1 &&
+type command >/dev/null 2>&1 && type getconf >/dev/null 2>&1 &&
 export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
@@ -30,7 +30,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n <count>|--count=<count>] [loginname]
-	Version : 2017-07-18 00:23:25 JST
+	Version : 2017-07-18 02:39:39 JST
 	USAGE
   exit 1
 }

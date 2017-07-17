@@ -64,7 +64,7 @@
 # === Initialize shell environment ===================================
 set -eu
 export LC_ALL=C
-type getconf >/dev/null 2>&1 &&
+type command >/dev/null 2>&1 && type getconf >/dev/null 2>&1 &&
 export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
@@ -86,7 +86,7 @@ Options : -t      Quotes a value at converting when the value is a string
           -ls<s>  Replaces the suffix of array character "]" with <s>
           -fn<n>  Redefines the start number of arrays with <n>
           -li     Inserts another JSONPath line which has no value
-Version : 2017-07-18 00:23:25 JST
+Version : 2017-07-18 02:39:39 JST
           (POSIX Bourne Shell/POSIX commands)
 USAGE
   exit 1
