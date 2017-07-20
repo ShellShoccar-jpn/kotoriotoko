@@ -19,7 +19,7 @@
 #                          in front of the filepath
 #        --suffix=<suff> . Adds the suffix behind the filename
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-21
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -51,7 +51,7 @@ print_usage_and_exit () {
 	            -d, -p <DIR>, -q, -u, -t, --suffix=<suff>
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2017-07-21 04:49:24 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -219,7 +219,18 @@ for arg in "$@"; do
 
   # --- Make dir string for printing ---------------------------------
   Dir_trg=${arg%/*}
-  case "$Dir_trg" in "$arg") Dir_trg='';; *) Dir_trg="$Dir_trg/";; esac
+  case "$Dir_trg" in
+    "$arg") case $optt in
+              0) Dir_trg=''
+                 ;;
+              *) Dir_trg="$Dir_tmp/"
+                 case "$Dir_trg" in '/./') Dir_trg=/;; esac
+                 ;;
+            esac
+            ;;
+         *) Dir_trg="$Dir_trg/"
+            ;;
+  esac
 
   n=$max_retry_when_failed
   while [ $n -ge 0 ]; do
