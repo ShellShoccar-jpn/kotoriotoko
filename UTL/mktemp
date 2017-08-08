@@ -19,7 +19,7 @@
 #                          in front of the filepath
 #        --suffix=<suff> . Adds the suffix behind the filename
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-21
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-08-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -51,7 +51,7 @@ print_usage_and_exit () {
 	            -d, -p <DIR>, -q, -u, -t, --suffix=<suff>
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-07-21 04:49:24 JST
+	Version : 2017-08-09 00:46:06 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -67,12 +67,20 @@ case "${1:-}" in
   '--by-myself')
      shift; by_myself=1
      ;;
-  *) case "$(d=${0%/*}/;[ "_$d" = "_$0/" ]||cd "$d";echo "$(pwd)/${0##*/}")" in
-       "$(command -v mktemp 2>/dev/null)") by_myself=1;;
-     esac
+  *) export mydir=$(d=${0%/*}/;[ "_$d" = "_$0/" ]||cd "$d";echo "$(pwd)")
+     path0=${PATH:-}
+     PATH=$(printf  '%s\n' "$path0"                |
+            tr      ':' '\n'                       |
+            awk     '$0!=ENVIRON["mydir"]{print;}' |
+            tr      '\n' ':'                       |
+            grep -v '^:$'                          )
+     CMD_builtin=$(command -v mktemp 2>/dev/null || :)
+     case "$CMD_builtin" in '') by_myself=1;; esac
+     PATH=$path0
+     unset mydir
      ;;
 esac
-case $by_myself in 0) exec mktemp ${1+"$@"}; exit 1;; esac
+case $by_myself in 0) exec "$CMD_builtin" ${1+"$@"}; exit 1;; esac
 
 # === Investigate the temporary directory if set =====================
 Dir_tmp=$(set | grep ^TMPDIR= | sed 's/^[^=]\{1,\}=//');
