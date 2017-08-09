@@ -18,7 +18,7 @@
 #                       from wrapping.
 #        -i ........... When decoding, ignore non-alphabet characters.
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-08-08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-08-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -50,7 +50,7 @@ print_usage_and_exit () {
 	            -d, -w <COLS>, -i
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-08-08 20:52:09 JST
+	Version : 2017-08-09 16:52:29 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	            * Although the bult-in base64, uuencode and uudecode command or
 	              GNU AWK produces better performance than the POSIX commands set
@@ -89,7 +89,8 @@ case "${1:-}" in
             tr      ':' '\n'                       |
             awk     '$0!=ENVIRON["mydir"]{print;}' |
             tr      '\n' ':'                       |
-            grep -v '^:$'                          )
+            grep -v '^:$'                          |
+            sed     's/:$//'                       )
      CMD_builtin=$(command -v base64 2>/dev/null || :)
      case "$CMD_builtin" in '') by_myself=1;; esac
      PATH=$path0

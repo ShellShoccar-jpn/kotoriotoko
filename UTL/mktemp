@@ -51,7 +51,7 @@ print_usage_and_exit () {
 	            -d, -p <DIR>, -q, -u, -t, --suffix=<suff>
 	          But --by-myself is the only original option, it prevent
 	          from use the built-in same name command even if available
-	Version : 2017-08-09 00:46:06 JST
+	Version : 2017-08-09 16:52:29 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -73,7 +73,8 @@ case "${1:-}" in
             tr      ':' '\n'                       |
             awk     '$0!=ENVIRON["mydir"]{print;}' |
             tr      '\n' ':'                       |
-            grep -v '^:$'                          )
+            grep -v '^:$'                          |
+            sed     's/:$//'                       )
      CMD_builtin=$(command -v mktemp 2>/dev/null || :)
      case "$CMD_builtin" in '') by_myself=1;; esac
      PATH=$path0
