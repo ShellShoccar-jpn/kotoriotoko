@@ -4,7 +4,7 @@
 #
 # DMTWVIEW.SH : View A Direct Message Which Is Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-11-11
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id>
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2017-11-11 16:53:13 JST
 	USAGE
   exit 1
 }
@@ -263,14 +263,25 @@ awk '                                                                         #
   $1=="recipient.verified"   {vr=(substr($0,length($1)+2)=="true")?"[v]":"";  #
                                                                        next;} #
   $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
+                              s =substr($1,1,length($1)-13);                  #
+                              if(s==ep){next;} ep=s;                          #
                               s =substr($0,length($1)+2);                     #
                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
                   next;                                                       #
                 }                                                             #
-                                 en++;eu[en]=s;                             } #
+                                 en++;eu[en]=s;next;                        } #
+  $1~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                       #
+                              s =substr($1,1,length($1)-12);                  #
+                              if(s==ep){en++;} ep=s;                          #
+                              s =substr($0,length($1)+2);                     #
+                if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
+                  next;                                                       #
+                }                                                             #
+                             if(!match(s,/^https?:\/\//)){s="http://" s;}     #
+                                      eu[en]=s;next;                        } #
   END                        {print_tw();                                   } #
   function init_param(lv)    {ns=""; ss=""; vs=""; nr=""; sr=""; vr="";       #
-                              en= 0; split("",eu);                            #
+                              en= 0; ep=""; split("",eu);                     #
                               if (lv<2) {return;}                             #
                               tm=""; id=""; tx="";                          } #
   function print_tw() {                                                       #

@@ -5,7 +5,7 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-11-11
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -38,7 +38,7 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2017-11-11 16:53:13 JST
 	USAGE
   exit 1
 }
@@ -395,11 +395,19 @@ webcmdpid=''
                                        sub(/".*$/     ,"",au);                 #
                                                              print_tw();next;} #
          k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                #
+                                  s=substr(k,1,length(k)-13);                  #
+                                  if(s!=ep){next;} ep=s;                       #
                                   en++;eu[en]=substr($0,length($1)+2);  next;} #
+         k ~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                 #
+                                  s=substr(k,1,length(k)-13);                  #
+                                  if(s!=ep){en++;} ep=s;                       #
+                                  s=substr($0,length($1)+2);                   #
+                                  if(!match(s,/^https?:\/\//)){s="http://" s;} #
+                                       eu[en]=s;                        next;} #
          function init_param(lv) {tx=""; an=""; au="";                         #
                                   nr=""; nf=""; fr=""; ff="";                  #
                                   ge=""; la=""; lo=""; pl=""; pn="";           #
-                                  en= 0; split("",eu);                         #
+                                  en= 0; ep=""; split("",eu);                  #
                                   if (lv<2) {return;}                          #
                                   tm=""; id=""; nm=""; sn="";vf="";rtwflg="";} #
          function print_tw( r,f) {                                             #
