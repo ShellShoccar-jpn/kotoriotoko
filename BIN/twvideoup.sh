@@ -4,7 +4,7 @@
 #
 # TWVIDEOUP.SH : Upload A Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-03
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +30,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2018-04-03 16:44:34 JST
 	USAGE
   exit 1
 }
@@ -119,6 +119,7 @@ for arg in "$@"; do
          *) ext=$(printf '%s\n' "${ext##*.}" | awk '{print tolower($0);}');;
   esac
   case "$ext" in
+    'gif')  type='image/mp4';;
     'mp4')  type='video/mp4';;
     'mp4v') type='video/mp4';;
     'mpg4') type='video/mp4';;
@@ -387,19 +388,14 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
              [ -n "$timeout" ] && {                                    #
                timeout="--connect-timeout=$timeout"                    #
              }                                                         #
-             if type gunzip >/dev/null 2>&1; then                      #
-               comp='--header=Accept-Encoding: gzip'                   #
-             else                                                      #
-               comp=''                                                 #
-             fi                                                        #
              cat > "$Tmp/mimedata"                                     #
              "$CMD_WGET" ${no_cert_wget:-} -q -O /dev/null -S          \
                          --header="$oa_hdr"                            \
                          --header="$ct_hdr"                            \
                          --post-file="$Tmp/mimedata"                   \
-                         $timeout "$comp"                              \
-                         "$API_endpt"                     |            #
-             if [ -n "$comp" ]; then gunzip; else cat; fi              #
+                         $timeout                                      \
+                         "$API_endpt"                    2>&1 |        #
+             awk '$1~/^HTTP\/[0-9]/{print $2;exit;}'                   #
            elif [ -n "${CMD_CURL:-}" ]; then                           #
              [ -n "$timeout" ] && {                                    #
                timeout="--connect-timeout $timeout"                    #
@@ -410,7 +406,9 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
                          -H "$oa_hdr"                                  \
                          -H "$ct_hdr"                                  \
                          --data-binary @-                              \
-                         "$API_endpt"                                  #
+                         "$API_endpt"                         |        #
+             awk '/^ *[0-9][0-9][0-9] *$/{print;}'            |        #
+             tail -n 1                                                 #
            fi                                                          #
          done                                                          |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then            #
@@ -504,8 +502,8 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
               "$CMD_OSSL" enc -e -base64                         #
             done                                                 )
 
-# === API通信 ========================================================
-# --- 1.APIコール
+# === Access to the endpoint =========================================
+# --- 1.connect and get a response
 apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
                 "${oa_param}"                               \
                 "${sig_strin}"                              \

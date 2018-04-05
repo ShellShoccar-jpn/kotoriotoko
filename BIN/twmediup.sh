@@ -4,7 +4,7 @@
 #
 # TWMEDIUP.SH : Upload An Image or Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-05
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +30,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2018-04-05 12:04:52 JST
 	USAGE
   exit 1
 }
@@ -118,11 +118,11 @@ for arg in "$@"; do
     'jpg')  type='image/jpeg';;
     'jpeg') type='image/jpeg';;
     'bmp')  type='image/bmp' ;;
-    'gif')  type='image/gif' ;;
     'webp') type='image/webp';;
-    'mp4')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # Subcontract twvideoup.sh
-    'mp4v') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # it when it is a video
-    'mpg4') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # (will not come back)
+    'gif')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # Subcontract twvideoup.sh
+    'mp4')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # it when it is a video
+    'mp4v') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # (will not come back)
+    'mpg4') exec "$Homedir/BIN/twvideoup.sh" "$arg";; #
     *)      error_exit 1 "Unsupported file format: $arg";;
   esac
   s=$(printf '%s\n' "$arg" | sed 's/\\/\\\\/g' | sed 's/"/\\"/'g)
