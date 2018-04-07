@@ -4,7 +4,7 @@
 #
 # DMDELTW.SH : Delete A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-07
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +30,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <tweet_id>
-	Version : 2018-04-07 21:15:36 JST
+	Version : 2017-07-18 02:39:39 JST
 	USAGE
   exit 1
 }
@@ -116,8 +116,8 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 
 # === Set parameters of Twitter API endpoint =========================
 # (1)endpoint
-readonly API_endpt="https://api.twitter.com/1.1/direct_messages/events/destroy.json"
-readonly API_methd='DELETE'
+readonly API_endpt="https://api.twitter.com/1.1/direct_messages/destroy.json"
+readonly API_methd='POST'
 # (2)parameters
 API_param=$(cat <<-PARAM                   |
 				id=$tweetid
@@ -133,10 +133,8 @@ apip_enc=$(printf '%s\n' "${API_param}" |
            urlencode -r                 |
            sed 's/%3[Dd]/=/'            )
 # --- 2.joint all lines with "&" (note: string for giving to the API)
-apip_del=$(printf '%s' "${apip_enc}" |
-           tr '\n' '&'               |
-           grep ^                    |
-           sed 's/^./?&/'            )
+apip_pos=$(printf '%s' "${apip_enc}" |
+           tr '\n' '&'               )
 
 # === Generate the signature string of OAuth 1.0 =====================
 # --- 1.a random string
@@ -210,18 +208,26 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout=$timeout"         #
              }                                              #
+             if type gunzip >/dev/null 2>&1; then           #
+               comp='--header=Accept-Encoding: gzip'        #
+             else                                           #
+               comp=''                                      #
+             fi                                             #
              "$CMD_WGET" ${no_cert_wget:-} -q -O -          \
-                         --method=DELETE --header="$oa_hdr" \
-                         $timeout                           \
-                         "$API_endpt$apip_del"              #
+                         --header="$oa_hdr"                 \
+                         --post-data="$apip_pos"            \
+                         $timeout "$comp"                   \
+                         "$API_endpt"                     | #
+             if [ -n "$comp" ]; then gunzip; else cat; fi   #
            elif [ -n "${CMD_CURL:-}" ]; then                #
              [ -n "$timeout" ] && {                         #
                timeout="--connect-timeout $timeout"         #
              }                                              #
-             "$CMD_CURL" ${no_cert_curl:-} -s -X DELETE     \
+             "$CMD_CURL" ${no_cert_curl:-} -s               \
                          $timeout ${curl_comp_opt:-}        \
                          -H "$oa_hdr"                       \
-                         "$API_endpt$apip_del"              #
+                         -d "$apip_pos"                     \
+                         "$API_endpt"                       #
            fi                                               #
          done                                               |
          if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
@@ -232,20 +238,55 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
 # --- 2.exit immediately if it failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
+# === Parse the response =============================================
+# --- 1.extract the required parameters from the response (written in JSON)
+echo "$apires"                                                       |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi  |
+parsrj.sh 2>/dev/null                                                |
+awk 'BEGIN                {fid=0; fca=0;                         }   #
+     $1~/^\$\.created_at$/{fca=1; sca=substr($0,index($0," ")+1);}   #
+     $1~/^\$\.id$/        {fid=1; sid=$2;                        }   #
+     END                  {if(fid*fca) {print sca,sid}           }'  |
+# 1:DayOfWeek 2:NameOfMonth 3:day 4:HH:MM:SS 5:delta(local-UTC)      #
+# 6:year 7:ID                                                        #
+# --- 2.convert date string into "YYYY/MM/DD hh:mm:ss"               #
+awk 'BEGIN                                                        {  #
+       m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";   #
+       m["May"]="05"; m["Jun"]="06"; m["Jul"]="07"; m["Aug"]="08";   #
+       m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";}  #
+     /^[A-Z]/                                                     {  #
+       t=$4;                                                         #
+       gsub(/:/,"",t);                                               #
+       d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60);       #
+       d*=1;                                                         #
+       printf("%04d%02d%02d%s %s %s\n",$6,m[$2],$3,t,d,$7);       }' |
+# 1:YYYYMMDDHHMMSS 2:delta(local-UTC) 3:ID                           #
+TZ=UTC+0 calclock 1                                                  |
+# 1:YYYYMMDDHHMMSS 2:UNIX-time 3:delta(local-UTC) 4:ID               #
+awk '{print $2-$3,$4;}'                                              |
+# 1::UNIX-time(adjusted) 2:ID                                        #
+calclock -r 1                                                        |
+# 1::UNIX-time(adjusted) 2:localtime 3:ID                            #
+self 2 3                                                             |
+# 1:localtime 2:ID                                                   #
+awk 'BEGIN {fmt="at=%04d/%02d/%02d %02d:%02d:%02d\nid=%s\n";      }  #
+           {gsub(/[0-9][0-9]/,"& ",$1);sub(/ /,"",$1);split($1,t);   #
+            printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6],$2);         }' |
+# --- 3.regard as an error if no line was outputed                   #
+awk '{print;} END{exit 1-(NR>0);}'
+
 # === Print error message if some error occured ======================
-case "$apires" in
-  '') :;;
-   *) err=$(echo "$apires"                                              |
-            parsrj.sh 2>/dev/null                                       |
-            awk 'BEGIN          {errcode=-1;                          } #
-                 $1~/\.code$/   {errcode=$2;                          } #
-                 $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
-                 $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
-                 END            {print errcode, errmsg;               }')
-      [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-      error_exit 1 "API returned an unknown message: $apires"
-      ;;
-esac
+case $? in [!0]*)
+  err=$(echo "$apires"                                              |
+        parsrj.sh 2>/dev/null                                       |
+        awk 'BEGIN          {errcode=-1;                          } #
+             $1~/\.code$/   {errcode=$2;                          } #
+             $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
+             END            {print errcode, errmsg;               }')
+  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  error_exit 1 "API returned an unknown message: $apires"
+;; esac
 
 
 ######################################################################

@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-07
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -39,7 +39,7 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2018-04-07 21:15:49 JST
 	USAGE
   exit 1
 }
@@ -375,7 +375,7 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
 
 # === Access to the endpoint =========================================
 # --- 1.connect and get a response
-apires=$(printf '%s\noauth_signature=%s\n%s\n'                     \
+apires=$(printf '%s\noauth_signature=%s\n'                         \
                 "${oa_param}"                                      \
                 "${sig_strin}"                                     |
          urlencode -r                                              |

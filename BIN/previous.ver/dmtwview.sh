@@ -2,9 +2,9 @@
 
 ######################################################################
 #
-# DMTWRCV.SH : List Received Direct Messages
+# DMTWVIEW.SH : View A Direct Message Which Is Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-11-11
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,28 +29,13 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options]
-	Options : -m <max_ID>  |--maxid=<max_ID>
-	          -n <count>   |--count=<count>
-	          -s <since_ID>|--sinceid=<since_ID>
-	          --rawout=<filepath_for_writing_JSON_data>
+	Usage   : ${0##*/} [options] <tweet_id>
+	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2018-04-08 05:49:38 JST
+	Version : 2017-11-11 16:53:13 JST
 	USAGE
   exit 1
 }
-exit_trap() {
-  cat <<-WARNING 1>&2
-		!!! WARNING !!!
-		Twitter, Inc. announced that the API "GET direct_messages" will be
-		deprecated and non-functional on June 19, 2018.
-		Accordingly, this command also will be probably non-functional on the
-		day due to depending on the API.
-		You had better use "dmtwlist.sh" instead of me as soon as possible.
-	WARNING
-  exit ${1:-0}
-}
-trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
 error_exit() {
   ${2+:} false && echo "${0##*/}: $2" 1>&2
   exit $1
@@ -88,46 +73,27 @@ case "$# ${1:-}" in
 esac
 
 # === Initialize parameters ==========================================
-count=''
-max_id=''
-since_id=''
+tweetid=''
 rawoutputfile=''
 timeout=''
 
 # === Read options ===================================================
-while [ $# -gt 0 ]; do
+while :; do
   case "${1:-}" in
-    --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
+    --rawout=*)  # for debug
+                 s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
+                 rawoutputfile=$s
                  shift
                  ;;
-    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
-                 count=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --maxid=*)   max_id=$(printf '%s' "${1#--maxid=}" | tr -d '\n')
+    --timeout=*) # for debug
+                 s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
+                 printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
+                   error_exit 1 'Invalid --timeout option'
+                 }
+                 timeout=$s
                  shift
                  ;;
-    -m)          case $# in 1) error_exit 1 'Invalid -m option';; esac
-                 max_id=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --sinceid=*) since_id=$(printf '%s' "${1#--sinceid=}" | tr -d '\n')
-                 shift
-                 ;;
-    -s)          case $# in 1) error_exit 1 'Invalid -s option';; esac
-                 since_id=$(printf '%s' "$2" | tr -d '\n')
-                 shift 2
-                 ;;
-    --rawout=*)  rawoutputfile=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
-                 shift
-                 ;;
-    --timeout=*) timeout=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
-                 shift
-                 ;;
-    --)          shift
-                 break
-                 ;;
-    -)           break
+    --|-)        break
                  ;;
     --*|-*)      error_exit 1 'Invalid option'
                  ;;
@@ -135,17 +101,14 @@ while [ $# -gt 0 ]; do
                  ;;
   esac
 done
-printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid -n option'
-}
-printf '%s\n' "$max_id" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid -m option'
-}
-printf '%s\n' "$since_id" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid -s option'
-}
-printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid --timeout option'
+
+# === Get a tweet-ID =================================================
+case $# in
+  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
+  *) print_usage_and_exit                    ;;
+esac
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
+  print_usage_and_exit
 }
 
 
@@ -155,13 +118,11 @@ printf '%s\n' "$timeout" | grep -q '^[0-9]*$' || {
 
 # === Set parameters of Twitter API endpoint =========================
 # (1)endpoint
-API_endpt='https://api.twitter.com/1.1/direct_messages.json'
+API_endpt='https://api.twitter.com/1.1/direct_messages/show.json'
 API_methd='GET'
 # (2)parameters
 API_param=$(cat <<-PARAM                   |
-				count=${count}
-				max_id=${max_id}
-				since_id=${since_id}
+				id=$tweetid
 				full_text=true
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
@@ -287,50 +248,56 @@ if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000'                                                                  |
-sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
+sed 's/^\$\.//'                                                               |
 awk '                                                                         #
-  BEGIN                   {init_param(2); no= 0;                            } #
-  $1!=no                  {no= $1;print_tw();                               } #
-  $2=="created_at"        {tm= substr($0,length($1 $2)+3);next;             } #
-  $2=="id"                {id= substr($0,length($1 $2)+3);next;             } #
-  $2=="text"              {tx= substr($0,length($1 $2)+3);next;             } #
-  $2=="sender.name"       {nm= substr($0,length($1 $2)+3);next;             } #
-  $2=="sender.screen_name"{sn= substr($0,length($1 $2)+3);next;             } #
-  $2=="sender.verified"   {vf=(substr($0,length($1 $2)+3)=="true")?"[v]":"";  #
+  BEGIN                      {init_param(2);                                } #
+  $1=="created_at"           {tm= substr($0,length($1)+2);next;             } #
+  $1=="id"                   {id= substr($0,length($1)+2);next;             } #
+  $1=="text"                 {tx= substr($0,length($1)+2);next;             } #
+  $1=="sender.name"          {ns= substr($0,length($1)+2);next;             } #
+  $1=="sender.screen_name"   {ss= substr($0,length($1)+2);next;             } #
+  $1=="sender.verified"      {vs=(substr($0,length($1)+2)=="true")?"[v]":"";  #
                                                                        next;} #
-  $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
-                           s =substr($2,1,length($2)-13);                     #
-                           if(s==ep){next;} ep=s;                             #
-                           s =substr($0,length($1 $2)+3);                     #
+  $1=="recipient.name"       {nr= substr($0,length($1)+2);next;             } #
+  $1=="recipient.screen_name"{sr= substr($0,length($1)+2);next;             } #
+  $1=="recipient.verified"   {vr=(substr($0,length($1)+2)=="true")?"[v]":"";  #
+                                                                       next;} #
+  $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
+                              s =substr($1,1,length($1)-13);                  #
+                              if(s==ep){next;} ep=s;                          #
+                              s =substr($0,length($1)+2);                     #
                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
                   next;                                                       #
                 }                                                             #
-                              en++;eu[en]=s;next;                           } #
-  $2~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                       #
-                           s =substr($2,1,length($2)-12);                     #
-                           if(s==ep){en++;} ep=s;                             #
-                           s =substr($0,length($1 $2)+3);                     #
+                                 en++;eu[en]=s;next;                        } #
+  $1~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                       #
+                              s =substr($1,1,length($1)-12);                  #
+                              if(s==ep){en++;} ep=s;                          #
+                              s =substr($0,length($1)+2);                     #
                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
                   next;                                                       #
                 }                                                             #
-                           if(!match(s,/^https?:\/\//)){s="http://" s;}       #
-                                   eu[en]=s;next;                           } #
-  END                     {print_tw();                                      } #
-  function init_param(lv) {nm=""; sn=""; vf="";                               #
-                           en= 0; ep=""; split("",eu);                        #
-                           if (lv<2) {return;}                                #
-                           tm=""; id=""; tx="";                             } #
-  function print_tw()     {                                                   #
+                             if(!match(s,/^https?:\/\//)){s="http://" s;}     #
+                                      eu[en]=s;next;                        } #
+  END                        {print_tw();                                   } #
+  function init_param(lv)    {ns=""; ss=""; vs=""; nr=""; sr=""; vr="";       #
+                              en= 0; ep=""; split("",eu);                     #
+                              if (lv<2) {return;}                             #
+                              tm=""; id=""; tx="";                          } #
+  function print_tw() {                                                       #
     if (tm=="") {return;}                                                     #
     if (id=="") {return;}                                                     #
     if (tx=="") {return;}                                                     #
-    if (nm=="") {return;}                                                     #
-    if (sn=="") {return;}                                                     #
+    if (ns=="") {return;}                                                     #
+    if (ss=="") {return;}                                                     #
+    if (nr=="") {return;}                                                     #
+    if (sr=="") {return;}                                                     #
     if (en>0) {replace_url();}                                                #
-    printf("%s\n"          ,tm      );                                        #
-    printf("- %s (@%s)%s\n",nm,sn,vf);                                        #
-    printf("- %s\n"        ,tx      );                                        #
-    printf("- id=%s\n"     ,id      );                                        #
+    printf("%s\n"                ,tm      );                                  #
+    printf("- From: %s (@%s)%s\n",ns,ss,vs);                                  #
+    printf("- To  : %s (@%s)%s\n",nr,sr,vr);                                  #
+    printf("- %s\n"              ,tx      );                                  #
+    printf("- id=%s\n"           ,id      );                                  #
     init_param(2);                                                          } #
   function replace_url( tx0,i) {                                              #
     tx0= tx;                                                                  #
@@ -348,7 +315,7 @@ awk 'BEGIN {m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";       #
             m["Sep"]="09"; m["Oct"]="10"; m["Nov"]="11"; m["Dec"]="12";    }  #
      /^[A-Z]/{t=$4; gsub(/:/,"",t);                                           #
               d=substr($5,1,1) (substr($5,2,2)*3600+substr($5,4)*60); d*=1;   #
-              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d);       next;}  #
+              printf("%04d%02d%02d%s\034%s\n",$6,m[$2],$3,t,d); next;      }  #
      {        print;                                                       }' |
 tr ' \t\034' '\006\025 '                                                      |
 awk 'BEGIN   {ORS="";             }                                           #
@@ -356,21 +323,22 @@ awk 'BEGIN   {ORS="";             }                                           #
              {print "",  $0; next;}                                           #
      END     {print "\n"   ;      }'                                          |
 tail -n +2                                                                    |
-# 1:UTC-time(14dgt) 2:delta(local-UTC) 3:screenname 4:tweet 5:DMID            #
+# 1:UTC-time(14dgt) 2:delta(local-UTC) 3:screenname 4:recipient 5:tweet 6:DMID#
 TZ=UTC+0 calclock 1                                                           |
-# 1:UTC-time(14dgt) 2:UNIX0time 3:delta(local-UTC) 4:screenname 5:tweet 6:DMID#
-awk '{print $2-$3,$4,$5,$6;}'                                                 |
-# 1:UNIX-time(adjusted) 2:screenname 3:tweet 4:DMID                           #
+# 1:UTC-time(14dgt) 2:UNIX-time 3:delta(local-UTC) 4:sender 5:recipient       #
+# 6:tweet 7:DMID                                                              #
+awk '{print $2-$3,$4,$5,$6,$7;}'                                              |
+# 1:UNIX-time(adjusted) 2:sender 3:recipient 4:tweet 5:DMID                   #
 calclock -r 1                                                                 |
-# 1:UNIX-time(adjusted) 2:localtime 3:screenname 4:tweet 5:DMID               #
-self 2/5                                                                      |
-# 1:localtime 2:screenname 3:tweet 4:DMID                                     #
+# 1:UNIX-time(adjusted) 2:localtime 3:sender 4:recipient 5:tweet 6:DMID       #
+self 2/6                                                                      |
+# 1:localtime 2:sender 3:recipient 4:tweet 5:DMID                             #
 tr ' \006\025' '\n \t'                                                        |
-awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";            }             #
+awk 'BEGIN   {fmt="%04d/%02d/%02d %02d:%02d:%02d\n";             }            #
      /^[0-9]/{gsub(/[0-9][0-9]/,"& "); sub(/ /,""); split($0,t);              #
               printf(fmt,t[1],t[2],t[3],t[4],t[5],t[6]);                      #
-              next;                                             }             #
-     {        print;                                            }'            |
+              next;                                              }            #
+     {        print;}                                             '           |
 # --- 3.regard as an error if no line was outputed                            #
 awk '{print;} END{exit 1-(NR>0);}'
 

@@ -226,8 +226,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- dmtweet.sh ........... Post A Direct Message
 |   |-- deldmtw.sh ........... Delete A Direct Message
 |   |-- dmtwview.sh .......... View A Direct Message Which Is Request By Tweet-IDs
-|   |-- dmtwrcv.sh ........... List Received Direct Messages
-|   `-- dmtwsnt.sh ........... List Sent Direct Messages
+|   `-- dmtwlist.sh .......... List Direct Messages Which Have Been Both Sent And Received
 |
 |
 |-- CONFIG/ .................. Directory for Configuration File
