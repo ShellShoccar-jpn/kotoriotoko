@@ -5,7 +5,7 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-11-11
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -38,11 +38,12 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-11-11 16:53:13 JST
+	Version : 2018-09-13 00:07:43 JST
 	USAGE
   exit 1
 }
 exit_trap() {
+  set -- ${1:-} $?  # $? is set as $1 if no argument given
   trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
   case "$webcmdpid" in '') sleep 1; webcmdpid=$(get_webcmdpid);; esac
@@ -53,7 +54,7 @@ exit_trap() {
           webcmdpid=-1
           exec 1>&3 2>&4 3>&- 4>&-          ;;
   esac
-  exit ${1:-0}
+  exit $1
 }
 error_exit() {
   ${2+:} false && echo "${0##*/}: $2" 1>&2

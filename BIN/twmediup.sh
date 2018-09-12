@@ -4,7 +4,7 @@
 #
 # TWMEDIUP.SH : Upload An Image or Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-05
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,14 +30,15 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2018-04-05 12:04:52 JST
+	Version : 2018-09-13 00:09:19 JST
 	USAGE
   exit 1
 }
 exit_trap() {
+  set -- ${1:-} $?  # $? is set as $1 if no argument given
   trap '-' EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
-  exit ${1:-0}
+  exit $1
 }
 error_exit() {
   ${2+:} false && echo "${0##*/}: $2" 1>&2

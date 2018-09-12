@@ -28,7 +28,7 @@
 #            Do not create "RES/" directory nor write out its files.
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -75,14 +75,15 @@ print_usage_and_exit () {
 	              Do not create "ANL/" directory nor write out its files.
 	          --nores
 	              Do not create "RES/" directory nor write out its files.
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2018-09-13 00:05:51 JST
 	USAGE
   exit 1
 }
 exit_trap() {
+  set -- ${1:-} $?  # $? is set as $1 if no argument given
   trap - EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
-  exit ${1:-0}
+  exit $1
 }
 trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
 error_exit() {

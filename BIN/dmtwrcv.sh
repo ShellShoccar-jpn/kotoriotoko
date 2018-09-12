@@ -4,7 +4,7 @@
 #
 # DMTWRCV.SH : List Received Direct Messages
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-04-08
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -35,11 +35,12 @@ print_usage_and_exit () {
 	          -s <since_ID>|--sinceid=<since_ID>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2018-04-08 05:49:38 JST
+	Version : 2018-09-13 00:06:19 JST
 	USAGE
   exit 1
 }
 exit_trap() {
+  set -- ${1:-} $?  # $? is set as $1 if no argument given
   cat <<-WARNING 1>&2
 		!!! WARNING !!!
 		Twitter, Inc. announced that the API "GET direct_messages" will be
@@ -48,7 +49,7 @@ exit_trap() {
 		day due to depending on the API.
 		You had better use "dmtwlist.sh" instead of me as soon as possible.
 	WARNING
-  exit ${1:-0}
+  exit $1
 }
 trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
 error_exit() {
