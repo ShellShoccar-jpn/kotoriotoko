@@ -241,7 +241,7 @@ case "$by_myself${CMD_BASE64_MAC:-}" in 0/*)
   opts=''
   case $mode in d) opts="$opts -d";; esac
   opts="$opts -b $width"
-  exec "$CMD_BASE64_MAC" $opts -i ${file:+"$file"}
+  exec "$CMD_BASE64_MAC" $opts -i "${file:--}"
   exit 1
   ;;
 esac
