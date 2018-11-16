@@ -30,7 +30,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] [keyword ...]
-	Options : -g <long,lat,radius>|--geocode=<long,lat,radius>
+	Options : -g <lat,long,radius>|--geocode=<lat,long,radius>
 	          -l <lang>           |--lang=<lang>
 	          -m <max_ID>         |--maxid=<max_ID>
 	          -n <count>          |--count=<count>
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-11-11 16:53:13 JST
+	Version : 2018-11-16 22:24:25 JST
 	USAGE
   exit 1
 }
