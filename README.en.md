@@ -137,13 +137,13 @@ After registering your phone number, a PIN code will come to your phone by SMS. 
 
 ##### 2) Get four authentication keys on Twitter Apps page
 
-At first, open [Twitter Apps](https://apps.twitter.com/) page, and push "Create New App" button.
+At first, open [Twitter Developers' site](https://developer.twitter.com/). Then, sign up to create a developer account (Maybe needed a few days to be accepted your applying), and sign in.
 
-Next, fill out all columns except "Callback URL" on "Create an application" page and agree to the developer agreement, then push "Create your Twitter application" button.
+Next, open ["Creation an app"](https://developer.twitter.com/en/apps/create) and fill out all required columns. Be careful about keep "Callback URLs" blank or PIN code will not be generated, PIN is necessary for this app. Finally, press "create" button.
 
-And then, click "Keys and Access Tokens" tab. You can get "**Consumer Key**" and "**Consumer Secret**" there first. Copy these strings.
+And then, move to the application page you just created and click "Permission" tab first. You should change the permisson level to "Read, write, and direct messages" on "Access permission".
 
-At finally, push "Create my access token" button, which is at the bottom of the page. You can also get "**Access Token**" and "**Access Token Secret**" there. Copy these strings, too.
+Next, move to "Keys and Tokens" tab. So, you can get the required 4 auth-keys, API key, API secret key, Access token and Access token secret. Copy or memorize them for the next step.
 
 ##### 3) Write the keys into CONFIG.SHLIB
 
