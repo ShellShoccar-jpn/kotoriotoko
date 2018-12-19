@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-11-16
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-12-19
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -42,11 +42,12 @@ print_usage_and_exit () {
 	                                    --noraw
 	                                    --nores
 	                                    --noanl
+	                                    --usermode
 	          and
 	          -g <lat,long,radius>|--geocode=<lat,long,radius>
 	          -l <lang>           |--lang=<lang>
 	          -o <locale>         |--locale=<locale>
-	Version : 2018-11-16 22:21:59 JST
+	Version : 2018-12-19 12:38:37 JST
 	USAGE
   exit 1
 }
@@ -70,7 +71,8 @@ PATH="$Dir_kotori/UTL:$Dir_kotori/TOOL:$Dir_kotori/BIN:$PATH"
 sleep 0.001 2>/dev/null || {
   error_exit 1 'A sleep command can sleep at <1 is required'
 }
-type btwsrch.sh >/dev/null 2>&1 || error_exit 1 'Kotoriotoko not found'
+type btwsrch.sh >/dev/null 2>&1 || error_exit 1 'Kotoriotoko (b) not found'
+type twsrch.sh  >/dev/null 2>&1 || error_exit 1 'Kotoriotoko (u) not found'
 if   type bc >/dev/null 2>&1                                      ; then
   CMD_CALC='bc'
 elif [ "$(expr 9223372036854775806 + 1)" = '9223372036854775807' ]; then
@@ -100,6 +102,7 @@ lang=''
 locale=''
 continuously=0
 monitoring=0
+usermode=0
 retry=''           # default value of $retry will be decided by $continuously
 peek=0
 noraw=0
@@ -194,6 +197,7 @@ while [ $# -gt 0 ]; do
                        esac
                        shift
                        ;;
+    --usermode)        usermode=1; shift;;
     --noraw)           noraw=1; shift;;
     --nores)           nores=1; shift;;
     --noanl)           noanl=1; shift;;
@@ -302,11 +306,15 @@ Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXXX"` || {
 }
 
 # === Set misc parameters ============================================
-interval_ok=2      # min. interval (sec) to call btwsrch.sh(API)
 intervals_ng="$interval_ok 10 20 40 80 160 240" # retry intervals when error
-count=100          # max tweets which could be gathered at once (up tp 100)
-maxretry_ok=$retry # retry times when no tweet has gotten normally
-maxretry_ng=4      # retry times when something error has been happened
+count=100             # max tweets which could be gathered at once (up tp 100)
+maxretry_ok=$retry    # retry times when no tweet has gotten normally
+maxretry_ng=4         # retry times when something error has been happened
+CMD_TWSRCH=btwsrch.sh # name of Twitter search command
+interval_ok=2         # min. interval (sec) to call btwsrch.sh(API)
+#
+$CMD_TWSRCH 2>/dev/null; case $? in 255) usermode=1;; esac
+case $usermode in [!0]*) CMD_TWSRCH=twsrch.sh; interval_ok=5;; esac
 
 # === Set the oldest tweet ID ========================================
 since=''
@@ -369,19 +377,19 @@ while :; do
 
   # === Search with Twitter API ======================================
   case $noraw in 0) rawout="--rawout=$Tmp/raw";; *) rawout='-v';; esac
-  btwsrch.sh -v                        \
-             "$rawout"                 \
-             "--timeout=$((interval))" \
-             -n "$count"               \
-             $since                    \
-             $last                     \
-             $opts                     \
-             "$queries"                > "$Tmp/res"
+  $CMD_TWSRCH -v                        \
+              "$rawout"                 \
+              "--timeout=$((interval))" \
+              -n "$count"               \
+              $since                    \
+              $last                     \
+              $opts                     \
+              "$queries"                > "$Tmp/res"
   [ $? -eq 0 ] || {
     retry_ng=$((retry_ng-1))
     case $retry_ng in
-      0) echo "ERROR: at running btwsrch.sh ... abort" 1>&2; break  ;;
-      *) echo "ERROR: at running btwsrch.sh ... retry" 1>&2
+      0) echo "ERROR: at running $CMD_TWSRCH ... abort" 1>&2; break ;;
+      *) echo "ERROR: at running $CMD_TWSRCH ... retry" 1>&2
          interval=$(echo "$((maxretry_ng-retry_ng)) $intervals_ng" |
                     awk '{n=$1+2; n=(n>NF)?NF:n; print $n;}'       )
          continue                                                   ;;
@@ -510,7 +518,7 @@ while :; do
     esac
   }
   awk -v n="$s" 'BEGIN{exit (n%7==0)?0:1;}' || {
-    echo "ERROR: btwsrch.sh returned invalid data ... abort searching" 1>&2
+    echo "ERROR: $CMD_TWSRCH returned invalid data ... abort searching" 1>&2
     break
   }
 

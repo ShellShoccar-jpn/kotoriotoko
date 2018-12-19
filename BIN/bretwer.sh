@@ -4,7 +4,7 @@
 #
 # BRETWER.SH : View Retweeted User List (on Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-12-19
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -33,9 +33,18 @@ print_usage_and_exit () {
 	Options : -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2018-12-19 12:24:16 JST
 	USAGE
+  check_my_bearer_token_and_print || exit $?
   exit 1
+}
+check_my_bearer_token_and_print() {
+  case "${MY_bearer:-}" in '')
+    echo '*** Bearer token is missing (you must set it into $MY_bearer)' 2>&1
+    return 255
+    ;;
+  esac
+  return 0
 }
 error_exit() {
   ${2+:} false && echo "${0##*/}: $2" 1>&2
@@ -145,11 +154,8 @@ apip_get=$(printf '%s' "${apip_enc}" |
            grep ^                    |
            sed 's/^./?&/'            )
 
-# === Generate the signature string of OAuth 1.0 =====================
-case "${MY_bearer:-}" in '')
-  error_exit 1 'No bearer token is set (you must set it into $MY_bearer)'
-  ;;
-esac
+# === Check whether my bearer token is available or not ==============
+check_my_bearer_token_and_print || exit $?
 
 # === Access to the endpoint =========================================
 # --- 1.connect and get a response
