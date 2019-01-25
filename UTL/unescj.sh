@@ -19,7 +19,7 @@
 # Usage: unescj.sh [-n] [JSONPath-value_textfile]
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-01-23
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -44,7 +44,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n] [JSONPath-value_textfile]
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2019-01-23 18:48:05 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -164,10 +164,11 @@ sed 's/\\f/'"$FF"'/g'                                                          |
 sed 's/\\r/'"$CR"'/g'                                                          |
 sed 's/\\t/'"$TAB"'/g'                                                         |
 #                                                                              #
-# === Also unescape "\0", "\n", "\\" when "-n" option is not given =========== #
+# === Also unescape "\0", "\r", "\n", "\\" when "-n" option is not given ===== #
 case "$optn" in                                                                #
   0) sed 's/\\0//g'                             |  # - "\0" should be deleted  #
-     sed 's/\\n/'"$LFs"'/g'                     |  #   without conv to <0x00>  #
+     sed 's/\\r/'"$CR"'/g'                      |  #   without conv to <0x00>  #
+     sed 's/\\n/'"$LFs"'/g'                     |  #                           #
      sed 's/'"$ACK"'/\\\\/g'                    |  # - Unescaoe escaped "\\"s  #
      sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |  #   and then restore "\A"s  #
      sed 's/\([^\\]\(\\\\\)*\)\\A/\1'"$ACK"'/g' |  #   to <ACK>s               #

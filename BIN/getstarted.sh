@@ -5,7 +5,7 @@
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-01-25
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -31,7 +31,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/}
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2019-01-25 08:45:57 JST
 	USAGE
   exit 1
 }
@@ -70,6 +70,12 @@ elif type wget    >/dev/null 2>&1; then
 else
   error_exit 1 'No HTTP-GET/POST command found.'
 fi
+
+# === Confirm the echo command behaviour =============================
+case "$(echo '1\n1' | tr '\n' '_')" in
+  '1_1_') ECHO_TYPE='-e';;
+       *) ECHO_TYPE=''  ;;
+esac
 
 
 ######################################################################
@@ -207,18 +213,17 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
                          -d ''                              \
                          "$API_endpt1"                      #
            fi                                               #
-         done                                               |
-         if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           grep ^ | sed 's/\\/\\\\/g'                       #
-         else                                               #
-           cat                                              #
-         fi                                                 )
+         done                                               )
 # --- 2. exit immediately when failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === Analyze the response =====================================================
 # --- 1. get oauth_token
-oa_token=$(echo "$apires"                                                      |
+oa_token=$(if [ "$ECHO_TYPE" = '-e' ]; then                                    #
+             echo "$apires" | sed 's/\\/\\\\/g'                                #
+           else                                                                #
+             echo "$apires"                                                    #
+           fi                                                                  |
            if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi |
            tr '&' '\n'                                                         |
            sed 's/=/ /'                                                        |
@@ -229,7 +234,11 @@ oa_token=$(echo "$apires"                                                      |
                                           if (i) {print ot;}                }' )
 # --- 2. exit if failed to get oauth_token
 case "$oa_token" in '')
-  err=$(echo "$apires"                                              |
+  err=$(if [ "$ECHO_TYPE" = '-e' ]; then                            #
+          echo "$apires" | sed 's/\\/\\\\/g'                        #
+        else                                                        #
+          echo "$apires"                                            #
+        fi                                                          |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
@@ -366,19 +375,18 @@ apires=$(printf '%s\noauth_signature=%s\n'                  \
                          -d ''                              \
                          "$API_endpt2"                      #
            fi                                               #
-         done                                               |
-         if [ $(echo '1\n1' | tr '\n' '_') = '1_1_' ]; then #
-           grep ^ | sed 's/\\/\\\\/g'                       #
-         else                                               #
-           cat                                              #
-         fi                                                 )
+         done                                               )
 # --- 2. exit immediately when failed to access
 case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 
 # === Analyze the response =====================================================
 # --- 1. get oauth_token and so on
-s=$(echo "$apires"                                                      |
+s=$(if [ "$ECHO_TYPE" = '-e' ]; then                                    #
+      echo "$apires" | sed 's/\\/\\\\/g'                                #
+    else                                                                #
+      echo "$apires"                                                    #
+    fi                                                                  |
     if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi |
     tr '&' '\n'                                                         |
     sed 's/=/ /'                                                        |
@@ -391,8 +399,12 @@ s=$(echo "$apires"                                                      |
                                    i  =i*length(sn );                   #
                                    if (i) {print ot,ots,sn;}         }' )
 # --- 2. exit if failed to get oauth_token
-case "$oa_token" in '')
-  err=$(echo "$apires"                                              |
+case "$s" in '')
+  err=$(if [ "$ECHO_TYPE" = '-e' ]; then                            #
+          echo "$apires" | sed 's/\\/\\\\/g'                        #
+        else                                                        #
+          echo "$apires"                                            #
+        fi                                                          |
         parsrj.sh 2>/dev/null                                       |
         awk 'BEGIN          {errcode=-1;                          } #
              $1~/\.code$/   {errcode=$2;                          } #
@@ -400,7 +412,7 @@ case "$oa_token" in '')
              $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
   [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-  error_exit 1 "API returned an unknown message: $apires"
+  error_exit 1 "API returned this message (PIN code may be wrong): $apires"
 ;; esac
 # --- 3. separate into oauth_token, oauth_token_secret, screen_name
 my_atoken=$(echo "$s" | sed -n '1p')
@@ -422,21 +434,18 @@ while [ ! -s "$File_CONF" ]; do
     "EVERY_LINE"               {print;                                                               }
   ' > "$File_CONF"
   [ $? -eq 0 ] || break
-  cat <<-MESSAGE1
+  cat <<-MESSAGE1A
 
 	***********************************************************************
 	Enjoy now!
 	***********************************************************************
 	Your configuration file "$Homedir/CONFIG/COMMON.SHLIB"
-	have been made.
-
-	You can use kotoriotoko now because of your access keys of Twitter service
-	are written into the file.
-	MESSAGE1
+	have been made. You can use kotoriotoko now.
+	MESSAGE1A
   fMade=1
 break; done
 if [ $fMade -eq 0 ]; then
-  cat <<-MESSAGE2
+  cat <<-MESSAGE1B
 
 	***********************************************************************
 	Almost finish preparing
@@ -453,6 +462,19 @@ if [ $fMade -eq 0 ]; then
 	readonly MY_apisec='${KOTORIOTOKO_apisec}'
 	readonly MY_atoken='${my_atoken}'
 	readonly MY_atksec='${my_atksec}'
+	MESSAGE1B
+fi
+if ! type twtl.sh >/dev/null 2>&1; then
+  cat <<-MESSAGE2
+
+	Note: It is more convenient to add the kotoriotoko commands path into
+	your environment variable "PATH" like this:
+	  (a) If you use csh or tcsh,
+	      > setenv PATH $Homedir/BIN:$PATH
+	      "PATH" probably exists in "~/.cshrc" or "~/.tcshrc"
+	  (b) If you use another shell (sh, bash, dash, ksh, zsh, ...),
+	      > PATH=$Homedir/BIN:$PATH
+	      "PATH" probably exists in "~/.*profile" or "~/.*shrc"
 	MESSAGE2
 fi
 
