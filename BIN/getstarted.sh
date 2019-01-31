@@ -5,7 +5,7 @@
 # GETSTARTED.SH : The 1st Command Should Be Run To Get Your Access Token
 #                 To Start Using Kotoriotoko Commands
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-01-25
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-01-31
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -31,7 +31,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/}
-	Version : 2019-01-25 08:45:57 JST
+	Version : 2019-01-31 18:37:46 JST
 	USAGE
   exit 1
 }
@@ -470,10 +470,10 @@ if ! type twtl.sh >/dev/null 2>&1; then
 	Note: It is more convenient to add the kotoriotoko commands path into
 	your environment variable "PATH" like this:
 	  (a) If you use csh or tcsh,
-	      > setenv PATH $Homedir/BIN:$PATH
+	      > setenv PATH $Homedir/BIN:\$PATH
 	      "PATH" probably exists in "~/.cshrc" or "~/.tcshrc"
 	  (b) If you use another shell (sh, bash, dash, ksh, zsh, ...),
-	      > PATH=$Homedir/BIN:$PATH
+	      > PATH=$Homedir/BIN:\$PATH
 	      "PATH" probably exists in "~/.*profile" or "~/.*shrc"
 	MESSAGE2
 fi
