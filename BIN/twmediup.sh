@@ -4,7 +4,10 @@
 #
 # TWMEDIUP.SH : Upload An Image or Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
+# * See the following page to confirm the acceptable files
+#   https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
+#
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-04-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +33,9 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2018-09-13 00:09:19 JST
+	Version : 2019-04-09 18:36:07 JST
+	Notice  : See the following page to confirm the acceptable files
+	https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
 	USAGE
   exit 1
 }

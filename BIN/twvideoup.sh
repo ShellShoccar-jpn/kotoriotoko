@@ -4,7 +4,10 @@
 #
 # TWVIDEOUP.SH : Upload A Video File To Twitter
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-09-13
+# * See the following page to confirm the acceptable files
+#   https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
+#
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-04-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -30,7 +33,9 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2018-09-13 00:10:34 JST
+	Version : 2019-04-09 18:23:29 JST
+	Notice  : See the following page to confirm the acceptable files
+	https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
 	USAGE
   exit 1
 }
@@ -80,9 +85,9 @@ case "$# ${1:-}" in
 esac
 
 # === Initialize parameters ==========================================
-mimemake_args='' # arguments for mime-make command
 type=''          # for memorizing mime file type
 file=''          # for memorizing file path
+filesize=0       # for memorizing the size of the file
 rawoutputfile=''
 timeout=''
 
@@ -111,7 +116,7 @@ while :; do
   esac
 done
 
-# === Validate file argument and generate an argument for MIME making command
+# === Validate file argument and get the size of the file ============
 case $# in [!1]) print_usage_and_exit;; esac # the API accept one file at a time
 for arg in "$@"; do
   ext=$(printf '%s' "${arg##*/}" | tr -d '\n')
@@ -128,9 +133,8 @@ for arg in "$@"; do
   esac
   [ -s "$arg" ] || error_exit 1 "file not found: \"$arg\""
   file=$arg
-  s=$(printf '%s\n' "$file" | sed 's/\\/\\\\/g' | sed 's/"/\\"/'g)
-  mimemake_args="$mimemake_args -Ft media \"$type\" \"$s\""
 done
+filesize=$(ls -l "$file" | self 5)
 
 
 ######################################################################
@@ -141,6 +145,7 @@ done
 # (1)endpoint
 readonly API_endpt='https://upload.twitter.com/1.1/media/upload.json'
 readonly API_methd='POST'
+readonly chunksize=5120  # Maximum chunk size of the API in KiB (5MB)
 
 
 ######################################################################
@@ -149,12 +154,12 @@ readonly API_methd='POST'
 
 # === Set parameters of Twitter API endpoint =========================
 # (2)parameters
-API_param=$(cat <<-PARAM                             |
+API_param=$(cat <<-PARAM                   |
 				command=INIT
 				media_type=$type
-				total_bytes=$(ls -l "$file" | self 5)
+				total_bytes=$filesize
 				PARAM
-            grep -v '^[A-Za-z0-9_]\{1,\}=$'          )
+            grep -v '^[A-Za-z0-9_]\{1,\}=$')
 
 # === Pack the parameters for the API ================================
 # --- 1.URL-encode only the right side of "="
@@ -294,11 +299,20 @@ case $? in [!0]*)
 # Main Routine (step 2/3 : APPEND)
 ######################################################################
 
+# === STARTING END OF CHUNK LOOP =====================================
+pos=1
+seg=0
+while [ $pos -le $filesize ]; do
+
 # === Set parameters of Twitter API endpoint =========================
 # (2)parameters
 API_param=''
-s="-T command APPEND -T media_id $id -T segment_index 0"
-mimemake_args="$s $mimemake_args"
+s=$(printf '%s\n' "${file##*/}" |
+    sed 's/\\/\\\\/g'           |
+    sed 's/ /\\ /g'             )
+s="-T command APPEND -T media_id $id -Ftf media $type $s -"
+s="$s -T segment_index $seg"
+mimemake_args=$s
 
 # === Pack the parameters for the API ================================
 # --- 1.URL-encode only the right side of "="
@@ -384,7 +398,9 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
          while read -r oa_hdr; do                                      #
            s=$(mime-make -m)                                           #
            ct_hdr="Content-Type: multipart/form-data; boundary=\"$s\"" #
-           eval mime-make -b "$s" $mimemake_args                   |   #
+           tail -c +$pos "$file"                              |        #
+           dd bs=1024 count=$chunksize 2>/dev/null            |        #
+           mime-make -b "$s" $mimemake_args                   |        #
            if   [ -n "${CMD_WGET:-}" ]; then                           #
              [ -n "$timeout" ] && {                                    #
                timeout="--connect-timeout=$timeout"                    #
@@ -418,13 +434,20 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'                         \
            cat                                                         #
          fi                                                            )
 # --- 2.exit immediately if it failed to access
-case $? in [!0]*) error_exit 1 'Failed to upload a video at step (2/3)';; esac
+case $? in [!0]*)
+  error_exit 1 "Failed to upload a video at step (2.${seg}/3)"
+;; esac
 
 # === Analyze the response (HTTP status code) ========================
 ([ $apires -ge 200 ] && [ $apires -lt 300 ]) || {
-  s="Failed to upload a video at step (2/3): HTTP statuscode is $apires"
+  s="Failed to upload a video at step (2.${seg}/3): HTTP statuscode is $apires"
   error_exit 2 "$s"
 }
+
+# === FINAL END OF CHUNK LOOP ========================================
+seg=$((seg+             1))
+pos=$((pos+chunksize*1024))
+done
 
 
 ######################################################################
