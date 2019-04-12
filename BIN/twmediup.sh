@@ -7,7 +7,7 @@
 # * See the following page to confirm the acceptable files
 #   https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-04-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-04-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -33,7 +33,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2019-04-09 18:36:07 JST
+	Version : 2019-04-13 02:28:39 JST
 	Notice  : See the following page to confirm the acceptable files
 	https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
 	USAGE
@@ -125,7 +125,23 @@ for arg in "$@"; do
     'jpeg') type='image/jpeg';;
     'bmp')  type='image/bmp' ;;
     'webp') type='image/webp';;
-    'gif')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # Subcontract twvideoup.sh
+    'gif')  # (investigate whether animated-gif or not)
+            s=$(dd if="$arg" bs=783 count=1 2>/dev/null                   |
+                od -A n -t u1                                             |
+                sed 's/^ *//'                                             |
+                tr ' ' '\n'                                               |
+                grep '[0-9]'                                              |
+                awk 'BEGIN    {ret=0; i=1000;                           } #
+                     NR<  6   {s=s $1;                             next;} #
+                     NR== 6   {s=s $1;if(s!="717370565797"){exit;} next;} #
+                     NR==11   {i=(i>127)?2^(($1%8+1))*3+14:14;     next;} #
+                     NR==i    {s=$1;                               next;} #
+                     NR==(i+1){s=s " " $1;ret=(s=="33 255")?1:0;   exit;} #
+                     END      {print ret;                               }')
+            case $s in
+              0) type='image/gif' ;;
+              *) exec "$Homedir/BIN/twvideoup.sh" "$arg";;
+            esac                                   ;; # Subcontract twvideoup.sh
     'mp4')  exec "$Homedir/BIN/twvideoup.sh" "$arg";; # it when it is a video
     'mp4v') exec "$Homedir/BIN/twvideoup.sh" "$arg";; # (will not come back)
     'mpg4') exec "$Homedir/BIN/twvideoup.sh" "$arg";; #
