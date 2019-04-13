@@ -33,7 +33,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <file>
-	Version : 2019-04-13 02:28:39 JST
+	Version : 2019-04-13 11:01:39 JST
 	Notice  : See the following page to confirm the acceptable files
 	https://developer.twitter.com/en/docs/media/upload-media/uploading-media/media-best-practices
 	USAGE
@@ -114,6 +114,7 @@ done
 # === Validate file argument and generate an argument for MIME making command
 case $# in [!1]) print_usage_and_exit;; esac # the API accept one file at a time
 for arg in "$@"; do
+  [ -f "$arg" ] || error_exit 1 "$arg: No such file or not a regular file"
   ext=$(printf '%s' "${arg##*/}" | tr -d '\n')
   case "${ext##*.}" in
     "$ext") ext=''                                                        ;;

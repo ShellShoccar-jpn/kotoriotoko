@@ -4,7 +4,7 @@
 #
 # TWEET.SH : Post A Tweet
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2019-04-13
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	          -r <tweet_id>  |--reply=<tweet_id>
 	          -l <lat>,<long>|--location=<lat>,<long>
 	          -p <place_id>  |--place=<place_id>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2019-04-13 12:08:28 JST
 	USAGE
   exit 1
 }
@@ -93,14 +93,16 @@ while :; do
                  }
                  s=$(printf '%s' "${1#--file=}")
                  [ -n "$s" ] || error_exit 1 'Invalid --file option'
-                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
-                 s=$(printf '%s\n' "$s"                               |
-                     while IFS='' read -r file; do                    #
-                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
-                     done                                             |
-                     awk 'sub(/^id=/,""){print;}'                     )
+                 [ -f "$s" ] || {
+                   error_exit 1 "$s: No such file or not a regular file"
+                 }
+                 s=$(printf '%s\n' "$s"                   |
+                     while IFS='' read -r file; do        #
+                       "$Homedir/BIN/twmediup.sh" "$file" #
+                     done                                 |
+                     awk 'sub(/^id=/,""){print;}'         )
                  case "$s" in
-                   '') error_exit 1 "Failed to upload: \"${1#--file=}\"";;
+                   '') error_exit 1 "${1#--file=}: Failed to upload";;
                  esac
                  mediaids=$(echo "${mediaids},$s" |
                             sed 's/^,//'          |
@@ -112,14 +114,16 @@ while :; do
                  }
                  s=$(printf '%s' "${2:-}")
                  [ -n "$s" ] || error_exit 1 'Invalid -f option'
-                 [ -f "$s" ] || error_exit 1 "File not found: \"$s\""
-                 s=$(printf '%s\n' "$s"                               |
-                     while IFS='' read -r file; do                    #
-                       "$Homedir/BIN/twmediup.sh" "$file" 2>/dev/null # 
-                     done                                             |
-                     awk 'sub(/^id=/,""){print;}'                     )
+                 [ -f "$s" ] || {
+                   error_exit 1 "$s: No such file or not a regular file"
+                 }
+                 s=$(printf '%s\n' "$s"                   |
+                     while IFS='' read -r file; do        #
+                       "$Homedir/BIN/twmediup.sh" "$file" #
+                     done                                 |
+                     awk 'sub(/^id=/,""){print;}'         )
                  case "$s" in
-                   '') error_exit 1 "Failed to upload: \"${2:-}\"";;
+                   '') error_exit 1 "${2:-}: Failed to upload";;
                  esac
                  mediaids=$(echo "${mediaids},$s" |
                             sed 's/^,//'          |
