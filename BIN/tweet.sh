@@ -30,13 +30,16 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [options] <tweet_message>
-	          echo <tweet_message> | ${0##*/} [options]
-	Options : -f <media_file>|--file=<media_file>
-	          -m <media_id>  |--mediaid=<media_id>
-	          -r <tweet_id>  |--reply=<tweet_id>
-	          -l <lat>,<long>|--location=<lat>,<long>
-	          -p <place_id>  |--place=<place_id>
-	Version : 2019-04-13 12:08:28 JST
+	          echo <tweet_message>     | ${0##*/} [options]
+	Options : -e <@user[,<@user>[,..]]>|--exrepto=<@user[,<@user>[,..]]>
+	          -f <media_file>          |--file=<media_file>
+	          -m <media_id>            |--mediaid=<media_id>
+	          -r <tweet_id>            |--reply=<tweet_id>
+	          -l <lat>,<long>          |--location=<lat>,<long>
+	          -p <place_id>            |--place=<place_id>
+	          -u <tweeturl>            |--url=<tweeturl>
+	                                    --sensitive
+	Version : 2019-04-13 20:11:26 JST
 	USAGE
   exit 1
 }
@@ -77,17 +80,75 @@ case "$# ${1:-}" in
 esac
 
 # === Initialize parameters ==========================================
+attachurl=''
+exrepto=''
 location=''
 message=''
 place=''
 replyto=''
 mediaids=''
+sensitive=''
 rawoutputfile=''
 timeout=''
 
 # === Read options ===================================================
 while :; do
   case "${1:-}" in
+    --exrepto=*) s=$(printf '%s\n' "${1#--exrepto=}"           |
+                     tr ',' '\n'                               |
+                     grep -E '^([0-9]+|@?[A-Za-z0-9_]{1,15})$' |
+                     awk '/^[0-9]+$/{id=id ","  $1; next;}     #
+                                    {sc=sc ",@" $1; next;}     #
+                          END       {id=substr(id,2);          #
+                                     sc=substr(sc,2);          #
+                                     gsub(/@@/,"@",sc);        #
+                                     print id,sc;        }'    )
+                 if   [ "${s% }" != "$s"               ]; then
+                   exrepto=${s% }
+                 elif [ ! -x "$Homedir/BIN/twusers.sh" ]; then
+                   error_exit 1 'twusers.sh command is required, but not found'
+                 else
+                   exrepto=${s% *}
+                   s=$(echo "${s#* }"                          |
+                       tr ',' ' '                              |
+                       xargs $Homedir/BIN/twusers.sh           |
+                       sed 's/^[^0-9]*\([0-9]\{1,\}\) .*$/\1/' |
+                       tr '\n' ','                             )
+                   s=${s%,}
+                   [ -n "$s" ] || { error_exit 1 'Failed to get user IDs'; }
+                   exrepto="${exrepto},$s"
+                   exrepto="${exrepto#,}"
+                 fi
+                 shift
+                 ;;
+    -e)          [ -n "${2:-}" ] || error_exit 1 'Invalid -e option'
+                 s=$(printf '%s\n' "${2:-}"                    |
+                     tr ',' '\n'                               |
+                     grep -E '^([0-9]+|@?[A-Za-z0-9_]{1,15})$' |
+                     awk '/^[0-9]+$/{id=id ","  $1; next;}     #
+                                    {sc=sc ",@" $1; next;}     #
+                          END       {id=substr(id,2);          #
+                                     sc=substr(sc,2);          #
+                                     gsub(/@@/,"@",sc);        #
+                                     print id,sc;        }'    )
+                 if   [ "${s% }" != "$s"               ]; then
+                   exrepto=${s% }
+                 elif [ ! -x "$Homedir/BIN/twusers.sh" ]; then
+                   error_exit 1 'twusers.sh command is required, but not found'
+                 else
+                   exrepto=${s% *}
+                   s=$(echo "${s#* }"                          |
+                       tr ',' ' '                              |
+                       xargs $Homedir/BIN/twusers.sh           |
+                       sed 's/^[^0-9]*\([0-9]\{1,\}\) .*$/\1/' |
+                       tr '\n' ','                             )
+                   s=${s%,}
+                   [ -n "$s" ] || { error_exit 1 'Failed to get user IDs'; }
+                   exrepto="${exrepto},$s"
+                   exrepto="${exrepto#,}"
+                 fi
+                 shift 2
+                 ;;
     --file=*)    [ -x "$Homedir/BIN/twmediup.sh" ] || {
                    error_exit 1 'twmediup.sh command is required, but not found'
                  }
@@ -166,6 +227,15 @@ while :; do
     -r)          replyto=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
+    --sensitive) sensitive=true
+                 shift
+                 ;;
+    --url=*)     attachurl=$(printf '%s' "${1#--url=}" | tr -d '\n')
+                 shift
+                 ;;
+    -u)          attachurl=$(printf '%s' "${2:-}" | tr -d '\n')
+                 shift 2
+                 ;;
     --rawout=*)  # for debug
                  s=$(printf '%s' "${1#--rawout=}" | tr -d '\n')
                  rawoutputfile=$s
@@ -226,11 +296,15 @@ readonly API_endpt='https://api.twitter.com/1.1/statuses/update.json'
 readonly API_methd='POST'
 # (2)parameters
 API_param=$(cat <<-PARAM                      |
+				attachment_url=$attachurl
+				auto_populate_reply_metadata=true
+				exclude_reply_user_ids=$exrepto
 				in_reply_to_status_id=$replyto
 				lat=${location%,*}
 				long=${location#*,}
 				media_ids=$mediaids
 				place_id=$place
+				possibly_sensitive=$sensitive
 				status=$message
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$'   )
