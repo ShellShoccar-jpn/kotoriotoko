@@ -4,7 +4,7 @@
 #
 # RETWEET.SH : Retweet A Tweet
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -22,15 +22,15 @@
 set -u
 umask 0022
 export LC_ALL=C
-type command >/dev/null 2>&1 && type getconf >/dev/null 2>&1 &&
-export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export PATH="$(command -p getconf PATH 2>/dev/null)${PATH+:}${PATH-}"
+case $PATH in :*) PATH=${PATH#?};; esac
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} <tweet_id>
-	Version : 2017-07-18 02:39:39 JST
+	Version : 2020-05-06 22:42:19 JST
 	USAGE
   exit 1
 }

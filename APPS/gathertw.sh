@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2018-12-19
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -21,9 +21,9 @@
 # === Initialize =====================================================
 set -u
 umask 0022
-export LC_ALL='C'
-type command >/dev/null 2>&1 && type getconf >/dev/null 2>&1 &&
-export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export LC_ALL=C
+export PATH="$(command -p getconf PATH 2>/dev/null)${PATH+:}${PATH-}"
+case $PATH in :*) PATH=${PATH#?};; esac
 export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Define error functions =========================================
@@ -47,7 +47,7 @@ print_usage_and_exit () {
 	          -g <lat,long,radius>|--geocode=<lat,long,radius>
 	          -l <lang>           |--lang=<lang>
 	          -o <locale>         |--locale=<locale>
-	Version : 2018-12-19 12:38:37 JST
+	Version : 2020-05-06 22:42:19 JST
 	USAGE
   exit 1
 }

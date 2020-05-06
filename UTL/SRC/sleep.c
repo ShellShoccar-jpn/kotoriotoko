@@ -2,18 +2,23 @@
 #
 # SLEEP - Sleep Command Which Supported Non-Integer Numbers
 #
-# USAGE   : sleep <seconds>
-# Args    : second ... The number of second to sleep for. You can
-#                      give not only an integer number but also a
-#                      non-integer number here.
+# USAGE   : sleep seconds
+# Args    : seconds ... The number of second to sleep for. You can
+#                       give not only an integer number but also a
+#                       non-integer number here.
 # Retuen  : Return 0 only when succeeded to sleep
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2017-07-18
+# How to compile : cc -o __CMDNAME__ __SRCNAME__
+#
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-03-19
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
 # By the way, We are fed up with the side effects which are brought
 # about by the major licenses.
+#
+# The latest version is distributed at the following page.
+# https://github.com/ShellShoccar-jpn/misc-tools
 #
 ####################################################################*/
 
@@ -26,34 +31,36 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <time.h>
-#define WRN(fmt,args...) fprintf(stderr,fmt,##args)
 
-char* pszMypath;
+char* gpszCmdname;
 
 /*=== Define the functions for printing usage and error ============*/
 void print_usage_and_exit(void) {
-  int  i;
-  int  iPos = 0;
-  for (i=0; *(pszMypath+i)!='\0'; i++) {
-    if (*(pszMypath+i)=='/') {iPos=i+1;}
-  }
-  WRN("USAGE   : %s <seconds>\n",pszMypath+iPos                               );
-  WRN("Args    : second ... The number of second to sleep for. You can\n"     );
-  WRN("                     give not only an integer number but also a\n"     );
-  WRN("                     non-integer number here.\n"                       );
-  WRN("Retuen  : Return 0 only when succeeded to sleep\n"                     );
-  WRN("Version : 2017-07-18 00:23:25 JST\n"                                   );
-  WRN("          (POSIX C language)\n"                                        );
+  fprintf(stderr,
+    "USAGE   : %s seconds\n"
+    "Args    : seconds ... The number of second to sleep for. You can\n"
+    "                      give not only an integer number but also a\n"
+    "                      non-integer number here.\n"
+    "Retuen  : Return 0 only when succeeded to sleep\n"
+    "Version : 2020-03-19 12:18:14 JST\n"
+    "          (POSIX C language)\n"
+    "\n"
+    "Shell-Shoccar Japan (@shellshoccarjpn), No rights reserved.\n"
+    "This is public domain software. (CC0)\n"
+    "\n"
+    "The latest version is distributed at the following page.\n"
+    "https://github.com/ShellShoccar-jpn/misc-tools\n"
+    ,gpszCmdname);
   exit(1);
 }
-void error_exit(int iErrno, char* szMessage) {
-  int  i;
-  int  iPos = 0;
-  for (i=0; *(pszMypath+i)!='\0'; i++) {
-    if (*(pszMypath+i)=='/') {iPos=i+1;}
-  }
-  WRN("%s: %s\n",pszMypath+iPos, szMessage);
+void error_exit(int iErrno, const char* szFormat, ...) {
+  va_list va;
+  va_start(va, szFormat);
+  fprintf(stderr,"%s: ",gpszCmdname);
+  vfprintf(stderr,szFormat,va);
+  va_end(va);
   exit(iErrno);
 }
 
@@ -67,15 +74,17 @@ int main(int argc, char *argv[]) {
   /*=== Initial Setting ============================================*/
   struct timespec tspcSleeping_time;
   double dNum;
-  char   szBuf[2];
-  int    iRet;
+  int    i,iRet;
 
-  pszMypath = argv[0];
+  gpszCmdname = argv[0];
+  for (i=0; *(gpszCmdname+i)!='\0'; i++) {
+    if (*(gpszCmdname+i)=='/') {gpszCmdname=gpszCmdname+i+1;}
+  }
 
   /*=== Parse options ==============================================*/
-  if (argc != 2                                   ) {print_usage_and_exit();}
-  if (sscanf(argv[1], "%lf%1s", &dNum, szBuf) != 1) {print_usage_and_exit();}
-  if (dNum > INT_MAX                              ) {print_usage_and_exit();}
+  if (argc != 2                         ) {print_usage_and_exit();}
+  if (sscanf(argv[1], "%lf", &dNum) != 1) {print_usage_and_exit();}
+  if (dNum > INT_MAX                    ) {print_usage_and_exit();}
 
   /*=== Sleep ======================================================*/
   if (dNum <= 0                                   ) {exit(0);               }
@@ -86,5 +95,5 @@ int main(int argc, char *argv[]) {
   if (iRet != 0) {error_exit(iRet,"Error happend while nanosleeping\n");}
 
   /*=== Finish =====================================================*/
-  exit(0);
+  return 0;
 }
