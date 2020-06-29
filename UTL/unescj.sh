@@ -19,7 +19,7 @@
 # Usage: unescj.sh [-n] [JSONPath-value_textfile]
 #
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-06-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -45,7 +45,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n] [JSONPath-value_textfile]
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-06-27 02:14:39 JST
 	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
@@ -133,7 +133,7 @@ BEGIN {                                                                        #
   #for(i=65535;i>=0;i--) {          # (b) # (a) is to use 256 keys twice. (b)  #
   #  whex2int[sprintf("%02x",i)]=i; #  :  # is to use 65536 keys once. And (a) #
   #}                                #  :  # was a litter faster than (b).      #
-                                                                               #
+  j=0;                                                                         #
   while (getline l) {                                                          #
     if (l=="\\N") {print "\n"; continue; }                                     #
     if (match(l,/^\\u00[0-7][0-9a-fA-F]/)) {                                   #
@@ -144,6 +144,26 @@ BEGIN {                                                                        #
       #i=whex2int[tolower(substr(l,3,4))]; # <-(a) V(b)                        #
       i=bhex2int[tolower(substr(l,3,2))]*256+bhex2int[tolower(substr(l,5,2))]; #
       printf("%c%c",192+int(i/64),128+i%64);                                   #
+      print substr(l,7);                                                       #
+      continue;                                                                #
+    }                                                                          #
+    if (match(l,/^\\u[Dd][89AaBb][0-9a-fA-F][0-9a-fA-F]$/)) {                  #
+      # Decode high-surrogate part                                             #
+      j = bhex2int["0" tolower(substr(l,4,1))]*262144 +                        \
+          bhex2int[    tolower(substr(l,5,2))]*  1024 -                        \
+          2031616;                                                             #
+      continue;                                                                #
+    }                                                                          #
+    if (match(l,/^\\u[Dd][C-Fc-f][0-9a-fA-F][0-9a-fA-F]/ )) {                  #
+      # Decode low-surrogate part                                              #
+      j += bhex2int["0" tolower(substr(l,4,1))]*256 +                          \
+           bhex2int[tolower(substr(l,5,2))]         -                          \
+           3072;                                                               #
+      i1=240+int(j/262144); j%=262144;                                         #
+      i2=128+int(j/  4096); j%=  4096;                                         #
+      i3=128+int(j/    64); j%=    64;                                         #
+      i4=128+    j        ; j =     0;                                         #
+      printf("%c%c%c%c",i1,i2,i3,i4);                                          #
       print substr(l,7);                                                       #
       continue;                                                                #
     }                                                                          #
