@@ -4,7 +4,7 @@
 #
 # TWVIEW.SH : View Tweets Which Are Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-21
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-21 23:16:36 JST
 	USAGE
   exit 1
 }
@@ -248,7 +248,7 @@ echo "$apires"                                                                |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
-tr -d '\000'                                                                  |
+tr -d '\000\034'                                                              |
 sed 's/^\$\[\([0-9]\{1,\}\)\]\./\1 /'                                         |
 awk '                                                                         #
   {                        k=$2;                                            } #

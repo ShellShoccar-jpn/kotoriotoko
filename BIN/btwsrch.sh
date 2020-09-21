@@ -5,7 +5,7 @@
 # BTWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-21
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-21 23:16:36 JST
 	USAGE
   check_my_bearer_token_and_print || exit $?
   exit 1
@@ -298,7 +298,7 @@ echo "$apires"                                                                |
 if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
-tr -d '\000'                                                                  |
+tr -d '\000\034'                                                              |
 sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                               |
 grep -v '^\$'                                                                 |
 awk '                                                                         #
