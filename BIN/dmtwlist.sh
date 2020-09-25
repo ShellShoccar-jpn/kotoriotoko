@@ -4,7 +4,7 @@
 #
 # DMTWLIST.SH : List Direct Messages Which Have Been Both Sent And Received
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -34,7 +34,7 @@ print_usage_and_exit () {
 	          -p <cursor_code>|--cursor=<cursor_code>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-26 02:57:32 JST
 	USAGE
   exit 1
 }
@@ -282,25 +282,20 @@ awk '                                                                          #
   $2=="target.recipient_id"{ri= substr($0,length($1 $2)+3);next;             } #
   $2=="source_app_id"      {ap= substr($0,length($1 $2)+3);next;             } #
   $2~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                       #
-                            s =substr($2,1,length($2)-13);                     #
-                            if(s==ep){next;} ep=s;                             #
+                            en=substr($2,1,length($2)-14);sub(/^.+\[/,"",en);  #
                             s =substr($0,length($1 $2)+3);                     #
-                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
-                   next;                                                       #
-                 }                                                             #
-                            en++;eu[en]=s;next;                              } #
+           if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){next;}  #
+                            eu[en*1]=s; next;                                } #
   $2~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                        #
-                            s =substr($2,1,length($2)-12);                     #
-                            if(s==ep){en++;} ep=s;                             #
+                            en=substr($2,1,length($2)-13);sub(/^.+\[/,"",en);  #
                             s =substr($0,length($1 $2)+3);                     #
-                 if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){  #
-                   next;                                                       #
-                 }                                                             #
-                            if(!match(s,/^https?:\/\//)){s="http://" s;}       #
-                            eu[en]=s;next;                                   } #
+           if(match(s,/^https?:\/\/twitter\.com\/messages\/[0-9-]+$/)){next;}  #
+                            sub(/^.*:\/\//,"",s); i=index(s,"/");              #
+                            if(i==0){next;}; s=substr(s,1,i-1);                #
+                            du[en*1]=s; next;                                } #
   END                      {print_tw();                                      } #
   function init_param(lv)  {si=""; ri="";                                      #
-                            en= 0; ep=""; split("",eu); ap="-";                #
+                            en= 0; split("",eu); split("",du); ap="-";         #
                             if (lv<2) {return;}                                #
                             tm=""; id=""; tx="";                             } #
   function print_tw()      {                                                   #
@@ -314,15 +309,17 @@ awk '                                                                          #
     print id,substr(tm,1,length(tm)-3),si,ri,ap,tx;                            #
     init_param(2);                                                           } #
   function replace_url( tx0,i) {                                               #
-    tx0= tx;                                                                   #
-    tx = "";                                                                   #
-    i  =  0;                                                                   #
-    while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {            #
-      i++;                                                                     #
-      tx  =tx substr(tx0,1,RSTART-1) eu[i];                                    #
-      tx0 =   substr(tx0,RSTART+RLENGTH)  ;                                    #
+    tx0=tx; tx=""; i=0;                                                        #
+    while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                     #
+      if (!(i in eu)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);                  #
+                       tx0=   substr(tx0,  RSTART+RLENGTH  );i++;continue;}    #
+      tx=tx substr(tx0,1,RSTART-1); tx0=substr(tx0,RSTART+RLENGTH); s=eu[i];   #
+      if ((i in du) && (match(s,/:\/\/[^\/]+/))) {                             #
+        s = substr(s,1,RSTART+2) du[i] substr(s,RSTART+RLENGTH);               #
+      }                                                                        #
+      tx=tx s; i++;                                                            #
     }                                                                          #
-    tx = tx tx0;                                                            }' |
+    tx=tx tx0;                                                              }' |
 # 1:DM-ID 2:UNIX-time 3:sender-ID 4:recipient-ID 5:app-ID 6:DM-text(escaped)   #
 calclock -r 2                                                                  |
 awk '{s=$3;gsub(/[0-9][0-9]/,"& ",s); sub(/ /,"",s); split(s,t);               #

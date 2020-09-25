@@ -5,7 +5,7 @@
 # STWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Streaming API Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-21
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -38,7 +38,7 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-21 23:16:36 JST
+	Version : 2020-09-26 02:57:32 JST
 	USAGE
   exit 1
 }
@@ -396,19 +396,21 @@ webcmdpid=''
                                        sub(/".*$/     ,"",au);                 #
                                                              print_tw();next;} #
          k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                #
-                                  s=substr(k,1,length(k)-13);                  #
-                                  if(s!=ep){next;} ep=s;                       #
-                                  en++;eu[en]=substr($0,length($1)+2);  next;} #
+                                  en=substr(k,1,length(k)-14);                 #
+                                  sub(/^.+\[/,"",en);                          #
+                                  eu[en*1]=substr($0,length($1 $2)+3);  next;} #
          k ~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                 #
-                                  s=substr(k,1,length(k)-13);                  #
-                                  if(s!=ep){en++;} ep=s;                       #
-                                  s=substr($0,length($1)+2);                   #
-                                  if(!match(s,/^https?:\/\//)){s="http://" s;} #
-                                       eu[en]=s;                        next;} #
+                                  s=substr($0,length($1 $2)+3);                #
+                                  sub(/^.*:\/\//,"",s);                        #
+                                  i=index(s,"/"); if(i==0){next;}              #
+                                  s=substr(s,1,i-1);                           #
+                                  en=substr(k,1,length(k)-13);                 #
+                                  sub(/^.+\[/,"",en);                          #
+                                  du[en*1]=s;                           next;} #
          function init_param(lv) {tx=""; an=""; au="";                         #
                                   nr=""; nf=""; fr=""; ff="";                  #
                                   ge=""; la=""; lo=""; pl=""; pn="";           #
-                                  en= 0; ep=""; split("",eu);                  #
+                                  en= 0; split("",eu); split("",du);           #
                                   if (lv<2) {return;}                          #
                                   tm=""; id=""; nm=""; sn="";vf="";rtwflg="";} #
          function print_tw( r,f) {                                             #
@@ -440,15 +442,19 @@ webcmdpid=''
            printf("- https://twitter.com/i/web/status/%s\n",id       );        #
            init_param(2);                                                    } #
          function replace_url( tx0,i) {                                        #
-           tx0= tx;                                                            #
-           tx = "";                                                            #
-           i  =  0;                                                            #
-           while (i<=en && match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {     #
-             i++;                                                              #
-             tx  =tx substr(tx0,1,RSTART-1) eu[i];                             #
-             tx0 =   substr(tx0,RSTART+RLENGTH)  ;                             #
+           tx0=tx; tx=""; i=0;                                                 #
+           while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {              #
+             if (!(i in eu)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);           #
+                              tx0=   substr(tx0,  RSTART+RLENGTH  );           #
+                              i++; continue;                        }          #
+             tx=tx substr(tx0,1,RSTART-1); tx0=substr(tx0,RSTART+RLENGTH);     #
+             s=eu[i];                                                          #
+             if ((i in du) && (match(s,/:\/\/[^\/]+/))) {                      #
+               s = substr(s,1,RSTART+2) du[i] substr(s,RSTART+RLENGTH);        #
+             }                                                                 #
+             tx=tx s; i++;                                                     #
            }                                                                   #
-           tx = tx tx0;                                                     }' |
+           tx=tx tx0;                                                       }' |
        # --- 3a-2.convert date string into "YYYY/MM/DD hh:mm:ss"               #
        awk 'BEGIN {                                                            #
               m["Jan"]="01"; m["Feb"]="02"; m["Mar"]="03"; m["Apr"]="04";      #
