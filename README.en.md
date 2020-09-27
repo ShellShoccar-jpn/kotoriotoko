@@ -197,10 +197,10 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- twview.sh ............ View Tweets Which Are Request By Tweet-IDs
 |   |-- twtl.sh .............. View The Twitter Timeline of A User
 |   |-- twsrch.sh ............ Search Twitters Which Match With Given Keywords
-|   |-- retwers.sh ........... View Retweeted User List
+|   |-- retwers.sh ........... View Users List Who Retweet the Specified Tweet
 |   |
 |   |-- twfav.sh ............. Like A Tweet (Mark Favorite)
-|   |-- twunfav.sh ........... Cancel Like For A Tweet (Cancel Favorite Mark)
+|   |-- twunfav.sh ........... Cancel "Like" (Favorite) for the Specified Tweet
 |   |-- favtws.sh ............ View The Favorite Tweets of A User
 |   |
 |   |-- twfollow.sh .......... Follow A User
@@ -212,7 +212,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
 |   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
 |   |-- btwtl.sh ............. View The Twitter Timeline of A User (on Bearer Token Mode *2)
-|   |-- bretwer.sh ........... View Retweeted User List (on Bearer Token Mode *3)
+|   |-- bretwer.sh ........... View Users List Who Retweet the Specified Tweet (on Bearer Token Mode *3)
 |   |                          *1 Access limit will be mitigated once during 5sec -> 2sec
 |   |                          *2 Access limit will be mitigated once during 5sec -> 3sec
 |   |                          *3 Access limit will be mitigated once during 1min -> 15sec
@@ -225,7 +225,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |
 |   |-- dmtweet.sh ........... Post A Direct Message
 |   |-- deldmtw.sh ........... Delete A Direct Message
-|   |-- dmtwview.sh .......... View A Direct Message Which Is Request By Tweet-IDs
+|   |-- dmtwview.sh .......... View a Direct Message Which Is Inquired by Tweet-IDs
 |   `-- dmtwlist.sh .......... List Direct Messages Which Have Been Both Sent And Received
 |
 |

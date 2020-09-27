@@ -4,7 +4,7 @@
 #
 # DMDELTW.SH : Delete A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,8 +29,8 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} <tweet_id>
-	Version : 2020-05-06 22:42:19 JST
+	Usage   : ${0##*/} <tweet_id> [tweet_id...]
+	Version : 2020-09-27 23:09:39 JST
 	USAGE
   exit 1
 }
@@ -49,7 +49,7 @@ PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
 if   type openssl >/dev/null 2>&1; then
   CMD_OSSL='openssl'
 else
-  error_exit 1 'OpenSSL command is not found.'
+  error_exit 5 'OpenSSL command is not found.'
 fi
 # --- 2.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
@@ -57,7 +57,7 @@ if   type curl    >/dev/null 2>&1; then
 elif type wget    >/dev/null 2>&1; then
   CMD_WGET='wget'
 else
-  error_exit 1 'No HTTP-GET/POST command found.'
+  error_exit 5 'No HTTP-GET/POST command found.'
 fi
 
 
@@ -86,44 +86,47 @@ while :; do
     --timeout=*) # for debug
                  s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-                   error_exit 1 'Invalid --timeout option'
+                   error_exit 5 'Invalid --timeout option'
                  }
                  timeout=$s
                  shift
                  ;;
     --|-)        break
                  ;;
-    --*|-*)      error_exit 1 'Invalid option'
+    --*|-*)      error_exit 5 'Invalid option'
                  ;;
     *)           break
                  ;;
   esac
 done
 
-# === Get a tweet ID to delete =======================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
-}
-
 
 ######################################################################
 # Main Routine
 ######################################################################
 
-# === Set parameters of Twitter API endpoint =========================
+# === Set parameters of Twitter API endpoint (common) ================
 # (1)endpoint
-readonly API_endpt="https://api.twitter.com/1.1/direct_messages/events/destroy.json"
+API_endpt='https://api.twitter.com/1.1/direct_messages/events/destroy.json'
+readonly API_endpt
+# (2)method for the endpoint
 readonly API_methd='DELETE'
-# (2)parameters
+
+# === BEGIN: Tweet-ID Loop ===========================================
+num_of_tweets=0; num_of_success=0
+while read tweetid; do num_of_tweets=$((num_of_tweets+1))
+
+# === Validate the Tweet-ID ==========================================
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
+  echo "${0##*/}: $tweetid: Invalid tweet-ID" 1>&2; continue
+}
+
+# === Set parameters of Twitter API endpoint (indivisual) ============
+# (1)parameters
 API_param=$(cat <<-PARAM                   |
 				id=$tweetid
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
-readonly API_param
 
 # === Pack the parameters for the API ================================
 # --- 1.URL-encode only the right side of "="
@@ -230,7 +233,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
            cat                                              #
          fi                                                 )
 # --- 2.exit immediately if it failed to access
-case $? in [!0]*) error_exit 1 'Failed to access API';; esac
+case $? in [!0]*) error_exit 4 'Failed to access API';; esac
 
 # === Print error message if some error occured ======================
 case "$apires" in
@@ -242,14 +245,25 @@ case "$apires" in
                  $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
                  $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
                  END            {print errcode, errmsg;               }')
-      [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-      error_exit 1 "API returned an unknown message: $apires"
+      [ -z "${err#* }" ] || { error_exit 4 "API error(${err%% *}): ${err#* }"; }
+      error_exit 4 "API returned an unknown message: $apires"
       ;;
 esac
+
+# === END: Tweet-ID Loop =============================================
+num_of_success=$((num_of_success+1))
+done <<IDs
+`case $# in 0) cat;; *) echo "$*";; esac |
+ tr -c '[[:graph:]]' '\n'                |
+ grep -v '^[[:blank:]]*$'                `
+IDs
 
 
 ######################################################################
 # Finish
 ######################################################################
 
-exit 0
+if   [ $num_of_tweets  -eq 0              ]; then exit 3
+elif [ $num_of_success -eq 0              ]; then exit 2
+elif [ $num_of_success -lt $num_of_tweets ]; then exit 1
+else                                              exit 0; fi

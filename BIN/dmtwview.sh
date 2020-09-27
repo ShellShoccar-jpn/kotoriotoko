@@ -2,9 +2,9 @@
 
 ######################################################################
 #
-# DMTWVIEW.SH : View A Direct Message Which Is Request By Tweet-ID
+# DMTWVIEW.SH : View a Direct Message Which Is Inquired by Tweet-ID
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,10 +29,10 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options] <tweet_id>
+	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-26 02:57:32 JST
+	Version : 2020-09-27 23:50:07 JST
 	USAGE
   exit 1
 }
@@ -108,30 +108,36 @@ while :; do
   esac
 done
 
-# === Get a tweet-ID =================================================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
-}
-
 
 ######################################################################
 # Main Routine (API call)
 ######################################################################
 
-# === Set parameters of Twitter API endpoint =========================
+# === Set parameters of Twitter API endpoint (common) ================
 # (1)endpoint
 API_endpt='https://api.twitter.com/1.1/direct_messages/events/show.json'
-API_methd='GET'
-# (2)parameters
+readonly API_endpt
+# (2)method for the endpoint
+readonly API_methd='GET'
+
+# === BEGIN: Tweet-ID Loop ===========================================
+touch "$Tmp/numbers.txt"
+case $# in 0) cat;; *) echo "$*";; esac |
+tr -c '[[:graph:]]' '\n'                |
+grep -v '^[[:blank:]]*$'                |
+while read tweetid; do echo 'tweet' >> "$Tmp/numbers.txt"
+
+# === Validate the Tweet-ID ==========================================
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
+  echo "${0##*/}: $tweetid: Invalid tweet-ID" 1>&2; continue
+}
+
+# === Set parameters of Twitter API endpoint (indivisual) ============
+# (1)parameters
 API_param=$(cat <<-PARAM                   |
 				id=$tweetid
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
-readonly API_param
 
 # === Pack the parameters for the API ================================
 # --- 1.URL-encode only the right side of "="
@@ -377,11 +383,6 @@ awk '{si=$4; gsub(/\033/,"\\",si); gsub(/\025/,"\t",si); gsub(/\006/," ",si); #
 # --- 3.end of the routine
 }
 
-
-######################################################################
-# Error message (only for invalid response)
-######################################################################
-
 # === Print error message if some error occured ======================
 [ -s "$Tmp/dm_doby.txt" ] || {
   err=$(cat "$Tmp/apires"                                           |
@@ -391,13 +392,23 @@ awk '{si=$4; gsub(/\033/,"\\",si); gsub(/\025/,"\t",si); gsub(/\006/," ",si); #
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
-  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
-  error_exit 1 "API returned an unknown message: $apires"
+  [ -z "${err#* }" ] || { error_exit 4 "API error(${err%% *}): ${err#* }"; }
+  error_exit 4 "API returned an unknown message: $apires"
 }
+
+# === END: Tweet-ID Loop =============================================
+echo 'success' >> "$Tmp/numbers.txt"
+done
 
 
 ######################################################################
 # Finish
 ######################################################################
 
-exit 0
+num=$(awk '$1=="tweet"  {t++; next;}
+           $1=="success"{s++; next;}
+           END          {print s,t;}' "$Tmp/numbers.txt")
+if   [ ${num#* } -eq 0         ]; then exit 3
+elif [ ${num% *} -eq 0         ]; then exit 2
+elif [ ${num% *} -lt ${num#* } ]; then exit 1
+else                                   exit 0; fi

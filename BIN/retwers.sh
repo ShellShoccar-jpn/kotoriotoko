@@ -2,9 +2,9 @@
 
 ######################################################################
 #
-# RETWER.SH : View Retweeted User List
+# RETWER.SH : View Users List Who Retweet the Specified Tweet
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-28
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,11 +29,11 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options] <tweet_id>
+	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-27 21:20:30 JST
+	Version : 2020-09-28 00:34:04 JST
 	USAGE
   exit 1
 }
@@ -52,7 +52,7 @@ PATH="$Homedir/UTL:$Homedir/TOOL:$PATH" # for additional command
 if   type openssl >/dev/null 2>&1; then
   CMD_OSSL='openssl'
 else
-  error_exit 1 'OpenSSL command is not found.'
+  error_exit 5 'OpenSSL command is not found.'
 fi
 # --- 2.cURL or Wget
 if   type curl    >/dev/null 2>&1; then
@@ -60,7 +60,7 @@ if   type curl    >/dev/null 2>&1; then
 elif type wget    >/dev/null 2>&1; then
   CMD_WGET='wget'
 else
-  error_exit 1 'No HTTP-GET/POST command found.'
+  error_exit 5 'No HTTP-GET/POST command found.'
 fi
 
 
@@ -85,7 +85,7 @@ while :; do
     --count=*)   count=$(printf '%s' "${1#--count=}" | tr -d '\n')
                  shift
                  ;;
-    -n)          case $# in 1) error_exit 1 'Invalid -n option';; esac
+    -n)          case $# in 1) error_exit 5 'Invalid -n option';; esac
                  count=$(printf '%s' "$2" | tr -d '\n')
                  shift 2
                  ;;
@@ -97,30 +97,21 @@ while :; do
     --timeout=*) # for debug
                  s=$(printf '%s' "${1#--timeout=}" | tr -d '\n')
                  printf '%s\n' "$s" | grep -q '^[0-9]\{1,\}$' || {
-                   error_exit 1 'Invalid --timeout option'
+                   error_exit 5 'Invalid --timeout option'
                  }
                  timeout=$s
                  shift
                  ;;
     --|-)        break
                  ;;
-    --*|-*)      error_exit 1 'Invalid option'
+    --*|-*)      error_exit 5 'Invalid option'
                  ;;
     *)           break
                  ;;
   esac
 done
 printf '%s\n' "$count" | grep -q '^[0-9]*$' || {
-  error_exit 1 'Invalid -n option'
-}
-
-# === Get tweet ID to list retweeting users ==========================
-case $# in
-  1) tweetid=$(printf '%s' "$1" | tr -d '\n');;
-  *) print_usage_and_exit                    ;;
-esac
-printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
-  print_usage_and_exit
+  error_exit 5 'Invalid -n option'
 }
 
 
@@ -128,16 +119,28 @@ printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
 # Main Routine
 ######################################################################
 
-# === Set parameters of Twitter API endpoint =========================
-# (1)endpoint
-API_endpt="https://api.twitter.com/1.1/statuses/retweets/$tweetid.json"
-API_methd='GET'
+# === Set parameters of Twitter API endpoint (common) ================
+# (1)method for the endpoint
+readonly API_methd='GET'
 # (2)parameters
 API_param=$(cat <<-PARAM                   |
 				count=${count}
 				PARAM
             grep -v '^[A-Za-z0-9_]\{1,\}=$')
 readonly API_param
+
+# === BEGIN: Tweet-ID Loop ===========================================
+num_of_tweets=0; num_of_success=0
+while read tweetid; do num_of_tweets=$((num_of_tweets+1))
+
+# === Validate the Tweet-ID ==========================================
+printf '%s\n' "$tweetid" | grep -Eq '^[0-9]+$' || {
+  echo "${0##*/}: $tweetid: Invalid tweet-ID" 1>&2; continue
+}
+
+# === Set parameters of Twitter API endpoint (indivisual) ============
+# (1)endpoint
+API_endpt="https://api.twitter.com/1.1/statuses/retweets/$tweetid.json"
 
 # === Pack the parameters for the API ================================
 # --- 1.URL-encode only the right side of "="
@@ -250,7 +253,7 @@ apires=$(printf '%s\noauth_signature=%s\n%s\n'              \
            cat                                              #
          fi                                                 )
 # --- 2.exit immediately if it failed to access
-case $? in [!0]*) error_exit 1 'Failed to access API';; esac
+case $? in [!0]*) error_exit 4 'Failed to access API';; esac
 
 # === Parse the response =============================================
 # --- 1.extract the required parameters from the response (written in JSON)    #
@@ -287,12 +290,23 @@ case $? in [!0]*)
              $1~/\.message$/{errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              $1~/\.error$/  {errmsg =$0;sub(/^.[^ ]* /,"",errmsg);} #
              END            {print errcode, errmsg;               }')
-  [ -z "${err#* }" ] || { error_exit 1 "API error(${err%% *}): ${err#* }"; }
+  [ -z "${err#* }" ] || { error_exit 4 "API error(${err%% *}): ${err#* }"; }
 ;; esac
+
+# === END: Tweet-ID Loop =============================================
+num_of_success=$((num_of_success+1))
+done <<IDs
+`case $# in 0) cat;; *) echo "$*";; esac |
+ tr -c '[[:graph:]]' '\n'                |
+ grep -v '^[[:blank:]]*$'                `
+IDs
 
 
 ######################################################################
 # Finish
 ######################################################################
 
-exit 0
+if   [ $num_of_tweets  -eq 0              ]; then exit 3
+elif [ $num_of_success -eq 0              ]; then exit 2
+elif [ $num_of_success -lt $num_of_tweets ]; then exit 1
+else                                              exit 0; fi
