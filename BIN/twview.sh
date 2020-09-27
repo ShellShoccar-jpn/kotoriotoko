@@ -4,7 +4,7 @@
 #
 # TWVIEW.SH : View Tweets Which Are Request By Tweet-IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-26 02:57:32 JST
+	Version : 2020-09-27 21:42:08 JST
 	USAGE
   exit 1
 }
@@ -103,13 +103,16 @@ while :; do
 done
 
 # === Get tweet-IDs ==================================================
-tweetids=$(printf '%s\n' "$*"                    |
-           tr ' \t' ',,'                         |
-           grep ^                                |
-           sed 's/,,*/,/g'                       |
-           sed 's/^,*//g'                        |
-           sed 's/,*$//g'                        |
-           grep -E '^[0-9]+$|^[0-9][0-9,]+[0-9]$')
+tweetids=`case $# in                            #
+            0) cat | tr '\n' ' ' ;;             #
+            *) printf '%s\n' "$*";;             #
+          esac                                  |
+          tr ' \t' ',,'                         |
+          grep ^                                |
+          sed 's/,,*/,/g'                       |
+          sed 's/^,*//g'                        |
+          sed 's/,*$//g'                        |
+          grep -E '^[0-9]+$|^[0-9][0-9,]+[0-9]$'`
 case "$tweetids" in '') print_usage_and_exit;; esac
 
 
