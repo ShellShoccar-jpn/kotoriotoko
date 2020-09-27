@@ -220,7 +220,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- stwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Streaming API Mode *4)
 |   |                          *4 No access limit but for only English tweets
 |   |
-|   |-- twplsrch.sh .......... Search Place Information Which Match With Given Keywords
+|   |-- twplsrch.sh .......... Search Place Information with Given Keywords
 |   |-- twtrends.sh .......... View Trend Lists in The Specified Area
 |   |
 |   |-- dmtweet.sh ........... Post A Direct Message

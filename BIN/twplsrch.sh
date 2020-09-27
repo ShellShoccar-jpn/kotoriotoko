@@ -2,9 +2,9 @@
 
 ######################################################################
 #
-# TWPLSRCH.SH : Search Place Information Which Match With Given Keywords
+# TWPLSRCH.SH : Search Place Information with Given Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-28
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -29,7 +29,7 @@ export UNIX_STD=2003  # to make HP-UX conform to POSIX
 # === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options] [keyword ...]
+	Usage   : ${0##*/} [options] keyword [keyword...]
 	Options : -c <long,lat[,radius]>|--coordinate=<long,lat[,radius]>
 	          -i <IPaddr>           |--ipaddr=<IPaddr>
 	          -g <keyword>          |--granularity=<keyword>
@@ -37,7 +37,7 @@ print_usage_and_exit () {
 	          -w <place_ID>         |--containedwithin=<place_ID>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-28 02:05:37 JST
 	USAGE
   exit 1
 }
