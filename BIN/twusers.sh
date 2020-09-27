@@ -4,7 +4,7 @@
 #
 # TWUSERS.SH : List Users Which Are Request By IDs
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -37,7 +37,7 @@ print_usage_and_exit () {
 	                        loginname.
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-27 21:20:30 JST
 	USAGE
   exit 1
 }
@@ -281,7 +281,7 @@ awk '                                                                          #
     if (sn=="") {return;}                                                      #
     if (fl=="") {return;}                                                      #
     stat = (fl=="true") ? "-=>" : "-==";                                       #
-    printf("%s %-18s %s (@%s)%s\n",stat,id,nm,sn,vf);                          #
+    printf("%s %-19s %s (@%s)%s\n",stat,id,nm,sn,vf);                          #
     init_param(2);                                                          }' |
 # --- 2.regard as an error if no line was outputed                             #
 awk '{print;} END{exit 1-(NR>0);}'

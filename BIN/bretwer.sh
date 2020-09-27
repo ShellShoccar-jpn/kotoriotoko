@@ -4,7 +4,7 @@
 #
 # BRETWER.SH : View Retweeted User List (on Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-27
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -33,7 +33,7 @@ print_usage_and_exit () {
 	Options : -n <count>|--count=<count>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-09-27 21:20:30 JST
 	USAGE
   check_my_bearer_token_and_print || exit $?
   exit 1
@@ -214,7 +214,7 @@ awk '                                                                          #
   function print_tw( stat){if (id=="") {return;}                               #
                            if (nm=="") {return;}                               #
                            if (sn=="") {return;}                               #
-                           printf("%-18s %s (@%s)%s\n",id,nm,sn,vf);           #
+                           printf("%-19s %s (@%s)%s\n",id,nm,sn,vf);           #
                            init_param(2);                                   }' |
 # --- 2.regard as an error if no line was outputed                             #
 awk '{print;} END{exit 1-(NR>0);}'
