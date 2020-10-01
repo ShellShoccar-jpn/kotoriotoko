@@ -4,7 +4,7 @@
 #
 # TWSRCH.SH : Search Twitters Which Match With Given Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-10-01
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-26 02:57:32 JST
+	Version : 2020-10-01 22:33:22 JST
 	USAGE
   exit 1
 }
@@ -356,6 +356,8 @@ if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000\034'                                                              |
+sed 's/&amp;/'$(printf '\034')'/g'                                            |
+sed 's/&lt;/</g' | sed 's/&gt;/>/g' | tr '\034' '&'                           |
 sed 's/^\$\.statuses\[\([0-9]\{1,\}\)\]\./\1 /'                               |
 grep -v '^\$'                                                                 |
 awk '                                                                         #

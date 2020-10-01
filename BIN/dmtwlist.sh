@@ -4,7 +4,7 @@
 #
 # DMTWLIST.SH : List Direct Messages Which Have Been Both Sent And Received
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-09-26
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-10-01
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -34,7 +34,7 @@ print_usage_and_exit () {
 	          -p <cursor_code>|--cursor=<cursor_code>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-09-26 02:57:32 JST
+	Version : 2020-10-01 22:33:22 JST
 	USAGE
   exit 1
 }
@@ -268,7 +268,9 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 cat "$Tmp/apires"                                                              |
 parsrj.sh    2>/dev/null                                                       |
 unescj.sh -n 2>/dev/null                                                       |
-tr -d '\000'                                                                   |
+tr -d '\000\034'                                                               |
+sed 's/&amp;/'$(printf '\034')'/g'                                             |
+sed 's/&lt;/</g' | sed 's/&gt;/>/g' | tr '\034' '&'                            |
 tee "$Tmp/jsonpath_value.txt"                                                  |
 sed -n '/^\$\.events\[[0-9]\{1,\}\]\./{s/.\{9\}//;p;}'                         |
 sed 's/^\([0-9]*\)..\(message_create\.\(message_data\.\)\{0,1\}\)\{0,1\}/\1 /' |
