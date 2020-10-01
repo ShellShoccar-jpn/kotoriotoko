@@ -1,4 +1,4 @@
-# KOTORIOTOKO -- The Ultimate Shell Script Twitter Tools
+# KOTORIOTOKO -- The Ultimate Shell Script Twitter Client App
 
 ## Table of Contents
 
