@@ -4,7 +4,7 @@
 #
 # DMTWVIEW.SH : View a Direct Message Which Is Inquired by Tweet-ID
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-10-01
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-10-01 22:33:22 JST
+	Version : 2020-11-09 17:51:20 JST
 	USAGE
   exit 1
 }
@@ -112,6 +112,10 @@ done
 ######################################################################
 # Main Routine (API call)
 ######################################################################
+
+# === Prepare a temporary directory to make a MIME date for uploading
+trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
+Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
 
 # === Set parameters of Twitter API endpoint (common) ================
 # (1)endpoint
@@ -206,9 +210,6 @@ sig_strin=$(cat <<-KEY_AND_DATA                                  |
             done                                                 )
 
 # === Access to the endpoint =========================================
-# --- 0.prepare a temporary directory to make a MIME date for uploading
-trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM
-Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXX"` || error_exit 1 'Failed to mktemp'
 # --- 1.connect and get a response
 printf '%s\noauth_signature=%s\n%s\n'              \
        "${oa_param}"                               \
@@ -257,6 +258,7 @@ case $? in [!0]*) error_exit 1 'Failed to access API';; esac
 
 # === Parse the responsed JSON and extract the required parameters ===
 cat "$Tmp/apires"                                                             |
+if [ -n "$rawoutputfile" ]; then tee "$rawoutputfile"; else cat; fi           |
 parsrj.sh    2>/dev/null                                                      |
 unescj.sh -n 2>/dev/null                                                      |
 tr -d '\000\034'                                                              |
@@ -272,6 +274,17 @@ awk 'BEGIN                      {init_param(2);                             } #
      $1=="sender_id"            {si= substr($0,length($1)+2);next;          } #
      $1=="target.recipient_id"  {ri= substr($0,length($1)+2);next;          } #
      $1=="source_app_id"        {ap= substr($0,length($1)+2);next;          } #
+     $1~/^(entities\.urls\[[0-9]+\]|attachment\.media(\[[0-9]+\])?)\.url$/{   #
+                                 reg_tco_url($1,substr($0,length($1)+2));     #
+                                 en=1;                                 next;} #
+     $1~/^entities\.urls\[[0-9]+\]\.(expanded|display)_url$/{                 #
+                                 s =substr($0,length($1)+2);                  #
+    if(match(s,/^https?:\/\/twitter\.com\/messages\/media\/[0-9]+$/)){next;}  #
+                                 reg_origurl($1,s);                    next;} #
+     $1~/^attachment\.media(\[[0-9]+\])?\.media_url_https$/{                  #
+                                 s =substr($0,length($1)+2);                  #
+    if(match(s,/^https?:\/\/twitter\.com\/messages\/media\/[0-9]+$/)){next;}  #
+                                 reg_origurl($1,s);                    next;} #
      $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
                                  en=substr($1,1,length($1)-14);               #
                                  sub(/^.+\[/,"",en);                          #
@@ -286,8 +299,9 @@ awk 'BEGIN                      {init_param(2);                             } #
                                  if(i==0){next;}; s=substr(s,1,i-1);          #
                                  du[en*1]=s; next;                          } #
      END                        {print_tw();                                } #
-     function init_param(lv)    {si=""; ri="";                                #
-                                 en= 0; split("",eu); split("",du); ap="-";   #
+     function init_param(lv)    {si=""; ri=""; ap="-";                        #
+                                 split("",eu); split("",du); split("",mu);    #
+                                 split("",tc); en=0;                          #
                                  if (lv<2) {return;}                          #
                                  tm=""; id=""; tx="";                       } #
      function print_tw() {                                                    #
@@ -300,17 +314,62 @@ awk 'BEGIN                      {init_param(2);                             } #
        gsub(/ /,"\006",tx); gsub(/\t/,"\025",tx); gsub(/\\/,"\033",tx);       #
        print id,substr(tm,1,length(tm)-3),si,ri,ap,tx;                        #
        init_param(2);                                                       } #
-     function replace_url( tx0,i) {                                           #
+     function reg_tco_url(k,v ,p,i) {                                         #
+       sub(/\]?\.url$/,"",k);                                                 #
+       match(k,/^entities.urls\[?/);                                          #
+       if (RSTART>0) {i="U" substr(k,RSTART+RLENGTH);                         #
+                      if (v in tc) {tc[v]=tc[v] " " i;} else {tc[v]=i;}       #
+                      return;                                          }      #
+       match(k,/^attachment.media\[?/);                                       #
+       if (RSTART>0) {i="M" substr(k,RSTART+RLENGTH);                         #
+                      if (v in tc) {tc[v]=tc[v] " " i;} else {tc[v]=i;}       #
+                      return;                                          }    } #
+     function reg_origurl(k,v ,p,i) {                                         #
+       if        (sub(/\]?\.media_url_https$/,"",k)) {                        #
+         match(k,/^attachment.media\[?/);                                     #
+         if (RSTART<1) {return;}                                              #
+         i="M" substr(k,RSTART+RLENGTH);                                      #
+         if (i in mu) {mu[i]=mu[i] " " v;} else {mu[i]=v;}                    #
+       } else if (sub(/\]?\.expanded_url$/   ,"",k)) {                        #
+         match(k,/^entities.urls\[?/);                                        #
+         if (RSTART<1) {return;}                                              #
+         i="U" substr(k,RSTART+RLENGTH);                                      #
+         if (i in eu) {eu[i]=eu[i] " " v;} else {eu[i]=v;}                    #
+       } else if (sub(/\]?\.display_url$/    ,"",k)) {                        #
+         match(k,/^entities.urls\[?/);                                        #
+         if (RSTART<1) {return;}                                              #
+         i="U" substr(k,RSTART+RLENGTH);                                      #
+         if (i in du) {du[i]=du[i] " " v;} else {du[i]=v;}                    #
+       }                                                                    } #
+     function replace_url( tx0,u,i,p,a,b,c,d) {                               #
        tx0=tx; tx=""; i=0;                                                    #
        while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                 #
-         if (!(i in eu)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);              #
-                          tx0=   substr(tx0,  RSTART+RLENGTH  );              #
-                          i++;continue;                         }             #
-         tx=tx substr(tx0,1,RSTART-1);tx0=substr(tx0,RSTART+RLENGTH);s=eu[i]; #
-         if ((i in du) && (match(s,/:\/\/[^\/]+/))) {                         #
-           s = substr(s,1,RSTART+2) du[i] substr(s,RSTART+RLENGTH);           #
+         u=substr(tx0,RSTART,RLENGTH);                                        #
+         if (!(u in tc)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);              #
+                          tx0=   substr(tx0,  RSTART+RLENGTH  );continue;}    #
+         tx=tx substr(tx0,1,RSTART-1); tx0=substr(tx0,RSTART+RLENGTH);        #
+         a="";                                                                #
+         b=tc[u];                                                             #
+         while (match(b,/[UM][0-9]*/)) {                                      #
+           a=a substr(b,     1,RSTART-1); sub(/^[[:blank:]]+/,"",a);          #
+           i=  substr(b,RSTART,RLENGTH );                                     #
+           b=  substr(b,RSTART+RLENGTH );                                     #
+           if        (i in eu) {                                              #
+             c=eu[i];                                                         #
+             if (i in du) {                                                   #
+               d=du[i];sub(/^https?:\/\//,"",d);sub(/\/.*$/,"",d);            #
+               if ((! index(d,"…")) && match(c,/:\/\/[^\/]+/)) {             #
+                 c=substr(c,1,RSTART+2) d substr(c,RSTART+RLENGTH);           #
+               }                                                              #
+             }                                                                #
+           } else if (i in mu) {                                              #
+             c=mu[i];                                                         #
+           } else              {                                              #
+             c="";                                                            #
+           }                                                                  #
+           a=a c;                                                             #
          }                                                                    #
-         tx=tx s; i++;                                                        #
+         tx=tx a b; sub(/[[:blank:]]+$/,"",tx);                               #
        }                                                                      #
        tx=tx tx0;                                                          }' |
 # 1:DM-ID 2:UNIX-time 3:sender-ID 4:recipient-ID 5:app-ID 6:DM-text(escaped)  #

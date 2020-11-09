@@ -5,7 +5,7 @@
 # BTWSRCH.SH : Search Twitters Which Match With Given Keywords
 #              (on Bearer Token Mode)
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-10-01
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -41,7 +41,7 @@ print_usage_and_exit () {
 	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-10-01 22:33:22 JST
+	Version : 2020-11-09 06:00:44 JST
 	USAGE
   check_my_bearer_token_and_print || exit $?
   exit 1
@@ -326,18 +326,18 @@ awk '                                                                         #
                            an= s;sub(/<\/a>$/,"",an);sub(/^<a[^>]*>/,"",an);  #
                            au= s;sub(/^.*href="/,"",au);sub(/".*$/,"",au);    #
                                                           print_tw();  next;} #
-  k ~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                      #
-                           en=substr(k,1,length(k)-14);sub(/^.+\[/,"",en);    #
-                           eu[en*1]=substr($0,length($1 $2)+3);        next;} #
-  k ~/^entities\.(urls|media)\[[0-9]+\]\.display_url$/{                       #
-                           s=substr($0,length($1 $2)+3);sub(/^.*:\/\//,"",s); #
-                           i=index(s,"/");if(i==0){next;};s=substr(s,1,i-1);  #
-                           en=substr(k,1,length(k)-13);sub(/^.+\[/,"",en);    #
-                           du[en*1]=s;                                 next;} #
+  k ~/^(entities\.urls|extended_entities\.media)\[[0-9]+\]\.url$/{            #
+                           reg_tco_url(k,substr($0,length($1 $2)+3));         #
+                           en=1;                                       next;} #
+  k ~/^entities\.urls\[[0-9]+\]\.(expanded|display)_url$/{                    #
+                           reg_origurl(k,substr($0,length($1 $2)+3));  next;} #
+  k ~/^extended_entities\.media\[[0-9]+\]\.media_url_https$/{                 #
+                           reg_origurl(k,substr($0,length($1 $2)+3));  next;} #
   function init_param(lv) {tx=""; an=""; au="";                               #
                            nr=""; nf=""; fr=""; ff="";                        #
                            ge=""; la=""; lo=""; pl=""; pn="";                 #
-                           en= 0; split("",eu); split("",du);                 #
+                           split("",eu); split("",du); split("",mu);          #
+                           split("",tc); en=0;                                #
                            if (lv<2) {return;}                                #
                            tm=""; id=""; nm=""; sn=""; vf=""; rtwflg="";    } #
   function print_tw( r,f) {                                                   #
@@ -368,16 +368,62 @@ awk '                                                                         #
     printf("- %s (%s)\n"                            ,an,au    );              #
     printf("- https://twitter.com/i/web/status/%s\n",id       );              #
     init_param(2);                                                          } #
-  function replace_url( tx0,i) {                                              #
+  function reg_tco_url(k,v ,p,i) {                                            #
+    k=substr(k,1,length(k)-5);                                                #
+    p=index(k,"entities.urls["          );                                    #
+    if (p>0) {i="U" substr(k,p+14);                                           #
+              if (v in tc) {tc[v]=tc[v] " " i;} else {tc[v]=i;}               #
+              return;                                          }              #
+    p=index(k,"extended_entities.media[");                                    #
+    if (p>0) {i="M" substr(k,p+24);                                           #
+              if (v in tc) {tc[v]=tc[v] " " i;} else {tc[v]=i;}               #
+              return;                                          }            } #
+  function reg_origurl(k,v ,p,i) {                                            #
+    if        (sub(/\]\.media_url_https$/,"",k)) {                            #
+      p=index(k,"extended_entities.media[");                                  #
+      if (p==0) {return;}                                                     #
+      i="M" substr(k,p+24);                                                   #
+      if (i in mu) {mu[i]=mu[i] " " v;} else {mu[i]=v;}                       #
+    } else if (sub(/\]\.expanded_url$/   ,"",k)) {                            #
+      p=index(k,"entities.urls["          );                                  #
+      if (p==0) {return;}                                                     #
+      i="U" substr(k,p+14);                                                   #
+      if (i in eu) {eu[i]=eu[i] " " v;} else {eu[i]=v;}                       #
+    } else if (sub(/\]\.display_url$/    ,"",k)) {                            #
+      p=index(k,"entities.urls["          );                                  #
+      if (p==0) {return;}                                                     #
+      i="U" substr(k,p+14);                                                   #
+      if (i in du) {du[i]=du[i] " " v;} else {du[i]=v;}                       #
+    }                                                                       } #
+  function replace_url( tx0,u,i,p,a,b,c,d) {                                  #
     tx0=tx; tx=""; i=0;                                                       #
     while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                    #
-      if (!(i in eu)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);                 #
-                       tx0=   substr(tx0,  RSTART+RLENGTH  );i++;continue;}   #
-      tx=tx substr(tx0,1,RSTART-1); tx0=substr(tx0,RSTART+RLENGTH); s=eu[i];  #
-      if ((i in du) && (match(s,/:\/\/[^\/]+/))) {                            #
-        s = substr(s,1,RSTART+2) du[i] substr(s,RSTART+RLENGTH);              #
+      u=substr(tx0,RSTART,RLENGTH);                                           #
+      if (!(u in tc)) {tx =tx substr(tx0,1,RSTART+RLENGTH-1);                 #
+                       tx0=   substr(tx0,  RSTART+RLENGTH  );continue;}       #
+      tx=tx substr(tx0,1,RSTART-1); tx0=substr(tx0,RSTART+RLENGTH);           #
+      a="";                                                                   #
+      b=tc[u];                                                                #
+      while (match(b,/[UM][0-9]+/)) {                                         #
+        a=a substr(b,     1,RSTART-1);                                        #
+        i=  substr(b,RSTART,RLENGTH );                                        #
+        b=  substr(b,RSTART+RLENGTH );                                        #
+        if        (i in eu) {                                                 #
+          c=eu[i];                                                            #
+          if (i in du) {                                                      #
+            d=du[i];sub(/^https?:\/\//,"",d);sub(/\/.*$/,"",d);               #
+            if ((! index(d,"…")) && match(c,/:\/\/[^\/]+/)) {                #
+              c=substr(c,1,RSTART+2) d substr(c,RSTART+RLENGTH);              #
+            }                                                                 #
+          }                                                                   #
+        } else if (i in mu) {                                                 #
+          c=mu[i];                                                            #
+        } else              {                                                 #
+          c=u;                                                                #
+        }                                                                     #
+        a=a c;                                                                #
       }                                                                       #
-      tx=tx s; i++;                                                           #
+      tx=tx a b;                                                              #
     }                                                                         #
     tx=tx tx0;                                                             }' |
 # --- 2.convert date string into "YYYY/MM/DD hh:mm:ss"                        #

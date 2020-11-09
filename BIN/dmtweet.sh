@@ -4,7 +4,7 @@
 #
 # DMTWEET.SH : Post A Direct Message
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-09
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -39,7 +39,7 @@ print_usage_and_exit () {
 	            -m <media_id>  |--mediaid=<media_id>
 	            -l <lat>,<long>|--location=<lat>,<long>
 	            -p <place_id>  |--place=<place_id>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-11-09 13:28:40 JST
 	USAGE
   exit 1
 }
@@ -93,7 +93,9 @@ attached=0
 while :; do
   case "${1:-}" in
     --file=*)    case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  [ -x "$Homedir/BIN/twmediup.sh" ] || {
@@ -118,7 +120,9 @@ while :; do
                  shift
                  ;;
     -f)          case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  [ -x "$Homedir/BIN/twmediup.sh" ] || {
@@ -143,21 +147,27 @@ while :; do
                  shift 2
                  ;;
     --location=*) case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  location=$(printf '%s' "${1#--location=}" | tr -d '\n')
                  shift
                  ;;
     -l)          case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  location=$(printf '%s' "${2:-}" | tr -d '\n')
                  shift 2
                  ;;
     --mediaid=*) case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  s=$(printf '%s' "${1#--mediaid=}" | tr -d '\n')
@@ -170,7 +180,9 @@ while :; do
                  shift
                  ;;
     -m)          case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  s=$(printf '%s' "${2:-}" | tr -d '\n')
@@ -183,14 +195,18 @@ while :; do
                  shift 2
                  ;;
     --place=*)   case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  place=$(printf '%s' "${1#--place=}" | tr -d '\n')
                  shift
                  ;;
     -p)          case $attached in [!0]*)
-                   error_exit 1 'You can use the options only once at a time';;
+                   s='You can use these options only once at a time.'
+                   s="$s (-f/--file, -l/--location, -m/--mediaid, -p/--place)"
+                   error_exit 1 "$s";;
                  esac
                  attached=1
                  place=$(printf '%s' "${2:-}" | tr -d '\n')

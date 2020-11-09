@@ -201,7 +201,7 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |
 |   |-- twfav.sh ............. Like A Tweet (Mark Favorite)
 |   |-- twunfav.sh ........... Cancel "Like" (Favorite) for the Specified Tweet
-|   |-- favtws.sh ............ View The Favorite Tweets of A User
+|   |-- favtws.sh ............ View the Favorite Tweets of a User
 |   |
 |   |-- twfollow.sh .......... Follow A User
 |   |-- twunfollow.sh ........ Finish Following A User
