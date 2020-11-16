@@ -4,7 +4,7 @@
 #
 # FAVTWS.SH : View the Favorite Tweets of a User
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-17
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,7 +36,7 @@ print_usage_and_exit () {
 	          -v           |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-11-09 06:04:55 JST
+	Version : 2020-11-17 02:39:58 JST
 	USAGE
   exit 1
 }
@@ -329,11 +329,13 @@ awk '                                                                         #
                            reg_origurl(k,substr($0,length($1 $2)+3));  next;} #
   k ~/^extended_entities\.media\[[0-9]+\]\.media_url_https$/{                 #
                            reg_origurl(k,substr($0,length($1 $2)+3));  next;} #
+  k ~/^extended_entities\.media\[[0-9]+\]\.video_info\.[]a-z0-9[]+\.url$/{    #
+                          reg_mp4origurl(k,substr($0,length($1 $2)+3));next;} #
   function init_param(lv) {tx=""; an=""; au="";                               #
                            nr=""; nf=""; fr=""; ff="";                        #
                            ge=""; la=""; lo=""; pl=""; pn="";                 #
                            split("",eu); split("",du); split("",mu);          #
-                           split("",tc); en=0;                                #
+                           split("",vu); split("",tc); en=0;                  #
                            if (lv<2) {return;}                                #
                            tm=""; id=""; nm=""; sn=""; vf=""; rtwflg="";    } #
   function print_tw( r,f) {                                                   #
@@ -391,6 +393,18 @@ awk '                                                                         #
       i="U" substr(k,p+14);                                                   #
       if (i in du) {du[i]=du[i] " " v;} else {du[i]=v;}                       #
     }                                                                       } #
+  function reg_mp4origurl(k,v ,s,p,i) {                                       #
+    s=v; sub(/\?.*$/,"",s); if(!match(s,/\.mp4$/)){return;}                   #
+    if(!sub(/\]\.video_info\.variants\[[0-9]+\]\.url$/,"",k)){return;}        #
+    p=index(k,"extended_entities.media[");                                    #
+    if (p==0) {return;}                                                       #
+    i="M" substr(k,p+24);                                                     #
+    if (!(i in vu)) {vu[i]=v;return;}                                         #
+    if (get_varea(vu[i])<get_varea(v)) {vu[i]=v;}                           } #
+  function get_varea(url ,s,p) {                                              #
+    if(!match(url,/[0-9]+x[0-9]+/)){return 0;}                                #
+    s=substr(url,RSTART,RLENGTH); p=index(s,"x");                             #
+    return substr(s,1,p-1)*substr(s,p+1);                                   } #
   function replace_url( tx0,u,i,p,a,b,c,d) {                                  #
     tx0=tx; tx=""; i=0;                                                       #
     while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                    #
@@ -413,7 +427,7 @@ awk '                                                                         #
             }                                                                 #
           }                                                                   #
         } else if (i in mu) {                                                 #
-          c=mu[i];                                                            #
+          c=mu[i]; if (i in vu) {c=c " " vu[i];}                              #
         } else              {                                                 #
           c=u;                                                                #
         }                                                                     #

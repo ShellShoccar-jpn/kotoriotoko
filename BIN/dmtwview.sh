@@ -4,7 +4,7 @@
 #
 # DMTWVIEW.SH : View a Direct Message Which Is Inquired by Tweet-ID
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-09
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-17
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-11-09 17:51:20 JST
+	Version : 2020-11-17 03:23:44 JST
 	USAGE
   exit 1
 }
@@ -285,6 +285,10 @@ awk 'BEGIN                      {init_param(2);                             } #
                                  s =substr($0,length($1)+2);                  #
     if(match(s,/^https?:\/\/twitter\.com\/messages\/media\/[0-9]+$/)){next;}  #
                                  reg_origurl($1,s);                    next;} #
+     $1~/^attachment\.media(\[[0-9]+\])?\.video_info\.[]a-z0-9[]+\.url$/{     #
+                                 s =substr($0,length($1)+2);                  #
+    if(match(s,/^https?:\/\/twitter\.com\/messages\/media\/[0-9]+$/)){next;}  #
+                                 reg_mp4origurl($1,s);                 next;} #
      $1~/^entities\.(urls|media)\[[0-9]+\]\.expanded_url$/{                   #
                                  en=substr($1,1,length($1)-14);               #
                                  sub(/^.+\[/,"",en);                          #
@@ -301,7 +305,7 @@ awk 'BEGIN                      {init_param(2);                             } #
      END                        {print_tw();                                } #
      function init_param(lv)    {si=""; ri=""; ap="-";                        #
                                  split("",eu); split("",du); split("",mu);    #
-                                 split("",tc); en=0;                          #
+                                 split("",vu); split("",tc); en=0;            #
                                  if (lv<2) {return;}                          #
                                  tm=""; id=""; tx="";                       } #
      function print_tw() {                                                    #
@@ -324,7 +328,7 @@ awk 'BEGIN                      {init_param(2);                             } #
        if (RSTART>0) {i="M" substr(k,RSTART+RLENGTH);                         #
                       if (v in tc) {tc[v]=tc[v] " " i;} else {tc[v]=i;}       #
                       return;                                          }    } #
-     function reg_origurl(k,v ,p,i) {                                         #
+     function reg_origurl(k,v ,i) {                                           #
        if        (sub(/\]?\.media_url_https$/,"",k)) {                        #
          match(k,/^attachment.media\[?/);                                     #
          if (RSTART<1) {return;}                                              #
@@ -341,6 +345,18 @@ awk 'BEGIN                      {init_param(2);                             } #
          i="U" substr(k,RSTART+RLENGTH);                                      #
          if (i in du) {du[i]=du[i] " " v;} else {du[i]=v;}                    #
        }                                                                    } #
+     function reg_mp4origurl(k,v ,s,i) {                                      #
+       s=v; sub(/\?.*$/,"",s); if(!match(s,/\.mp4$/)){return;}                #
+       if(!sub(/\]?\.video_info\.variants\[[0-9]+\]\.url$/,"",k)){return;}    #
+       match(k,/^attachment.media\[?/);                                       #
+       if (RSTART<1) {return;}                                                #
+       i="M" substr(k,RSTART+RLENGTH);                                        #
+       if (!(i in vu)) {vu[i]=v;return;}                                      #
+       if (get_varea(vu[i])<get_varea(v)) {vu[i]=v;}                        } #
+     function get_varea(url ,s,p) {                                           #
+       if(!match(url,/[0-9]+x[0-9]+/)){return 0;}                             #
+       s=substr(url,RSTART,RLENGTH); p=index(s,"x");                          #
+       return substr(s,1,p-1)*substr(s,p+1);                                } #
      function replace_url( tx0,u,i,p,a,b,c,d) {                               #
        tx0=tx; tx=""; i=0;                                                    #
        while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                 #
@@ -363,7 +379,7 @@ awk 'BEGIN                      {init_param(2);                             } #
                }                                                              #
              }                                                                #
            } else if (i in mu) {                                              #
-             c=mu[i];                                                         #
+             c=mu[i]; if (i in vu) {c=c " " vu[i];}                           #
            } else              {                                              #
              c="";                                                            #
            }                                                                  #
