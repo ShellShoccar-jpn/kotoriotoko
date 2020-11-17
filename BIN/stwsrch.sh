@@ -38,22 +38,23 @@ print_usage_and_exit () {
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --rawonly
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-11-17 02:41:07 JST
+	Version : 2020-11-17 22:58:47 JST
 	USAGE
   exit 1
 }
 exit_trap() {
   set -- ${1:-} $?  # $? is set as $1 if no argument given
-  trap - EXIT HUP INT QUIT PIPE ALRM TERM
+  trap '' EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
   case "$webcmdpid" in '') sleep 1; webcmdpid=$(get_webcmdpid);; esac
   case "$webcmdpid" in
     '-'*) :                                 ;;
-       *) echo 'Flush buffered data...' 1>&3
+       *) echo 'Flush buffered data...' 1>&4
           kill $webcmdpid 2>/dev/null && fg
           webcmdpid=-1
           exec 1>&3 2>&4 3>&- 4>&-          ;;
   esac
+  trap - EXIT HUP INT QUIT PIPE ALRM TERM
   exit $1
 }
 error_exit() {
