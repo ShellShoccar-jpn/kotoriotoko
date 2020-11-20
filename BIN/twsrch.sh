@@ -4,7 +4,7 @@
 #
 # TWSRCH.SH : Search Twitters Which Match With Given Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-17
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-20
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -40,7 +40,7 @@ print_usage_and_exit () {
 	          -v                  |--verbose
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-11-17 02:25:58 JST
+	Version : 2020-11-20 09:16:29 JST
 	USAGE
   exit 1
 }
@@ -466,7 +466,7 @@ awk '                                                                         #
     if(!match(url,/[0-9]+x[0-9]+/)){return 0;}                                #
     s=substr(url,RSTART,RLENGTH); p=index(s,"x");                             #
     return substr(s,1,p-1)*substr(s,p+1);                                   } #
-  function replace_url( tx0,u,i,p,a,b,c,d) {                                  #
+  function replace_url( tx0,u,i,j,k,a,b,c,d,e) {                              #
     tx0=tx; tx=""; i=0;                                                       #
     while (match(tx0,/https?:\/\/t\.co\/[A-Za-z0-9_]+/)) {                    #
       u=substr(tx0,RSTART,RLENGTH);                                           #
@@ -481,10 +481,14 @@ awk '                                                                         #
         b=  substr(b,RSTART+RLENGTH );                                        #
         if        (i in eu) {                                                 #
           c=eu[i];                                                            #
-          if (i in du) {                                                      #
+          if ((i in du)&&match(c,"^https?://[^/]*xn--")) {                    #
             d=du[i];sub(/^https?:\/\//,"",d);sub(/\/.*$/,"",d);               #
             if ((! index(d,"…")) && match(c,/:\/\/[^\/]+/)) {                #
-              c=substr(c,1,RSTART+2) d substr(c,RSTART+RLENGTH);              #
+              e=d;gsub(/[^.]/,"",e);j=length(e)+1;                            #
+              match(c,"^https?://[^/]+");                                     #
+              e=substr(c,1,RLENGTH) ".";                                      #
+              for(k=0;k<j;k++){sub(/[^.]+\.$/,"",e);}                         #
+              c=e d substr(c,RLENGTH+1);                                      #
             }                                                                 #
           }                                                                   #
         } else if (i in mu) {                                                 #
