@@ -4,7 +4,7 @@
 #
 # TWTREND.SH : View Trend Lists in The Specified Area
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-10-01
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-12-06
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -36,14 +36,15 @@ print_usage_and_exit () {
 	          -e <label>, --exclude=<label>
 	            * If you set "hashtags" to <label>, it will not contain
 	              any hashtags in the trend list
-	Version : 2020-10-01 22:33:22 JST
+	Version : 2020-12-06 02:10:15 JST
 	USAGE
   exit 1
 }
 exit_trap() {
   set -- ${1:-} $?  # $? is set as $1 if no argument given
-  trap '-' EXIT HUP INT QUIT PIPE ALRM TERM
+  trap '' EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
+  trap -  EXIT HUP INT QUIT PIPE ALRM TERM
   exit $1
 }
 error_exit() {

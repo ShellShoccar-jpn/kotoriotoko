@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-05-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-12-06
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -47,14 +47,15 @@ print_usage_and_exit () {
 	          -g <lat,long,radius>|--geocode=<lat,long,radius>
 	          -l <lang>           |--lang=<lang>
 	          -o <locale>         |--locale=<locale>
-	Version : 2020-05-06 22:42:19 JST
+	Version : 2020-12-06 02:02:13 JST
 	USAGE
   exit 1
 }
 exit_trap() {
   set -- ${1:-} $?  # $? is set as $1 if no argument given
-  trap - EXIT HUP INT QUIT PIPE ALRM TERM
+  trap '' EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
+  trap -  EXIT HUP INT QUIT PIPE ALRM TERM
   exit $1
 }
 trap 'exit_trap' EXIT HUP INT QUIT PIPE ALRM TERM

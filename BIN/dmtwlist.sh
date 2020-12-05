@@ -4,7 +4,7 @@
 #
 # DMTWLIST.SH : List Direct Messages Which Have Been Both Sent And Received
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-11-20
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-12-06
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -34,14 +34,15 @@ print_usage_and_exit () {
 	          -p <cursor_code>|--cursor=<cursor_code>
 	          --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-11-20 09:34:49 JST
+	Version : 2020-12-06 02:03:34 JST
 	USAGE
   exit 1
 }
 exit_trap() {
   set -- ${1:-} $?  # $? is set as $1 if no argument given
-  trap '-' EXIT HUP INT QUIT PIPE ALRM TERM
+  trap '' EXIT HUP INT QUIT PIPE ALRM TERM
   [ -d "${Tmp:-}" ] && rm -rf "${Tmp%/*}/_${Tmp##*/_}"
+  trap -  EXIT HUP INT QUIT PIPE ALRM TERM
   exit $1
 }
 error_exit() {
