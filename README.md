@@ -24,7 +24,7 @@ And Kotoriotoko commands provide a lot of the following functions.
   * Unlike
 * Tweets Viewing
   * View Somebody's timeline
-  * Search tweets by keywords (you can also search with [**Streaming API**](https://dev.twitter.com/streaming/overview))
+  * Search tweets by keywords (you can also search with [**Streaming API**](https://developer.twitter.com/en/docs/twitter-api/v1/tweets/filter-realtime/overview))
 * User Controlling
   * Follow somebody
   * Unfollow somebody
@@ -79,8 +79,8 @@ You have to have the following stuff.
 1. A Twitter account
 2. A Unix host
 3. Two additional software
-  1. [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance. But you don't have to configure them anything at all.
-  2. [cURL](https://curl.haxx.se/) or [Wget](https://www.gnu.org/software/wget/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance.
+	1. [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance. But you don't have to configure them anything at all.
+	2. [cURL](https://curl.haxx.se/) or [Wget](https://www.gnu.org/software/wget/); if you have installed neither yet, you have to install one of them by source-compiling or package-management-system in advance.
 
 Most of all rental host service and/or Unix compatible OSs probably have the above software.
 
@@ -131,19 +131,26 @@ The second way is for people who want to execute kotoriotoko commands **at frequ
 
 ##### 1) Register your cell phone number onto Twitter service for identification
 
-Twitter service requires your cell phone number as a collateral for giving you application keys. To register it, you have to open the web page "[Mobile](https://twitter.com/settings/add_phone)" with your web browser. You can arrive there by "[Home](https://twitter.com/)" -> "[(Profile and) settings](https://twitter.com/settings/account)" -> "[Mobile](https://twitter.com/settings/add_phone)".
+Twitter service requires your cell phone number as a collateral for giving you application keys. To register it, you have to open the web page ["Phone"](https://twitter.com/settings/phone) with your web browser. You can arrive there by ["Home"](https://twitter.com/) -> ["Settings and privacy"/"Your account"](https://twitter.com/settings/account) -> ["Account information"](https://twitter.com/settings/your_twitter_data/account) -> ["Phone"](https://twitter.com/settings/phone).
 
-After registering your phone number, a PIN code will come to your phone by SMS. You have to input it on "Mobile" page finally.
+After registering your phone number, a PIN code will come to your phone by SMS. You have to input it onto the page finally.
 
 ##### 2) Get four authentication keys on Twitter Apps page
 
 At first, open [Twitter Developers' site](https://developer.twitter.com/). Then, sign up to create a developer account (Maybe needed a few days to be accepted your applying), and sign in.
 
-Next, open ["Creation an app"](https://developer.twitter.com/en/apps/create) and fill out all required columns. Be careful about keep "Callback URLs" blank or PIN code will not be generated, PIN is necessary for this app. Finally, press "create" button.
+Next, open ["Create App"](https://developer.twitter.com/en/portal/apps/new). You can arrive there by -> ["Developer Portal"](https://developer.twitter.com/en/portal/dashboard) -> ["Overview" under "Projects & Apps"](https://developer.twitter.com/en/portal/projects-and-apps). Then, write your new app name into "App name" field and press "Complete" button. 
 
-And then, move to the application page you just created and click "Permission" tab first. You should change the permisson level to "Read, write, and direct messages" on "Access permission".
+And then, you should also press "App setting" button on the next page to move to its configuration page. On the page, you have to change "App permissions" from "Read only" to "Read, Write, and Direct Messages," which are all required by kotoriotoko. And, you should also write its explanation into the "DESCRIPTION" field in "App Details." It will help your app users.
 
-Next, move to "Keys and Tokens" tab. So, you can get the required 4 auth-keys, API key, API secret key, Access token and Access token secret. Copy or memorize them for the next step.
+Finally, move to "Keys and Tokens" tab. You can get the following four auth-keys by pressing "Regenerate" buttons on this page.
+
+* API key
+* API key secret
+* Access token
+* Access token secret
+
+Don't forget to copy or memorize them for the next step.
 
 ##### 3) Write the keys into CONFIG.SHLIB
 
