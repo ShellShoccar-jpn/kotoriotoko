@@ -1,0 +1,145 @@
+#!/bin/sh
+
+######################################################################
+#
+# TARIZE : Apply "tar.gz" to the Specified Directories
+#
+# This command converts a file or a directory into a "tar.gz" archive
+# files. However, this requires some non-POSIX commands. That is one
+# of the following patterns.
+# (a) tar command
+# (b) pax command that supports the "-z" option
+# (c) pax command that does not support the "-z" option + gzip command
+#
+# === Usage ===
+# Usage : tarize file_or_dir#1 [file_or_dir#2 [...]]
+# Args  : file_or_dir ... the target file to be converted
+#
+#
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2021-10-27
+#
+# This is a public-domain software (CC0). It means that all of the
+# people can use this for any purposes with no restrictions at all.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
+#
+######################################################################
+
+
+######################################################################
+# Initial configuration
+######################################################################
+
+# === Initialize shell environment ===================================
+set -u
+umask 0022
+export LC_ALL=C
+export PATH="$(command -p getconf PATH 2>/dev/null)${PATH+:}${PATH-}"
+case $PATH in :*) PATH=${PATH#?};; esac
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
+
+# === Usage printing function ========================================
+print_usage_and_exit () {
+  cat <<-USAGE 1>&2
+	Usage : ${0##*/} file_or_dir#1 [file_or_dir#2 [...]]
+	Args  : file_or_dir ... the target file to be converted
+	Version : 2021-10-27 18:09:32 JST
+	          (POSIX Bourne Shell/POSIX commands/archiver commands)
+	USAGE
+  exit 1
+}
+error_exit() {
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
+  exit ${1:-0}
+}
+
+# === Make sure the dependent commands exist =========================
+if   tar zcf - /dev/null >/dev/null 2>&1; then
+  type=1
+elif pax -wz /dev/null >/dev/null 2>&1; then
+  type=2
+elif pax -w  /dev/null >/dev/null 2>&1 && type gzip >/dev/null 2>&1; then
+  type=3
+else
+  error_exit 1 'Dependent command(s) not found. See the header comment of me.'
+fi
+
+
+######################################################################
+# Parse Arguments
+######################################################################
+
+case $# in 0) print_usage_and_exit;; esac
+
+
+######################################################################
+# Main
+######################################################################
+
+for Dir_target in "$@"; do
+  case "$Dir_target" in
+    /|..|../|.|./)  error_exit 1 "$Dir_target"': Invalid file or dir'
+                    ;;
+    /*)             Dir_base=${Dir_target%/*}
+                    case "$Dir_base" in '') Dir_base='/';; esac
+                    s=${Dir_target%/}
+                    file_trg=${s##*/}
+                    case "$file_trg" in '')
+                      error_exit 1 "$Dir_target"': Invalid file or dir'
+                    ;; esac
+                    ;;
+    ../*|./*)       Dir_base=$(cd "${Dir_target%/*}" && pwd)
+                    case "$Dir_base" in '')
+                      error_exit 1 "$Dir_target"': Invalid file or dir'
+                    ;; esac
+                    s=${Dir_target%/}
+                    file_trg=${s##*/}
+                    case "$file_trg" in '')
+                      error_exit 1 "$Dir_target"': Invalid file or dir'
+                    ;; esac
+                    ;;
+    *)              Dir_base=$(cd "./${Dir_target%/*}" && pwd)
+                    case "$Dir_base" in '')
+                      error_exit 1 "$Dir_target"': Invalid file or dir'
+                    ;; esac
+                    s=${Dir_target%/}
+                    file_trg=${s##*/}
+                    ;;
+  esac
+  case "$file_trg" in *.gz)
+    echo "${0##*/}: $Dir_target: It is already gzipped, skip it." 1>&2
+    continue
+  ;; esac
+  cd "$Dir_base" || error_exit 1 "$Dir_target"': Invalid file or dir'
+  case $type in
+    1) if ! tar zcpf ${file_trg}.tar.gz ${file_trg}; then
+         echo "${0##*/}: $Dir_target: Failed to compress, skip it." 1>&2
+         cd -; continue
+       fi
+       ;;
+    2) if ! pax -wz ${file_trg} > ${file_trg}.tar.gz; then
+         echo "${0##*/}: $Dir_target: Failed to compress, skip it." 1>&2
+         cd -; continue
+       fi
+       ;;
+    3) if   ! pax -w ${file_trg} > ${file_trg}.tar; then
+         echo "${0##*/}: $Dir_target: Failed to compress, skip it." 1>&2
+         continue
+       elif ! gzip ${file_trg}.tar                ; then
+         echo "${0##*/}: $Dir_target: Failed to compress, skip it." 1>&2
+         cd -; continue
+       fi
+       ;;
+  esac
+  printf '%s.tar.gz\n' "$Dir_target" 1>&2
+  rm -rf "${file_trg}"
+  cd - >/dev/null 2>&1
+
+done
+
+
+######################################################################
+# Finish
+######################################################################
+
+exit 0

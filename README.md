@@ -4,9 +4,9 @@
 
 * [What is This?](#what-is-this)
 * [How to Install](#how-to-install)
-  * [Step 0. Make sure the requirements](#step-0-make-sure-the-requirements)
-  * [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
-  * [Step 2. Get four Twitter authentication keys and write them into a config file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
+	* [Step 0. Make sure the requirements](#step-0-make-sure-the-requirements)
+	* [Step 1. Install Kotoriotoko](#step-1-install-kotoriotoko)
+	* [Step 2. Get four Twitter authentication keys and write them into a config file](#step-2-get-four-twitter-authentication-keys-and-write-them-into-a-config-file)
 * [Usage](#usage)
 * [License](#license)
 
@@ -17,28 +17,28 @@ Kotoriotoko, it means "Little Bird Man" in Japanese, is a command set to operate
 And Kotoriotoko commands provide a lot of the following functions.
 
 * Posting
-  * Tweet (*you can also attach up to 4 image files or 1 video file and location info*)
-  * Retweet
-  * Cancel a tweet
-  * Like
-  * Unlike
+	* Tweet (*you can also attach up to 4 image files or 1 video file and location info*)
+	* Retweet
+	* Cancel a tweet
+	* Like
+	* Unlike
 * Tweets Viewing
-  * View Somebody's timeline
-  * Search tweets by keywords (you can also search with [**Streaming API**](https://developer.twitter.com/en/docs/twitter-api/v1/tweets/filter-realtime/overview))
+	* View Somebody's timeline
+	* Search tweets by keywords (you can also search with [**Streaming API**](https://developer.twitter.com/en/docs/twitter-api/v1/tweets/filter-realtime/overview))
 * User Controlling
-  * Follow somebody
-  * Unfollow somebody
-  * List users who you following
-  * List users who you are followed
-  * View Somebody's info
+	* Follow somebody
+	* Unfollow somebody
+	* List users who you following
+	* List users who you are followed
+	* View Somebody's info
 * Direct Message Managing
-  * Send (*up to 10,000 chrs, and you can also attach 1 image/video file or location info*)
-  * Receive
-  * Delete
-  * List
+	* Send (*up to 10,000 chrs, and you can also attach 1 image/video file or location info*)
+	* Receive
+	* Delete
+	* List
 * Other functions
-  * View trend list
-  * Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
+	* View trend list
+	* Gather tweets in bulk continuously (*it also supports multi-byte character contained tweets*, which is impossible by Streaming API)
 
 Moreover, Kotoriotoko has more the following three strong points.
 
