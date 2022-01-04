@@ -193,28 +193,29 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |
 |   |-- getstarted.sh ........ Get auth-keys (Only execute before starting to use kotoriotoko)
 |   |
-|   |-- tweet.sh ............. Post A Tweet
-|   |-- retweet.sh ........... Retweet A Tweet
-|   |-- deltweet.sh .......... Delete A Tweet
-|   |-- twmediup.sh .......... Upload An Image or Video File To Twitter
+|   |-- tweet.sh ............. Post a Tweet
+|   |-- ltweet.sh ............ Post One-Line-Tweets Line by Line
+|   |-- retweet.sh ........... Retweet a Tweet
+|   |-- deltweet.sh .......... Delete a Tweet
+|   |-- twmediup.sh .......... Upload an Image or Video File to Twitter
 |   |                          (The subcontract command of "tweet.sh"）
-|   |-- twvideoup.sh ......... Upload A Video File To Twitter
+|   |-- twvideoup.sh ......... Upload a Video File To Twitter
 |   |                          (The sub-sub contract command which will be called by "twmediup.sh")
 |   |
-|   |-- twview.sh ............ View Tweets Which Are Request By Tweet-IDs
+|   |-- twview.sh ............ View Tweets Which Are Request by Tweet-IDs
 |   |-- twtl.sh .............. View The Twitter Timeline of A User
 |   |-- twsrch.sh ............ Search Twitters Which Match With Given Keywords
 |   |-- retwers.sh ........... View Users List Who Retweet the Specified Tweet
 |   |
-|   |-- twfav.sh ............. Like A Tweet (Mark Favorite)
+|   |-- twfav.sh ............. Like a Tweet (Mark Favorite)
 |   |-- twunfav.sh ........... Cancel "Like" (Favorite) for the Specified Tweet
 |   |-- favtws.sh ............ View the Favorite Tweets of a User
 |   |
-|   |-- twfollow.sh .......... Follow A User
-|   |-- twunfollow.sh ........ Finish Following A User
-|   |-- twfer.sh ............. List Followers Of A Person
-|   |-- twfing.sh ............ List Following Users Of A Person
-|   |-- twusers.sh ........... List Users Which Are Request By IDs
+|   |-- twfollow.sh .......... Follow a User
+|   |-- twunfollow.sh ........ Finish Following a User
+|   |-- twfer.sh ............. List Followers of a Person
+|   |-- twfing.sh ............ List Following Users of a Person
+|   |-- twusers.sh ........... List Users Which Are Request by IDs
 |   |
 |   |-- getbtwid.sh .......... Get Your Bearer Token (it's required by b*.sh commands)
 |   |-- btwsrch.sh ........... Search Twitters Which Match With Given Keywords (on Bearer Token Mode *1)
@@ -230,8 +231,9 @@ To know the usage, you should the following file/directory list. The files in "`
 |   |-- twplsrch.sh .......... Search Place Information with Given Keywords
 |   |-- twtrends.sh .......... View Trend Lists in The Specified Area
 |   |
-|   |-- dmtweet.sh ........... Post A Direct Message
-|   |-- deldmtw.sh ........... Delete A Direct Message
+|   |-- dmtweet.sh ........... Post a Direct Message
+|   |-- ldmtweet.sh .......... Post One-Line Direct Messages Line by Line
+|   |-- deldmtw.sh ........... Delete a Direct Message
 |   |-- dmtwview.sh .......... View a Direct Message Which Is Inquired by Tweet-IDs
 |   `-- dmtwlist.sh .......... List Direct Messages Which Have Been Both Sent And Received
 |
