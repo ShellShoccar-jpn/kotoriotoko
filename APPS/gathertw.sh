@@ -4,7 +4,7 @@
 #
 # GATHERTW.SH : Gather Tweets Which Match the Searching Keywords
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-12-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2021-06-15
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -47,7 +47,7 @@ print_usage_and_exit () {
 	          -g <lat,long,radius>|--geocode=<lat,long,radius>
 	          -l <lang>           |--lang=<lang>
 	          -o <locale>         |--locale=<locale>
-	Version : 2020-12-06 02:02:13 JST
+	Version : 2021-06-15 21:15:06 JST
 	USAGE
   exit 1
 }
@@ -307,12 +307,12 @@ Tmp=`mktemp -d -t "_${0##*/}.$$.XXXXXXXXXXXX"` || {
 }
 
 # === Set misc parameters ============================================
+interval_ok=2         # min. interval (sec) to call btwsrch.sh(API)
 intervals_ng="$interval_ok 10 20 40 80 160 240" # retry intervals when error
 count=100             # max tweets which could be gathered at once (up tp 100)
 maxretry_ok=$retry    # retry times when no tweet has gotten normally
 maxretry_ng=4         # retry times when something error has been happened
 CMD_TWSRCH=btwsrch.sh # name of Twitter search command
-interval_ok=2         # min. interval (sec) to call btwsrch.sh(API)
 #
 $CMD_TWSRCH 2>/dev/null; case $? in 255) usermode=1;; esac
 case $usermode in [!0]*) CMD_TWSRCH=twsrch.sh; interval_ok=5;; esac
