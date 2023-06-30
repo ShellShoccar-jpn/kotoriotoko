@@ -4,7 +4,7 @@
 #
 # DMTWVIEW.SH : View a Direct Message Which Is Inquired by Tweet-ID
 #
-# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2020-12-06
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 2023-06-30
 #
 # This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
@@ -32,7 +32,7 @@ print_usage_and_exit () {
 	Usage   : ${0##*/} [options] <tweet_id> [tweet_id...]
 	Options : --rawout=<filepath_for_writing_JSON_data>
 	          --timeout=<waiting_seconds_to_connect>
-	Version : 2020-12-06 02:05:25 JST
+	Version : 2023-06-30 16:53:48 JST
 	USAGE
   exit 1
 }
@@ -489,7 +489,7 @@ done
 
 num=$(awk '$1=="tweet"  {t++; next;}
            $1=="success"{s++; next;}
-           END          {print s,t;}' "$Tmp/numbers.txt")
+           END          {print +s,+t;}' "$Tmp/numbers.txt")
 if   [ ${num#* } -eq 0         ]; then exit 3
 elif [ ${num% *} -eq 0         ]; then exit 2
 elif [ ${num% *} -lt ${num#* } ]; then exit 1
